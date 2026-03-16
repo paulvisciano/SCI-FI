@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <!-- Disable service worker caching -->
+    <meta name="service-worker" content="no-cache">
+    <title>Neuro Graph — JARVIS / Paul</title>
+    <link rel="stylesheet" href="./shared/neural-graph.css">
+    <style>
+        .brain-switcher { padding: 6px 0; }
+        .brain-switcher-label { font-size: 10px; color: #0088ff; margin-right: 8px; }
+        .brain-switcher-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+        .brain-btn { padding: 4px 10px; font-size: 10px; border-radius: 6px; cursor: pointer; border: 1px solid rgba(0,255,255,0.3); background: rgba(0,0,0,0.3); color: #94a3b8; font-family: inherit; }
+        .brain-btn:hover { color: #00ffff; border-color: rgba(0,255,255,0.5); }
+        .brain-btn.active { background: rgba(0,255,255,0.2); color: #00ffff; border-color: #00ffff; }
+        .brain-counts { display: flex; flex-direction: column; gap: 4px; }
+        .brain-count-row { display: flex; align-items: baseline; gap: 6px; font-size: 10px; }
+        .brain-count-label { color: #94a3b8; min-width: 3em; }
+        .brain-count-stat { color: #00ffff; font-weight: bold; }
+        .panel-meta-hidden { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div id="info" class="collapsed">
+        <div class="panel-top">
+        <div class="panel-top-content">
+        <div class="panel-header">
+            <h3>⚡ Neuro Graph</h3>
+            <p class="tagline">Memories. Alive. Connected.</p>
+        </div>
+        <div class="filter-section brain-switcher" role="region" aria-label="Switch brain">
+            <span class="brain-switcher-label">Brain:</span>
+            <div class="brain-switcher-buttons">
+                <button type="button" class="brain-btn" data-brain="JARVIS-memories" aria-pressed="true">JARVIS</button>
+                <button type="button" class="brain-btn" data-brain="PAUL-memories" aria-pressed="false">Paul</button>
+            </div>
+        </div>
+        <p class="panel-status" id="status">—</p>
+        <p class="panel-meta panel-meta-hidden" aria-hidden="true">
+            <span class="stat" id="count">0</span> <span class="stat" id="synapseCount">0</span>
+        </p>
+        <div class="filter-section">
+            <button type="button" class="collapsible-trigger" id="filters-toggle" aria-expanded="true" aria-controls="filters-body" data-accordion-body="filters-body">
+                <span>Filters</span>
+                <span id="filters-chevron">▲</span>
+            </button>
+            <div id="filters-body" class="collapsible-body accordion-body accordion-body-filters open" role="region" aria-label="Filters">
+                <div id="filter-row-category" class="filter-row" role="group" aria-label="Filter by neuron type">
+                    <!-- Populated by JS from available types in current time frame -->
+                </div>
+            </div>
+        </div>
+        <div class="filter-section">
+            <button type="button" class="filter-toggle collapsible-trigger" id="filter-toggle" aria-expanded="true" aria-controls="filter-list-wrap" data-accordion-body="filter-list-wrap">
+                <span>Jump to node</span>
+                <span id="filter-chevron">▲</span>
+            </button>
+            <div id="filter-list-wrap" class="accordion-body accordion-body-jump open" role="region" aria-label="Jump to node">
+                <div class="filter-row filter-row-search" role="search">
+                    <input type="search" id="node-search-input" placeholder="Search nodes…" aria-label="Filter nodes by name" autocomplete="off">
+                </div>
+                <div id="filter-list" class="filter-list" role="list" aria-label="Node list by category"></div>
+            </div>
+        </div>
+        </div>
+        <div class="filter-section">
+            <button type="button" class="collapsible-trigger" id="actions-toggle" aria-expanded="false" aria-controls="actions-body" data-accordion-body="actions-body">
+                <span>Actions</span>
+                <span id="actions-chevron">▼</span>
+            </button>
+            <div id="actions-body" class="collapsible-body accordion-body accordion-body-actions" role="region" aria-label="Actions">
+                <div class="panel-buttons">
+                    <button class="primary" id="share-memory-btn" type="button">⎘ Share</button>
+                    <button class="primary" onclick="walk()">⚡ Random Pulse</button>
+                    <button class="primary" onclick="clearSelection()">✕ Clear</button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+    <canvas id="canvas"></canvas>
+    <button type="button" id="panel-toggle" aria-label="Expand panel">‹</button>
+    
+    <div id="neural-graph-drawer-mount"></div>
+    <script src="./shared/neural-graph-drawer.js"></script>
+
+    <div id="share-modal-overlay" class="share-modal-overlay" aria-hidden="true">
+        <div class="share-modal" role="dialog" aria-labelledby="share-modal-title">
+            <h3 id="share-modal-title">Share — Jarvis Neural Mind</h3>
+            <div class="share-preview" id="share-preview"></div>
+            <div class="share-actions">
+                <button type="button" class="btn-copy" id="share-modal-copy">Copy</button>
+                <button type="button" class="btn-share" id="share-modal-native">Share…</button>
+                <button type="button" class="btn-close" id="share-modal-close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var BRAIN_KEY = 'neuroGraphBrain';
+        var defaultBrain = 'JARVIS-memories';
+        var currentBrain = (typeof localStorage !== 'undefined' && localStorage.getItem(BRAIN_KEY)) || defaultBrain;
+        window.NEURAL_GRAPH_CONFIG = {
+            dataBasePath: currentBrain,
+            brains: [
+                { id: 'jarvis', label: 'JARVIS', path: 'JARVIS-memories' },
+                { id: 'paul', label: 'Paul', path: 'PAUL-memories' }
+            ],
+            categoryColors: { self: '#fbbf24', foundation: '#06b6d4', value: '#a78bfa', capability: '#38bdf8', person: '#f87171', project: '#10b981', infrastructure: '#8b5cf6', temporal: '#f59e0b', emotion: '#06b6d4', archive: '#a78bfa' },
+            archiveSubtypeColors: { image: '#c084fc', audio: '#34d399', video: '#f472b6', document: '#94a3b8', default: '#a78bfa' },
+            filterCategoryOrder: ['temporal', 'learning', 'archive', 'file', 'self', 'foundation', 'value', 'capability', 'project', 'infrastructure', 'person'],
+            filterCategoryLabels: { temporal: 'Temporal', learning: 'Learnings', archive: 'Archive', file: 'File', self: 'Self', foundation: 'Foundation', value: 'Values', capability: 'Capabilities', project: 'Projects', infrastructure: 'Infrastructure', person: 'People' },
+            fallbackNodes: [
+                { id: 0, name: 'Paul', type: 'person', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 10, color: '#FF6B6B', glow: 22, freq: 100, desc: 'Urban Runner, digital nomad' },
+                { id: 1, name: 'Volleyball', type: 'activity', x: 80, y: -60, z: 40, vx: 0, vy: 0, vz: 0, size: 9, color: '#00ffff', glow: 20, freq: 50, desc: '18 years of competition, flow state' },
+                { id: 2, name: 'Bangkok', type: 'location', x: -70, y: 50, z: -50, vx: 0, vy: 0, vz: 0, size: 8, color: '#00ff88', glow: 18, freq: 40, desc: 'Primary base, Urban Runner epicenter' }
+            ],
+            fallbackEdges: [ { from: 0, to: 1, weight: 8 }, { from: 0, to: 2, weight: 7 }, { from: 1, to: 2, weight: 6 } ],
+            shareTitle: "Neuro Graph — Neural Mind",
+            shareShortBoot: "Interactive neural graph. JARVIS and Paul memories. Part of SCI-FI neuro-graph.",
+            shareVerifyUrlDefault: 'paulvisciano.github.io/claw/memory/BOOT.md',
+            shareHeading: "Neuro Graph",
+            shareLoadMemoryLabel: "Load memory at the start of a new session",
+            liveUrl: window.location.href,
+            characterProfilesUrl: '',
+            getFullContextFetchUrl: function(path) { return path; },
+            rawCommitBase: '',
+            rawOrigin: ''
+        };
+        document.addEventListener('DOMContentLoaded', function() {
+            var buttons = document.querySelectorAll('.brain-btn');
+            function setActiveBrain(path) {
+                currentBrain = path;
+                window.NEURAL_GRAPH_CONFIG.dataBasePath = path;
+                buttons.forEach(function(btn) {
+                    var isActive = btn.getAttribute('data-brain') === path;
+                    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                    btn.classList.toggle('active', isActive);
+                });
+            }
+            setActiveBrain(currentBrain);
+            buttons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var path = this.getAttribute('data-brain');
+                    if (!path || path === currentBrain) return;
+                    localStorage.setItem(BRAIN_KEY, path);
+                    setActiveBrain(path);
+                    if (window.loadMemory) window.loadMemory('latest');
+                });
+            });
+        });
+    })();
+    </script>
+    <script src="./shared/neural-graph.js?v=2026-03-11c"></script>
+    <script>
+        // Drawer stats (date, count, hash) are updated by neural-graph.js from graph data and memory-version dataset.
+    </script>
+    <!-- Deployment verification: 2026-02-22 15:31:58 UTC -->
+    <div id="memory-version" style="position: fixed; bottom: 10px; left: 10px; font-size: 8px; color: #00ff00; opacity: 0.3; pointer-events: none; z-index: 1;">
+        v:2026-02-22-15:31:58
+    </div>
+</body>
+</html>

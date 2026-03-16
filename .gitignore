@@ -13,12 +13,13 @@ logs/
 .DS_Store
 
 # Node modules (each app has its own)
-**/node_modules/
+apps/**/node_modules/
 
 # Symlinks
-data
-archive
-shared
+apps/JARVIS/data
+apps/JARVIS/archive
+apps/JARVIS/neuro-graph
+apps/neuro-graph/shared
 
 # Secrets
 *.pem
