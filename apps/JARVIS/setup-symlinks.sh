@@ -1,16 +1,18 @@
 #!/bin/bash
 # Setup symlinks for JARVIS deployment
-# Assumes ~/JARVIS/ and ~/SCI-FI/ are at the same root level
+# Auto-detects repo locations
 
 echo "🔧 Setting up JARVIS symlinks..."
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Auto-detect SCI-FI location (go up 2 levels from apps/JARVIS)
 SCI_FI_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Define paths (sibling directories)
+# Define paths
 MEMORIES_TARGET="$HOME/JARVIS/RAW/memories"
 ARCHIVE_TARGET="$HOME/RAW/archive"
-NEUROGRAPH_TARGET="$SCI_FI_DIR/SCI-FI/apps/neuro-graph"
+NEUROGRAPH_TARGET="$SCI_FI_DIR/apps/neuro-graph"
 
 # Check if targets exist
 if [ ! -d "$MEMORIES_TARGET" ]; then
@@ -21,7 +23,8 @@ fi
 
 if [ ! -d "$NEUROGRAPH_TARGET" ]; then
     echo "❌ Error: $NEUROGRAPH_TARGET does not exist"
-    echo "   Make sure SCI-FI repo is at ~/SCI-FI/"
+    echo "   SCI-FI repo detected at: $SCI_FI_DIR"
+    echo "   Make sure neuro-graph folder exists at: $NEUROGRAPH_TARGET"
     exit 1
 fi
 
