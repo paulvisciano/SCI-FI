@@ -1,0 +1,26 @@
+# Large binaries
+*.bin
+*.mp4
+*.mov
+*.avi
+
+# Logs
+*.log
+*.err
+logs/
+
+# OS files
+.DS_Store
+
+# Node modules (each app has its own)
+**/node_modules/
+
+# Symlinks
+data
+archive
+shared
+
+# Secrets
+*.pem
+*.key
+.env
