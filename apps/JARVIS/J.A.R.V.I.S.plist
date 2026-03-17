@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>J.A.R.V.I.S</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-lc</string>
+        <string>exec /usr/local/bin/node ~/SCI-FI/apps/JARVIS/jarvis-server.js</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>~/SCI-FI/apps/JARVIS</string>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <true/>
+    
+    <key>StandardOutPath</key>
+    <string>~/SCI-FI/apps/JARVIS/JARVIS.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>~/SCI-FI/apps/JARVIS/JARVIS.err</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>VOICE_PORT</key>
+        <string>18787</string>
+        <key>VOICE_INBOX_DIR</key>
+        <string>~/JARVIS/inbox</string>
+        <key>VOICE_LIVE_DIR</key>
+        <string>~/JARVIS/live</string>
+        <key>VOICE_MODEL_DIR</key>
+        <string>~/SCI-FI/apps/JARVIS</string>
+        <key>VOICE_ARCHIVE_BASE</key>
+        <string>~/RAW/archive</string>
+        <key>NEUROGRAPH_DIR</key>
+        <string>~/SCI-FI/apps/neuro-graph</string>
+    </dict>
+</dict>
+</plist>
