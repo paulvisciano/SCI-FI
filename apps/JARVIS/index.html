@@ -412,21 +412,23 @@
             50% { transform: scale(1.1); }
         }
 
-        /* Clean futuristic transcript */
+        /* Clean futuristic transcript - scrollable so you see both your message and JARVIS reply */
         #transcript {
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 20px;
             margin-top: 20px;
-            min-height: 200px; /* Reserve space upfront - prevents layout shift */
+            min-height: 120px;
+            max-height: min(60vh, 480px);
+            overflow-y: auto;
             text-align: left;
             font-size: 0.95em;
             line-height: 1.8;
-            display: block; /* Always visible, just empty when not recording */
+            display: block;
             backdrop-filter: blur(5px);
-            flex-shrink: 0; /* Don't compress */
-            cursor: pointer; /* Click to show path */
+            flex-shrink: 1;
+            cursor: pointer;
             position: relative;
         }
         
@@ -573,7 +575,7 @@
                     <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
                 </div>
             </div>
-            <div id="transcript-text" style="max-height: 200px; overflow-y: auto; margin-bottom:15px;"></div>
+            <div id="transcript-text" style="margin-bottom:15px;"></div>
             <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
             <div class="jarvis-response" id="jarvis-response" style="display:none;">
                 <div class="label" style="margin-top:15px;">Jarvis Response</div>

@@ -442,12 +442,62 @@ function handleRequest(req, res) {
     }
 
     // Get latest transcription status (check both live/ and archive/, return most recent)
-    if (req.url === '/transcript/status' || req.url === '/transcript/latest') {
+    if (req.url.startsWith('/transcript/status') || req.url.startsWith('/transcript/latest')) {
         try {
-            // Collect all transcripts from both live/ and archive/ folders
+            const urlObj = new URL(req.url || '', 'http://localhost');
+            const fileParam = urlObj.searchParams.get('file');
+            const recordingBase = fileParam ? fileParam.replace(/\.[^.]+$/, '') : null;
+
+            // If client asked for a specific upload, return that recording's result from memory (no file lookup)
+            if (recordingBase && pendingResponses.has(recordingBase)) {
+                const data = pendingResponses.get(recordingBase);
+                pendingResponses.delete(recordingBase);
+                res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({
+                    status: 'done',
+                    transcript: data.transcript,
+                    jarvisResponse: data.jarvisResponse,
+                    file: fileParam
+                }));
+                return;
+            }
+
+            // Scoped request but not ready yet: report status for this file only
+            if (recordingBase) {
+                const wavBase = recordingBase + '.wav';
+                const txtName = wavBase + '.txt';
+                const hasWav = fs.existsSync(path.join(CONFIG.liveDir, wavBase));
+                const hasTxt = fs.existsSync(path.join(CONFIG.liveDir, txtName));
+                if (lastError && (lastError.file || '').startsWith(recordingBase)) {
+                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                    res.end(JSON.stringify({
+                        status: 'error',
+                        error: lastError.message,
+                        errorType: lastError.type,
+                        errorDetails: lastError.details || '',
+                        file: lastError.file
+                    }));
+                    return;
+                }
+                if (hasTxt) {
+                    const transcriptPath = path.join(CONFIG.liveDir, txtName);
+                    const transcript = fs.readFileSync(transcriptPath, 'utf8').trim();
+                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                    res.end(JSON.stringify({ status: 'processing', transcript, message: 'Agent thinking...', file: fileParam }));
+                    return;
+                }
+                if (hasWav) {
+                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                    res.end(JSON.stringify({ status: 'transcribing', message: 'Transcription in progress...', file: fileParam }));
+                    return;
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                res.end(JSON.stringify({ status: 'transcribing', message: 'Waiting for file...', file: fileParam }));
+                return;
+            }
+
+            // No ?file: legacy "latest by mtime" behavior
             const allTranscripts = [];
-            
-            // Get transcripts from live/ folder (use file mtime = actually latest)
             if (fs.existsSync(CONFIG.liveDir)) {
                 const liveFiles = fs.readdirSync(CONFIG.liveDir)
                     .filter(f => f.endsWith('.wav.txt'))
@@ -574,6 +624,8 @@ function handleRequest(req, res) {
 // === Whisper Transcription ===
 // Track last error for UI display
 let lastError = null;
+// In-memory responses for the upload that just finished (key = recording base e.g. "recording-1733")
+const pendingResponses = new Map();
 
 function processRecording(filepath, extension) {
     const timestamp = new Date().toISOString();
@@ -657,14 +709,14 @@ function handleTranscript(filepath, transcript, extension) {
     const userMessage = transcript.trim();
     console.log('🤖 User message:', userMessage);
 
+    let responseText = '';
     try {
         const agentOutput = execSync(
             `openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`,
             { encoding: 'utf8' }
         );
         console.log('✅ Sent user message to main agent');
-        // Extract reply text (strip log lines) and write for /transcript/latest to serve
-        const responseText = agentOutput.split('\n')
+        responseText = agentOutput.split('\n')
             .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
             .join('\n').trim();
         if (responsePath && responseText) {
@@ -673,6 +725,9 @@ function handleTranscript(filepath, transcript, extension) {
     } catch (agentErr) {
         console.error('❌ Failed to send message to agent:', agentErr.message);
     }
+    // So client can get this recording's response in the poll body (no file lookup)
+    const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
+    pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null });
 }
 
 function archiveRecording(filepath, extension, transcript) {

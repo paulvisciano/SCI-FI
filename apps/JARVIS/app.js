@@ -180,7 +180,7 @@ async function sendToServer() {
 
             transcriptText.innerHTML = '<span style="color: #00ff88;">✅ ' + result.message + '</span>';
 
-            pollForTranscript();
+            pollForTranscript(result.filename);
         } else {
             status.textContent = '❌ Upload failed';
             transcriptText.innerHTML = `<span style="color: #ff4444;">❌ Upload failed: ${result.message || 'Unknown error'}</span>`;
@@ -224,11 +224,12 @@ function formatResponseText(text) {
         .replace(/\n/g, '<br>');
 }
 
-async function pollForTranscript() {
+async function pollForTranscript(uploadFilename) {
     let attempts = 0;
     const maxAttempts = 180; // 3 min - whisper + agent can be slow
     let agentWaitStart = null;
     let thinkingTimer = null;
+    const fileParam = uploadFilename ? '?file=' + encodeURIComponent(uploadFilename) : '';
 
     const clearThinkingTimer = () => {
         if (thinkingTimer) {
@@ -242,7 +243,7 @@ async function pollForTranscript() {
         attempts++;
 
         try {
-            const response = await fetch(`${API_BASE}/transcript/latest`);
+            const response = await fetch(`${API_BASE}/transcript/latest${fileParam}`);
             if (response.ok) {
                 const data = await response.json();
 
@@ -251,6 +252,22 @@ async function pollForTranscript() {
                     transcript.classList.remove('pulsate');
                     transcriptText.innerHTML = '<span style="color: #ffd700;">⏳ Transcribing...</span>';
                     status.textContent = 'Processing...';
+                } else if (data.status === 'processing' && data.transcript) {
+                    transcriptText.textContent = data.transcript;
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    document.getElementById('transcript-time').textContent = `${dateStr} ${timeStr}`;
+                    transcript.classList.add('pulsate');
+                    status.style.color = '#ffd700';
+                    if (!agentWaitStart) {
+                        agentWaitStart = Date.now();
+                        status.textContent = 'Agent thinking… 0:00';
+                        thinkingTimer = setInterval(() => {
+                            const elapsed = (Date.now() - agentWaitStart) / 1000;
+                            status.textContent = `Agent thinking… ${formatElapsed(elapsed)}`;
+                        }, 1000);
+                    }
                 } else if (data.status === 'done' && data.transcript) {
                     transcriptText.textContent = data.transcript;
 
@@ -267,6 +284,8 @@ async function pollForTranscript() {
                         status.style.color = '#00ff88';
                         status.style.textShadow = '0 0 30px rgba(0, 255, 136, 0.6)';
                         status.style.opacity = '1';
+                        // Ensure LIVE TRANSCRIPTION shows your message (not stuck on "Transcribing...")
+                        transcriptText.textContent = data.transcript;
                         responseText.innerHTML = formatResponseText(data.jarvisResponse);
                         jarvisResponse.style.display = 'block';
                         playResponse(data.jarvisResponse);
@@ -292,6 +311,19 @@ async function pollForTranscript() {
                     }
                     status.textContent = '❌ Error';
                     status.style.color = '#ff4444';
+                } else if (data.status === 'done' && data.jarvisResponse && !data.transcript) {
+                    /* Server sent done + response but no transcript (edge case): still show response and clear "Transcribing..." */
+                    if (transcriptText.textContent === '' || transcriptText.innerHTML.includes('Transcribing') || transcriptText.innerHTML.includes('Processing')) {
+                        transcriptText.textContent = '—';
+                    }
+                    clearInterval(pollInterval);
+                    clearThinkingTimer();
+                    transcript.classList.remove('pulsate');
+                    status.textContent = '✅ Complete';
+                    status.style.color = '#00ff88';
+                    responseText.innerHTML = formatResponseText(data.jarvisResponse);
+                    jarvisResponse.style.display = 'block';
+                    playResponse(data.jarvisResponse);
                 } else if (data.status === 'idle') {
                     clearThinkingTimer();
                     transcript.classList.remove('pulsate');
