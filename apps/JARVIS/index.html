@@ -412,15 +412,15 @@
             50% { transform: scale(1.1); }
         }
 
-        /* Clean futuristic transcript - compact, stable height; content scrolls if long */
+        /* Clean futuristic transcript - fixed height; content scrolls if long */
         #transcript {
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 20px;
             margin-top: 20px;
-            min-height: 140px;                  /* enough space for labels + 1–2 lines */
-            max-height: 40vh;                   /* never taller than 40% of viewport */
+            width: min(640px, 90vw);            /* fixed, centered width */
+            height: clamp(160px, 32vh, 340px);  /* fixed visual height within reasonable bounds */
             overflow-y: auto;                   /* scroll when content exceeds max height */
             text-align: left;
             font-size: 0.95em;
@@ -511,6 +511,19 @@
             opacity: 0.6;
         }
 
+        /* Sticky transcript header background so content doesn't show through while scrolling */
+        .transcript-header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            background: linear-gradient(to bottom, rgba(10,17,40,0.98), rgba(10,17,40,0.92));
+        }
+
         .jarvis-response {
             margin-top: 20px;
             padding-top: 15px;
@@ -545,7 +558,7 @@
         </div>
         
         <div id="transcript">
-            <div class="label" style="margin-bottom:8px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 2; background: rgba(10, 17, 40, 0.95); padding-bottom: 8px;">
+            <div class="label transcript-header">
                 <span>Live Transcription</span>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <span id="transcript-time" style="font-size: 0.75em; color: #00ffff; opacity: 0.8; font-weight: 600;"></span>
