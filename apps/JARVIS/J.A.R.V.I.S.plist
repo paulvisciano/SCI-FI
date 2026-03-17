@@ -9,11 +9,8 @@
     <array>
         <string>/bin/bash</string>
         <string>-lc</string>
-        <string>exec /usr/local/bin/node ~/SCI-FI/apps/JARVIS/jarvis-server.js</string>
+        <string>exec ~/SCI-FI/apps/JARVIS/scripts/launch-jarvis.sh</string>
     </array>
-    
-    <key>WorkingDirectory</key>
-    <string>~/SCI-FI/apps/JARVIS</string>
     
     <key>RunAtLoad</key>
     <true/>
@@ -22,10 +19,10 @@
     <true/>
     
     <key>StandardOutPath</key>
-    <string>~/SCI-FI/apps/JARVIS/JARVIS.log</string>
+    <string>/Users/paulvisciano/SCI-FI/apps/JARVIS/JARVIS.log</string>
     
     <key>StandardErrorPath</key>
-    <string>~/SCI-FI/apps/JARVIS/JARVIS.err</string>
+    <string>/Users/paulvisciano/SCI-FI/apps/JARVIS/JARVIS.err</string>
     
     <key>EnvironmentVariables</key>
     <dict>
@@ -33,16 +30,6 @@
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>VOICE_PORT</key>
         <string>18787</string>
-        <key>VOICE_INBOX_DIR</key>
-        <string>~/JARVIS/inbox</string>
-        <key>VOICE_LIVE_DIR</key>
-        <string>~/JARVIS/live</string>
-        <key>VOICE_MODEL_DIR</key>
-        <string>~/SCI-FI/apps/JARVIS</string>
-        <key>VOICE_ARCHIVE_BASE</key>
-        <string>~/RAW/archive</string>
-        <key>NEUROGRAPH_DIR</key>
-        <string>~/SCI-FI/apps/neuro-graph</string>
     </dict>
 </dict>
 </plist>

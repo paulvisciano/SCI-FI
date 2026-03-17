@@ -1,13 +1,13 @@
 #!/bin/bash
 # Setup symlinks for JARVIS deployment
-# Auto-detects repo locations
+# Auto-detects repo locations (run from scripts/ or app root)
 
 echo "🔧 Setting up JARVIS symlinks..."
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# Auto-detect SCI-FI location (go up 2 levels from apps/JARVIS)
-SCI_FI_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+JARVIS_DIR="$(dirname "$SCRIPT_DIR")"
+# From scripts/ -> JARVIS -> apps -> SCI-FI repo root
+SCI_FI_DIR="$(dirname "$(dirname "$JARVIS_DIR")")"
 
 # Define paths
 MEMORIES_TARGET="$HOME/JARVIS/RAW/memories"
@@ -34,7 +34,7 @@ if [ ! -d "$ARCHIVE_TARGET" ]; then
 fi
 
 # Create symlinks in JARVIS folder
-cd "$SCRIPT_DIR"
+cd "$JARVIS_DIR"
 rm -f data memories neuro-graph archive 2>/dev/null
 
 ln -s "$MEMORIES_TARGET" memories
@@ -56,6 +56,6 @@ echo ""
 echo "🎉 All symlinks created successfully!"
 echo ""
 echo "Next steps:"
-echo "1. cd $SCRIPT_DIR"
+echo "1. cd $JARVIS_DIR"
 echo "2. npm install"
 echo "3. node jarvis-server.js"
