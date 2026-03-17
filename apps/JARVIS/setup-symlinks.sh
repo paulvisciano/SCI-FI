@@ -35,10 +35,10 @@ fi
 
 # Create symlinks in JARVIS folder
 cd "$SCRIPT_DIR"
-rm -f data neuro-graph archive 2>/dev/null
+rm -f data memories neuro-graph archive 2>/dev/null
 
-ln -s "$MEMORIES_TARGET" data
-echo "✅ data -> $MEMORIES_TARGET"
+ln -s "$MEMORIES_TARGET" memories
+echo "✅ memories -> $MEMORIES_TARGET"
 
 ln -s "$NEUROGRAPH_TARGET" neuro-graph  
 echo "✅ neuro-graph -> $NEUROGRAPH_TARGET"
@@ -46,11 +46,11 @@ echo "✅ neuro-graph -> $NEUROGRAPH_TARGET"
 ln -s "$ARCHIVE_TARGET" archive
 echo "✅ archive -> $ARCHIVE_TARGET"
 
-# Create symlink in neuro-graph folder for shared data
+# Create symlink in neuro-graph folder for memories (shared = same content)
 cd "$NEUROGRAPH_TARGET"
 rm -f shared 2>/dev/null
-ln -s "../JARVIS/data" shared
-echo "✅ neuro-graph/shared -> ../JARVIS/data"
+ln -s "../JARVIS/memories" shared
+echo "✅ neuro-graph/shared -> ../JARVIS/memories"
 
 echo ""
 echo "🎉 All symlinks created successfully!"
