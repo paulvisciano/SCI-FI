@@ -395,11 +395,6 @@ function checkServerStatus() {
 checkServerStatus();
 setInterval(checkServerStatus, 5000);
 
-document.getElementById('play-response-btn')?.addEventListener('click', () => {
-    const responseText = document.getElementById('response-text').textContent;
-    if (responseText) playResponse(responseText);
-});
-
 // === Network Dots Integration ===
 (function() {
     const protocol = window.location.protocol;
