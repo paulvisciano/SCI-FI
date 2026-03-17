@@ -574,9 +574,16 @@
         </div>
     </div>
     
-    <!-- Recording button + Server status at bottom, full width on mobile -->
+    <!-- Recording button + optional location sharing + Server status at bottom, full width on mobile -->
     <div style="position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; padding: 0 20px; box-sizing: border-box;">
-        <button id="record-btn" style="margin-bottom: 12px; padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
+        <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap;">
+            <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
+            <button id="share-location-btn" style="padding: 8px 14px; background: rgba(0,217,255,0.18); border: 1px solid #00d9ff; color: #00d9ff; border-radius: 999px; font-size: 11px; cursor: pointer; letter-spacing: 1.5px; text-transform: uppercase;">📍 Share once</button>
+            <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#64ffda; cursor:pointer;">
+                <input id="include-location-toggle" type="checkbox" style="accent-color:#00d9ff; cursor:pointer;">
+                <span>Include location with messages</span>
+            </label>
+        </div>
         <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
         <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
             <span class="indicator" id="server-indicator"></span>

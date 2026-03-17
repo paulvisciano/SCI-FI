@@ -21,8 +21,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '2.7.0';
-const BUILD_DATE = '2026-03-16';
+const VERSION = '2.7.1';
+const BUILD_DATE = '2026-03-17';
 
 const CONFIG = {
     port: process.env.VOICE_PORT || 18787,
@@ -191,6 +191,57 @@ function handleRequest(req, res) {
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
+        return;
+    }
+
+    if (req.method === 'POST' && req.url === '/location') {
+        let body = '';
+        req.on('data', chunk => {
+            body += chunk.toString('utf8');
+        });
+        req.on('end', async () => {
+            try {
+                const parsed = JSON.parse(body || '{}');
+                const { latitude, longitude, accuracy, timestamp } = parsed;
+
+                if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Invalid coordinates' }));
+                    return;
+                }
+
+                const locationData = {
+                    type: 'location_share',
+                    timestamp: timestamp || new Date().toISOString(),
+                    coordinates: { latitude, longitude, accuracy }
+                };
+
+                // Send a structured location message to the main agent, just like voice messages
+                try {
+                    const pretty = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                    const payload = JSON.stringify(locationData).replace(/"/g, '\\"');
+                    const userMessage = `[LOCATION] ${pretty}\n\nRAW payload:\n${payload}`;
+                    const agentOutput = execSync(
+                        `openclaw agent --agent main --message "${userMessage}" 2>&1`,
+                        { encoding: 'utf8' }
+                    );
+                    console.log('✅ Sent location to main agent');
+                    console.log(agentOutput);
+                } catch (agentErr) {
+                    console.error('❌ Failed to send location to agent:', agentErr.message);
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+                }));
+            } catch (err) {
+                console.error('Location endpoint error:', err.message || err);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Internal server error' }));
+            }
+        });
         return;
     }
 

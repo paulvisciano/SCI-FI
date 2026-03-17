@@ -24,6 +24,27 @@ const responseText = document.getElementById('response-text');
 const jarvisOrb = document.getElementById('jarvis-orb');
 const jarvisOrbContainer = document.getElementById('jarvis-orb').parentElement;
 const jarvisVideo = document.getElementById('jarvis-video');
+const includeLocationToggle = document.getElementById('include-location-toggle');
+
+function showStatus(message, level = 'info') {
+    if (!status) return;
+    status.textContent = message;
+    status.style.opacity = '1';
+
+    if (level === 'error') {
+        status.style.color = '#ff4444';
+        status.style.textShadow = '0 0 24px rgba(255, 68, 68, 0.7)';
+    } else if (level === 'success') {
+        status.style.color = '#00ff88';
+        status.style.textShadow = '0 0 24px rgba(0, 255, 136, 0.7)';
+    } else if (level === 'warning') {
+        status.style.color = '#ffd700';
+        status.style.textShadow = '0 0 24px rgba(255, 215, 0, 0.7)';
+    } else {
+        status.style.color = '#64ffda';
+        status.style.textShadow = '0 0 16px rgba(100, 255, 218, 0.5)';
+    }
+}
 
 let mediaRecorder;
 let audioChunks = [];
@@ -43,6 +64,67 @@ jarvisVideo.addEventListener('error', () => {
     recordBtn.style.display = 'block';
     jarvisOrb.style.display = 'none';
 });
+
+const shareLocationBtn = document.getElementById('share-location-btn');
+
+async function shareLocationOnce() {
+    if (!navigator.geolocation) {
+        showStatus('Geolocation not supported by your browser', 'error');
+        return;
+    }
+
+    showStatus('Requesting location…', 'info');
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const { latitude, longitude, accuracy } = position.coords || {};
+            try {
+                const response = await fetch(`${API_BASE}/location`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        latitude,
+                        longitude,
+                        accuracy,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (!response.ok) {
+                    showStatus(`Location error: server returned ${response.status}`, 'error');
+                    return;
+                }
+
+                const result = await response.json();
+                if (!result || !result.success) {
+                    showStatus(`Location error: ${result && result.error ? result.error : 'Unknown error'}`, 'error');
+                    return;
+                }
+
+                const label = result.placeName || 'Location';
+                const address = result.address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+                showStatus(`Location shared: ${label} (${address})`, 'success');
+            } catch (err) {
+                console.error('Location share failed:', err);
+                showStatus('Location error: server unreachable', 'error');
+            }
+        },
+        (error) => {
+            showStatus(`Location error: ${error.message}`, 'error');
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+    );
+}
+
+if (shareLocationBtn) {
+    shareLocationBtn.addEventListener('click', () => {
+        shareLocationOnce();
+    });
+}
 
 jarvisVideo.addEventListener('loadeddata', () => {
     console.log('Video loaded successfully');
@@ -179,6 +261,12 @@ async function sendToServer() {
             document.getElementById('transcript-path').title = `Full path: /Users/paulvisciano/RAW/archive/${today}/audio/`;
 
             transcriptText.innerHTML = '<span style="color: #00ff88;">✅ ' + result.message + '</span>';
+
+            // Optionally include location with this message if user opted in
+            if (includeLocationToggle && includeLocationToggle.checked) {
+                // Fire and forget; transcript polling continues regardless
+                shareLocationOnce();
+            }
 
             pollForTranscript(result.filename);
         } else {
