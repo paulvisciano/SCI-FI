@@ -712,35 +712,42 @@ function archiveRecording(filepath, extension, transcript) {
 }
 
 // === Start Server ===
-if (HTTPS_ENABLED) {
-    https.createServer(HTTPS_OPTIONS, handleRequest).listen(CONFIG.port, () => {
-        console.log('\n╔═══════════════════════════════════════════════════════════╗');
-        console.log('║     🎙️  JARVIS VOICE PIPELINE RUNNING                    ║');
-        console.log('╠═══════════════════════════════════════════════════════════╣');
-        console.log(`║  Version: ${VERSION} (${BUILD_DATE})                            ║`);
-        console.log(`║  Upload URL: https://localhost:${CONFIG.port}/upload                 ║`);
-        console.log(`║  Inbox: ${CONFIG.inboxDir.padEnd(44)}║`);
-        console.log(`║  Model: ${CONFIG.whisperModel.padEnd(45)}║`);
-        console.log(`║  Whisper CLI: ${CONFIG.whisperCli.padEnd(39)}║`);
-        console.log('║                                                           ║');
-        console.log('║  Flow: Record → Upload → Transcribe → Archive            ║');
-        console.log('╚═══════════════════════════════════════════════════════════╝\n');
+const protocol = HTTPS_ENABLED ? 'https' : 'http';
+const baseUrl = `${protocol}://localhost:${CONFIG.port}`;
+
+function logStartup() {
+    console.log('\n╔═══════════════════════════════════════════════════════════╗');
+    console.log('║     🎙️  JARVIS VOICE PIPELINE RUNNING                    ║');
+    console.log('╠═══════════════════════════════════════════════════════════╣');
+    console.log(`║  Version: ${VERSION} (${BUILD_DATE})                            ║`);
+    console.log(`║  Upload URL: ${baseUrl}/upload${HTTPS_ENABLED ? '                 ' : '                  '}║`);
+    console.log('║                                                           ║');
+    console.log('║  Flow: Record → Upload → Transcribe → Archive            ║');
+    console.log('╚═══════════════════════════════════════════════════════════╝\n');
+    console.log('Config:');
+    console.log('  port:', CONFIG.port);
+    console.log('  inboxDir:', CONFIG.inboxDir);
+    console.log('  liveDir:', CONFIG.liveDir);
+    console.log('  modelDir:', CONFIG.modelDir);
+    console.log('  archiveBase:', CONFIG.archiveBase);
+    console.log('  gatewayUrl:', CONFIG.gatewayUrl);
+    console.log('  whisperModel:', CONFIG.whisperModel);
+    console.log('  whisperCli:', CONFIG.whisperCli);
+    console.log('  neurographDir:', CONFIG.neurographDir);
+    console.log('');
+    console.log('Paths / URLs:');
+    console.log('  JARVIS UI:    ', baseUrl + '/');
+    console.log('  Neuro graph:  ', baseUrl + '/neuro-graph/');
+    console.log('');
+    if (HTTPS_ENABLED) {
         console.log('🔒 HTTPS enabled (self-signed cert) — mobile mic access works');
-    });
+    }
+}
+
+if (HTTPS_ENABLED) {
+    https.createServer(HTTPS_OPTIONS, handleRequest).listen(CONFIG.port, logStartup);
 } else {
-    http.createServer(handleRequest).listen(CONFIG.port, () => {
-        console.log('\n╔═══════════════════════════════════════════════════════════╗');
-        console.log('║     🎙️  JARVIS VOICE PIPELINE RUNNING                    ║');
-        console.log('╠═══════════════════════════════════════════════════════════╣');
-        console.log(`║  Version: ${VERSION} (${BUILD_DATE})                            ║`);
-        console.log(`║  Upload URL: http://localhost:${CONFIG.port}/upload                  ║`);
-        console.log(`║  Inbox: ${CONFIG.inboxDir.padEnd(44)}║`);
-        console.log(`║  Model: ${CONFIG.whisperModel.padEnd(45)}║`);
-        console.log(`║  Whisper CLI: ${CONFIG.whisperCli.padEnd(39)}║`);
-        console.log('║                                                           ║');
-        console.log('║  Flow: Record → Upload → Transcribe → Archive            ║');
-        console.log('╚═══════════════════════════════════════════════════════════╝\n');
-    });
+    http.createServer(handleRequest).listen(CONFIG.port, logStartup);
 }
 
 // Archive leftovers on startup (safety net for crashed timeouts)
