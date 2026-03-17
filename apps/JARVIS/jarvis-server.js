@@ -15,8 +15,8 @@ const QRCode = require('qrcode');
 // === HTTPS Configuration ===
 const HTTPS_ENABLED = true;
 const HTTPS_OPTIONS = {
-    key: fs.readFileSync(path.join(__dirname, 'https-key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'https-cert.pem'))
+    key: fs.readFileSync(path.join(__dirname, 'assets', 'https-key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, 'assets', 'https-cert.pem'))
 };
 
 
@@ -28,7 +28,7 @@ const CONFIG = {
     port: process.env.VOICE_PORT || 18787,
     inboxDir: process.env.VOICE_INBOX_DIR || path.join(process.env.HOME, 'JARVIS', 'inbox'),
     liveDir: process.env.VOICE_LIVE_DIR || path.join(process.env.HOME, 'JARVIS', 'live'),
-    modelDir: process.env.VOICE_MODEL_DIR || path.join(process.env.HOME, 'SCI-FI', 'apps', 'JARVIS'),
+    modelDir: process.env.VOICE_MODEL_DIR || path.join(__dirname, 'assets'),
     archiveBase: process.env.VOICE_ARCHIVE_BASE || path.join(process.env.HOME, 'RAW', 'archive'),
     gatewayUrl: process.env.VOICE_GATEWAY_URL || 'ws://127.0.0.1:18789',
     whisperModel: process.env.VOICE_WHISPER_MODEL || 'ggml-large-v3.bin',
