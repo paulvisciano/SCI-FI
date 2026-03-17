@@ -447,15 +447,14 @@ function handleRequest(req, res) {
             // Collect all transcripts from both live/ and archive/ folders
             const allTranscripts = [];
             
-            // Get transcripts from live/ folder
+            // Get transcripts from live/ folder (use file mtime = actually latest)
             if (fs.existsSync(CONFIG.liveDir)) {
                 const liveFiles = fs.readdirSync(CONFIG.liveDir)
                     .filter(f => f.endsWith('.wav.txt'))
                     .map(f => {
-                        // Extract timestamp from filename: recording-1773415764483.wav.txt
-                        const match = f.match(/recording-(\d+)\.wav\.txt/);
-                        const ts = match ? parseInt(match[1]) : 0;
-                        return { name: f, ts: ts, dir: 'live', path: CONFIG.liveDir };
+                        const fullPath = path.join(CONFIG.liveDir, f);
+                        const mtimeMs = fs.statSync(fullPath).mtimeMs;
+                        return { name: f, mtimeMs, dir: 'live', path: CONFIG.liveDir };
                     });
                 allTranscripts.push(...liveFiles);
             }
@@ -467,26 +466,15 @@ function handleRequest(req, res) {
                 const archiveFiles = fs.readdirSync(archiveDir)
                     .filter(f => f.endsWith('.wav.txt'))
                     .map(f => {
-                        // Extract timestamp from filename: convo-jarvis-2026-03-16-150654.wav.txt
-                        const match = f.match(/convo-jarvis-(\d{4}-\d{2}-\d{2})-(\d{6})\.wav\.txt/);
-                        if (match) {
-                            // Convert timestamp to milliseconds for comparison
-                            const dateStr = match[1];
-                            const timeStr = match[2];
-                            const hours = timeStr.substring(0, 2);
-                            const mins = timeStr.substring(2, 4);
-                            const secs = timeStr.substring(4, 6);
-                            const fullStr = `${dateStr} ${hours}:${mins}:${secs}`;
-                            const ts = Date.parse(fullStr);
-                            return { name: f, ts: ts, dir: 'archive', path: archiveDir };
-                        }
-                        return { name: f, ts: 0, dir: 'archive', path: archiveDir };
+                        const fullPath = path.join(archiveDir, f);
+                        const mtimeMs = fs.statSync(fullPath).mtimeMs;
+                        return { name: f, mtimeMs, dir: 'archive', path: archiveDir };
                     });
                 allTranscripts.push(...archiveFiles);
             }
             
-            // Sort by timestamp (most recent first)
-            const latestFile = allTranscripts.sort((a, b) => b.ts - a.ts)[0];
+            // Sort by file mtime (most recently modified first)
+            const latestFile = allTranscripts.sort((a, b) => b.mtimeMs - a.mtimeMs)[0];
             
             if (latestFile) {
                 const dirPath = latestFile.dir === 'archive' ? latestFile.path : CONFIG.liveDir;
@@ -506,7 +494,7 @@ function handleRequest(req, res) {
                     transcript, 
                     jarvisResponse,
                     file: latestFile.name,
-                    timestamp: latestFile.mtime
+                    timestamp: latestFile.mtimeMs
                 }));
             } else {
                 // No transcript yet - check for pending recordings or errors
@@ -663,22 +651,28 @@ function handleTranscript(filepath, transcript, extension) {
     currentTranscription.transcriptPath = transcriptPath;
     
     // Archive IMMEDIATELY - no timeout (server restarts lose files)
-    archiveRecording(filepath, extension, transcript);
-    
+    const responsePath = archiveRecording(filepath, extension, transcript);
+
     // Extract user message from transcript and send it to the main agent
     const userMessage = transcript.trim();
     console.log('🤖 User message:', userMessage);
 
     try {
-        execSync(
-            `openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}"`,
-            { stdio: 'pipe' }
+        const agentOutput = execSync(
+            `openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`,
+            { encoding: 'utf8' }
         );
         console.log('✅ Sent user message to main agent');
+        // Extract reply text (strip log lines) and write for /transcript/latest to serve
+        const responseText = agentOutput.split('\n')
+            .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
+            .join('\n').trim();
+        if (responsePath && responseText) {
+            fs.writeFileSync(responsePath, responseText);
+        }
     } catch (agentErr) {
         console.error('❌ Failed to send message to agent:', agentErr.message);
     }
-    // Archive already scheduled - will run in 30 seconds
 }
 
 function archiveRecording(filepath, extension, transcript) {
@@ -688,27 +682,28 @@ function archiveRecording(filepath, extension, transcript) {
         fs.mkdirSync(archiveDir, { recursive: true });
     }
     
-    const base = path.basename(filepath, extension);
     const timestamp = new Date().toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + new Date().toTimeString().split(' ')[0].replace(/:/g, '');
     const archivedName = `convo-jarvis-${timestamp}${extension}`;
-    
+    const responsePath = path.join(archiveDir, archivedName.replace('.wav', '.response.txt'));
+
     // Move audio files
     try {
         fs.renameSync(filepath, path.join(archiveDir, archivedName));
         fs.renameSync(filepath + '.txt', path.join(archiveDir, `${archivedName}.txt`));
-        
+
         // Also move webm if exists
         const webmPath = filepath.replace('.wav', '.webm');
         if (fs.existsSync(webmPath)) {
             fs.renameSync(webmPath, path.join(archiveDir, archivedName.replace('.wav', '.webm')));
         }
-        
+
         console.log('💾 Archived to:', archiveDir);
         console.log('📁 Files:', archivedName);
     } catch (err) {
         console.error('⚠️ Archive failed:', err.message);
-        // Don't fail if move fails - files stay in live/
+        return null;
     }
+    return responsePath;
 }
 
 // === Start Server ===
@@ -744,11 +739,10 @@ function logStartup() {
     }
 }
 
-if (HTTPS_ENABLED) {
-    https.createServer(HTTPS_OPTIONS, handleRequest).listen(CONFIG.port, logStartup);
-} else {
-    http.createServer(handleRequest).listen(CONFIG.port, logStartup);
-}
+const server = HTTPS_ENABLED
+    ? https.createServer(HTTPS_OPTIONS, handleRequest)
+    : http.createServer(handleRequest);
+server.listen(CONFIG.port, logStartup);
 
 // Archive leftovers on startup (safety net for crashed timeouts)
 function archiveLeftovers() {

@@ -205,9 +205,38 @@ async function sendToServer() {
     }
 }
 
+function formatElapsed(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return m > 0 ? `${m}:${s.toString().padStart(2, '0')}` : `0:${s.toString().padStart(2, '0')}`;
+}
+
+// Format agent response: escape HTML, preserve newlines, render **bold**
+function formatResponseText(text) {
+    if (!text) return '';
+    const escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    return escaped
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+}
+
 async function pollForTranscript() {
     let attempts = 0;
-    const maxAttempts = 30;
+    const maxAttempts = 180; // 3 min - whisper + agent can be slow
+    let agentWaitStart = null;
+    let thinkingTimer = null;
+
+    const clearThinkingTimer = () => {
+        if (thinkingTimer) {
+            clearInterval(thinkingTimer);
+            thinkingTimer = null;
+        }
+        agentWaitStart = null;
+    };
 
     const pollInterval = setInterval(async () => {
         attempts++;
@@ -218,6 +247,7 @@ async function pollForTranscript() {
                 const data = await response.json();
 
                 if (data.status === 'transcribing') {
+                    clearThinkingTimer();
                     transcript.classList.remove('pulsate');
                     transcriptText.innerHTML = '<span style="color: #ffd700;">⏳ Transcribing...</span>';
                     status.textContent = 'Processing...';
@@ -231,21 +261,30 @@ async function pollForTranscript() {
 
                     if (data.jarvisResponse) {
                         clearInterval(pollInterval);
+                        clearThinkingTimer();
                         transcript.classList.remove('pulsate');
                         status.textContent = '✅ Complete';
                         status.style.color = '#00ff88';
                         status.style.textShadow = '0 0 30px rgba(0, 255, 136, 0.6)';
                         status.style.opacity = '1';
-                        responseText.textContent = data.jarvisResponse;
+                        responseText.innerHTML = formatResponseText(data.jarvisResponse);
                         jarvisResponse.style.display = 'block';
                         playResponse(data.jarvisResponse);
                     } else {
                         transcript.classList.add('pulsate');
-                        status.textContent = 'Sent to agent...';
                         status.style.color = '#ffd700';
+                        if (!agentWaitStart) {
+                            agentWaitStart = Date.now();
+                            status.textContent = 'Agent thinking… 0:00';
+                            thinkingTimer = setInterval(() => {
+                                const elapsed = (Date.now() - agentWaitStart) / 1000;
+                                status.textContent = `Agent thinking… ${formatElapsed(elapsed)}`;
+                            }, 1000);
+                        }
                     }
                 } else if (data.status === 'error') {
                     clearInterval(pollInterval);
+                    clearThinkingTimer();
                     transcript.classList.remove('pulsate');
                     transcriptText.innerHTML = '<span style="color: #ff4444;">❌ ' + data.error + '</span>';
                     if (data.errorDetails) {
@@ -254,6 +293,7 @@ async function pollForTranscript() {
                     status.textContent = '❌ Error';
                     status.style.color = '#ff4444';
                 } else if (data.status === 'idle') {
+                    clearThinkingTimer();
                     transcript.classList.remove('pulsate');
                     transcriptText.textContent = 'Waiting for input...';
                 }
@@ -267,6 +307,7 @@ async function pollForTranscript() {
 
         if (attempts >= maxAttempts) {
             clearInterval(pollInterval);
+            clearThinkingTimer();
             transcript.classList.remove('pulsate');
             transcriptText.innerHTML = '<span style="color: #ff8800;">⏱️ Timeout - no transcript received</span>';
             status.textContent = 'Timeout';
