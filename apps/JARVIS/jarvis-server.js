@@ -450,13 +450,16 @@ function handleRequest(req, res) {
 
             // If client asked for a specific upload, return that recording's result from memory (no file lookup)
             if (recordingBase && pendingResponses.has(recordingBase)) {
-                const data = pendingResponses.get(recordingBase);
-                pendingResponses.delete(recordingBase);
+                const entry = pendingResponses.get(recordingBase);
+                // Keep in map for 5 min so repeat polls still get the response (first response can be lost/raced)
+                if (entry.at && Date.now() - entry.at > 300000) {
+                    pendingResponses.delete(recordingBase);
+                }
                 res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
                 res.end(JSON.stringify({
                     status: 'done',
-                    transcript: data.transcript,
-                    jarvisResponse: data.jarvisResponse,
+                    transcript: entry.transcript || '',
+                    jarvisResponse: entry.jarvisResponse ?? null,
                     file: fileParam
                 }));
                 return;
@@ -725,9 +728,9 @@ function handleTranscript(filepath, transcript, extension) {
     } catch (agentErr) {
         console.error('❌ Failed to send message to agent:', agentErr.message);
     }
-    // So client can get this recording's response in the poll body (no file lookup)
+    // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
     const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
-    pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null });
+    pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
 }
 
 function archiveRecording(filepath, extension, transcript) {

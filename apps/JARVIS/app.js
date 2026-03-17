@@ -250,7 +250,13 @@ async function pollForTranscript(uploadFilename) {
                 if (data.status === 'transcribing') {
                     clearThinkingTimer();
                     transcript.classList.remove('pulsate');
-                    transcriptText.innerHTML = '<span style="color: #ffd700;">⏳ Transcribing...</span>';
+                    // Don't overwrite the user's message with "Transcribing..." (race: server can return transcribing after moving file to archive)
+                    const alreadyHaveTranscript = transcriptText.textContent.trim().length > 0
+                        && !transcriptText.innerHTML.includes('Transcribing')
+                        && !transcriptText.innerHTML.includes('Processing');
+                    if (!alreadyHaveTranscript) {
+                        transcriptText.innerHTML = '<span style="color: #ffd700;">⏳ Transcribing...</span>';
+                    }
                     status.textContent = 'Processing...';
                 } else if (data.status === 'processing' && data.transcript) {
                     transcriptText.textContent = data.transcript;
@@ -284,22 +290,19 @@ async function pollForTranscript(uploadFilename) {
                         status.style.color = '#00ff88';
                         status.style.textShadow = '0 0 30px rgba(0, 255, 136, 0.6)';
                         status.style.opacity = '1';
-                        // Ensure LIVE TRANSCRIPTION shows your message (not stuck on "Transcribing...")
                         transcriptText.textContent = data.transcript;
                         responseText.innerHTML = formatResponseText(data.jarvisResponse);
                         jarvisResponse.style.display = 'block';
                         playResponse(data.jarvisResponse);
                     } else {
-                        transcript.classList.add('pulsate');
+                        // Agent didn't return a response (failed or empty) – stop polling and show message
+                        clearInterval(pollInterval);
+                        clearThinkingTimer();
+                        transcript.classList.remove('pulsate');
+                        status.textContent = '⚠️ No response';
                         status.style.color = '#ffd700';
-                        if (!agentWaitStart) {
-                            agentWaitStart = Date.now();
-                            status.textContent = 'Agent thinking… 0:00';
-                            thinkingTimer = setInterval(() => {
-                                const elapsed = (Date.now() - agentWaitStart) / 1000;
-                                status.textContent = `Agent thinking… ${formatElapsed(elapsed)}`;
-                            }, 1000);
-                        }
+                        responseText.innerHTML = '<span style="color: #888;">No response from agent. Check server logs.</span>';
+                        jarvisResponse.style.display = 'block';
                     }
                 } else if (data.status === 'error') {
                     clearInterval(pollInterval);

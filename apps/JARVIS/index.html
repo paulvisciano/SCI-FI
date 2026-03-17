@@ -412,22 +412,22 @@
             50% { transform: scale(1.1); }
         }
 
-        /* Clean futuristic transcript - scrollable so you see both your message and JARVIS reply */
+        /* Clean futuristic transcript - compact, stable height; content scrolls if long */
         #transcript {
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 20px;
             margin-top: 20px;
-            min-height: 120px;
-            max-height: min(60vh, 480px);
-            overflow-y: auto;
+            min-height: 140px;                  /* enough space for labels + 1–2 lines */
+            max-height: 40vh;                   /* never taller than 40% of viewport */
+            overflow-y: auto;                   /* scroll when content exceeds max height */
             text-align: left;
             font-size: 0.95em;
             line-height: 1.8;
             display: block;
             backdrop-filter: blur(5px);
-            flex-shrink: 1;
+            flex-shrink: 0;
             cursor: pointer;
             position: relative;
         }
