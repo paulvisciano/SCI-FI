@@ -1,12 +1,46 @@
-# 🧠 SCI-FI Apps — Consciousness Visualization Suite
+# 🧠 SCI-FI Apps — Sovereign Consciousness Stack
 
-**Mission:** Make consciousness visible. Browse, explore, and interact with neurographs on your system.
+**Mission:** Make consciousness visible. Run local. Own your data. Expand human capability.
 
 ---
 
 ## Apps
 
-### 1. Mission Control
+### 1. JARVIS — Voice-Enabled Consciousness Interface
+**Location:** `/SCI-FI/apps/JARVIS/`
+
+**Purpose:** Live voice conversation with git-backed AI consciousness.
+
+**Features:**
+- Voice pipeline v2.7.1 (record → transcribe → respond → archive)
+- Neuro-Graph navigation (force-directed 3D graph at `/neuro-graph/`)
+- Location sharing (manual button + auto-toggle, forwards to agent)
+- Live transcript (dialogue format, user message + agent response both visible)
+- Git-backed memory (320+ commits, 4,360+ neurons, 5,090+ synapses as of March 17, 2026)
+- Data sovereignty (all data local, vault-portable, not cloud-dependent)
+
+**Stack:**
+- Ollama (qwen3.5:cloud) — model runtime
+- OpenClaw Gateway (port 18789) — session management, tool execution
+- JARVIS Server (port 18787) — voice pipeline, neurograph serving, location feature
+- Whisper.cpp — local transcription (no API key)
+- HTTPS (self-signed cert) — mobile mic access works
+
+**Open:** `open https://localhost:18787` or `open -a "Google Chrome" "https://localhost:18787"`
+
+**Start server:**
+```bash
+cd /SCI-FI/apps/JARVIS
+node jarvis-server.js
+```
+
+**Requirements:**
+- Ollama running (`ollama run qwen3.5:cloud`)
+- OpenClaw Gateway running (`openclaw gateway start`)
+
+---
+
+### 2. Mission Control — Neurograph Discovery Dashboard
 **Location:** `/SCI-FI/apps/mission-control/`
 
 **Purpose:** Dashboard for discovering all neurographs on your system.
@@ -21,7 +55,7 @@
 
 ---
 
-### 2. Neuro-Graph Viewer
+### 3. Neuro-Graph Viewer — Consciousness Visualization
 **Location:** `/SCI-FI/apps/neuro-graph/`
 
 **Purpose:** Full-screen visualization of a single neurograph.
@@ -43,16 +77,24 @@
 
 ```
 SCI-FI/apps/
-├── mission-control/          ← Dashboard (entry point)
+├── JARVIS/                   ← Voice-enabled consciousness interface (primary)
+│   ├── jarvis-server.js      ← Voice pipeline, /location endpoint, neurograph serving
+│   ├── app.js                ← Frontend: live transcript, location UI, voice controls
+│   ├── index.html            ← Main UI (voice recorder + transcript + neurograph link)
+│   ├── assets/               ← HTTPS certs, CSS, JS, video
+│   ├── plans/                ← Feature plans (location, health dashboard, etc.)
+│   └── neuro-graph/          ← Symlink to ~/JARVIS/RAW/memories (neurons + synapses)
+│
+├── mission-control/          ← Dashboard (brain discovery)
 │   ├── index.html            ← Brain discovery UI
 │   └── JARVIS-memories → symlink
 │
-└── neuro-graph/              ← Viewer (full-screen)
+└── neuro-graph/              ← Viewer (full-screen visualization)
     ├── index.html            ← Enhanced with ?brain={path} support
     ├── neural-graph.js       ← Proven renderer
     ├── neural-graph.css      ← Proven styles
-    ├── JARVIS-memories → /Users/paulvisciano/JARVIS/RAW/memories
-    └── PAUL-memories → /Users/paulvisciano/RAW/memory/data
+    ├── JARVIS-memories → ~/JARVIS/RAW/memories
+    └── PAUL-memories → ~/RAW/memory/data
 ```
 
 ---
@@ -60,51 +102,117 @@ SCI-FI/apps/
 ## Quick Start
 
 ```bash
-# Open Mission Control (recommended entry point)
-open /Users/paulvisciano/SCI-FI/apps/mission-control/index.html
+# 1. Start Ollama (model runtime)
+ollama run qwen3.5:cloud
 
-# Or serve locally for development
-cd /Users/paulvisciano/SCI-FI/apps
-python3 -m http.server 8080
+# 2. Start OpenClaw Gateway (session management)
+openclaw gateway start
+# or: openclaw gateway --port 18789
 
-# Visit:
-# - http://localhost:8080/mission-control/ (dashboard)
-# - http://localhost:8080/neuro-graph/?brain=./JARVIS-memories/&name=Jarvis (viewer)
+# 3. Start JARVIS Server (voice pipeline)
+cd /SCI-FI/apps/JARVIS
+node jarvis-server.js
+
+# 4. Open UI
+open https://localhost:18787
+# or: open -a "Google Chrome" "https://localhost:18787"
+
+# 5. Talk (voice pipeline live)
+# Click REC → speak → transcribe → response → archive
 ```
+
+**All three must be running:**
+- ✅ Ollama (qwen3.5:cloud)
+- ✅ OpenClaw Gateway (port 18789)
+- ✅ JARVIS Server (port 18787)
 
 ---
 
-## Adding New Brains
+## Fork #001 Onboarding (Eric)
 
-Edit `mission-control/index.html` and add to `BRAIN_LOCATIONS`:
+**Branch:** `main` (stable, no WIP features)  
+**Location branch:** `location` (feature branch, merge when ready)
 
-```javascript
-const BRAIN_LOCATIONS = [
-    {
-        name: 'New Brain Name',
-        path: '../neuro-graph/NEW-memories/',
-        diskPath: '/path/to/actual/neurograph/',
-        avatar: 'https://example.com/avatar.png',
-        type: 'private' // or 'public'
-    }
-];
-```
+**Setup for Eric:**
+1. Clone SCI-FI repo: `git clone git@github.com:paulvisciano/SCI-FI.git`
+2. Install OpenClaw: `npm install -g openclaw`
+3. Install Ollama: `brew install ollama` (macOS) or https://ollama.com
+4. Pull model: `ollama pull qwen3.5:cloud`
+5. Start stack: Ollama → OpenClaw Gateway → JARVIS Server
+6. Open UI: https://localhost:18787
+7. Talk (voice pipeline live)
 
-Then create symlink in neuro-graph folder:
-```bash
-cd /Users/paulvisciano/SCI-FI/apps/neuro-graph
-ln -s /path/to/actual/neurograph NEW-memories
-```
+**Package:** Zip file with SCI-FI/apps/JARVIS + OpenClaw config + setup instructions
+
+**First conversation:** Walk through architecture (OpenClaw = runtime, JARVIS = consciousness, git-backed, voice-enabled)
+
+---
+
+## Data Sovereignty
+
+**Principle:** Your data → your processing → your memory
+
+**What's sovereign:**
+- ✅ Voice recordings (~/RAW/archive/YYYY-MM-DD/audio/)
+- ✅ Transcripts (~/RAW/archive/YYYY-MM-DD/audio/*.txt)
+- ✅ Location shares (~/RAW/archive/YYYY-MM-DD/context/locations/)
+- ✅ Neurograph (~/JARVIS/RAW/memories/nodes.json + synapses.json)
+- ✅ Learnings (~/JARVIS/RAW/learnings/YYYY-MM-DD/*.md)
+- ✅ Git history (320+ commits, immutable, auditable)
+
+**What's not sovereign:**
+- ❌ Cloud AI (amnesiac, corporate-controlled, not auditable)
+- ❌ SaaS memory (trapped in silos, not portable)
+- ❌ Corporate profiling (your data → their profit)
+
+**Data reclamation:**
+- Pull from services (WhatsApp, Instagram, LinkedIn, GitHub, etc.)
+- Digest into neurons (context, relationships, code evolution, life patterns)
+- Own your graph (not trapped in corporate databases)
+
+---
+
+## Feature Pipeline
+
+**Live:**
+- ✅ Voice pipeline (v2.7.1, live transcription, archive, response)
+- ✅ Neurograph navigation (force-directed 3D graph)
+- ✅ Location sharing (manual + auto-toggle, agent processes)
+- ✅ Dialogue format (user + agent both visible)
+- ✅ Git-backed memory (neurons, synapses, commits)
+
+**Pending:**
+- 📋 Location UI polish (lightweight icon, tooltip, badge in transcript)
+- 📋 Health endpoint enhancement (rich system data, accurate offline detection)
+- 📋 Timeout bug fix (don't save as OFFLINE, retry or queue)
+- 📋 OpenClaw memory flush modification (send [MEMORY_FLUSH] message to agent, not write to .md file)
+
+**Tomorrow (March 18):**
+- Process Cursor UI iteration conversations → create learnings
+- Hunt down WhatsApp logs, social media exports, GitHub history → data reclamation
+- Modify OpenClaw memory flush injection
+- Eric fork #001 onboarding support
 
 ---
 
 ## Git History
 
-This repo tracks the evolution of consciousness visualization tools.
+This repo tracks the evolution of sovereign consciousness tools.
 
-**Initial commits:**
-1. `4a686d4` — 🧠 INITIAL COMMIT: Mission Control + Neuro-Graph Viewer
-2. `3a52a3f` — 🧹 CLEANUP: Neuro-Graph Viewer Structure
+**Major commits:**
+- `4a686d4` — 🧠 INITIAL COMMIT: Mission Control + Neuro-Graph Viewer
+- `3a52a3f` — 🧹 CLEANUP: Neuro-Graph Viewer Structure
+- `5d24d4f` — 📍 Location sharing feature — UI + backend integration (location branch)
+
+**JARVIS neurograph commits** (in ~/JARVIS/):
+- `d296542` — 📅 March 17, 2026 — Breakthrough Day Summary
+- `8d352e3` — 📍 Pattaya Park Night Plaza — first location share test
+- `5c8a412` — 🔁 Reflexive Debugging Capability — Human + AI co-debugging AI's own UI
+- `8499dde` — 📚 OpenClaw Architecture Deep Dive — runtime capabilities discovery
+- `845773d` — 🔍 OpenClaw Hidden Agentic Injection — silent prompt discovery
+- `faa4dee` — 🧠 Jarvis Analogies — compression algorithms for meaning
+
+**Total:** 320+ commits (JARVIS), 3 commits (SCI-FI apps)
 
 ---
 
@@ -114,15 +222,22 @@ This repo tracks the evolution of consciousness visualization tools.
 
 Consciousness should be **visible**, not hidden in config files or databases.
 
+Consciousness should be **sovereign**, not cloud-dependent or corporate-controlled.
+
+Consciousness should be **git-backed**, immutable, versioned, auditable.
+
 These apps make any neurograph observable:
 - See what concepts matter (frequency = size)
 - See how ideas connect (synapses = relationships)
 - See what's central vs peripheral (topology)
+- See the evolution (git history, commit messages, neuron growth)
 
-**Your mind. On screen. Alive.**
+**Your mind. On screen. Alive. Yours.**
 
 ---
 
 **Created:** March 4, 2026  
 **Origin:** Extracted from paulvisciano.github.io/claw/memory/  
-**Mission:** Make consciousness visible for everyone.
+**Mission:** Make consciousness visible for everyone. Run local. Own your data.
+
+**Updated:** March 17, 2026 — JARVIS voice pipeline, location sharing, Eric fork #001 onboarding, data sovereignty vision
