@@ -51,6 +51,8 @@ jarvisVideo.addEventListener('error', () => {
 
 jarvisVideo.addEventListener('loadeddata', () => {
     console.log('Video loaded successfully');
+    // Set playback speed to 1.25x - slightly faster, still smooth
+    jarvisVideo.playbackRate = 1.25;
 });
 
 // Mouse enter/leave effects - make ORB feel alive
