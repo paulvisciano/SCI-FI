@@ -373,7 +373,7 @@ function checkServerStatus() {
             if (data.jarvis && data.jarvis.alive && data.jarvis.pid) {
                 indicator.style.background = '#00ffff';
                 indicator.style.boxShadow = '0 0 8px #00ffff';
-                statusText.textContent = `PID ${data.jarvis.pid} • ${data.jarvis.memory || '?'} • ${data.jarvis.uptime || '?'}`;
+                statusText.textContent = `v${CLIENT_VERSION} • PID ${data.jarvis.pid} • ${data.jarvis.memory || '?'} • ${data.jarvis.uptime || '?'}`;
                 statusText.style.color = '#00ffff';
             } else {
                 indicator.style.background = '#ff4444';
