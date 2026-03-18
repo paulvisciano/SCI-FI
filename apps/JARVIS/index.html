@@ -22,7 +22,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            flex: 1;
+            height: 100vh;
             width: 100%;
             padding: 20px;
         }
@@ -513,22 +513,22 @@
         
         <!-- Record button under status -->
         <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
-        
-        <!-- Transcript panel (margin-bottom pushes it away from bottom, but doesn't affect centering) -->
-        <div id="transcript" style="margin-top: 12px; margin-left: 20px; margin-right: 20px; margin-bottom: 80px; width: min(640px, calc(100vw - 40px));">
-            <div class="label transcript-header">
-                <span>Live Transcription</span>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span id="transcript-time" style="font-size: 0.75em; color: #00ffff; opacity: 0.8; font-weight: 600;"></span>
-                    <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
-                </div>
+    </div>
+    
+    <!-- Transcript panel OUTSIDE container (bottom of page, doesn't affect centering) -->
+    <div id="transcript" style="margin: 0 20px 80px 20px; width: min(640px, calc(100vw - 40px));">
+        <div class="label transcript-header">
+            <span>Live Transcription</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="transcript-time" style="font-size: 0.75em; color: #00ffff; opacity: 0.8; font-weight: 600;"></span>
+                <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
             </div>
-            <div id="transcript-text" style="margin-bottom:15px;"></div>
-            <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
-            <div class="jarvis-response" id="jarvis-response" style="display:none;">
-                <div class="label" style="margin-top:15px;">Jarvis Response</div>
-                <div id="response-text"></div>
-            </div>
+        </div>
+        <div id="transcript-text" style="margin-bottom:15px;"></div>
+        <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
+        <div class="jarvis-response" id="jarvis-response" style="display:none;">
+            <div class="label" style="margin-top:15px;">Jarvis Response</div>
+            <div id="response-text"></div>
         </div>
     </div>
     
