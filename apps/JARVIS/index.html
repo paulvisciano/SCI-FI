@@ -500,16 +500,16 @@
 <body>
     <!-- Orb centered vertically -->
     <div class="container">
-        <h1 class="futuristic-title" style="margin-bottom: 8px;">J.A.R.V.I.S</h1>
+        <h1 class="futuristic-title" style="margin-bottom: 12px;">J.A.R.V.I.S</h1>
         
-        <!-- Version under title -->
-        <div class="orb-version-badge" style="position: static; margin-bottom: 12px; font-size: 0.8em; opacity: 0.8;">v2.9.1</div>
-        
-        <!-- Server status under version -->
-        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8; margin-bottom: 20px;">
-            <span class="indicator" id="server-indicator"></span>
-            <span id="server-status-text">Checking server...</span>
-            <span id="server-version" style="margin-left: 8px; font-size: 0.7em; opacity: 0.6;"></span>
+        <!-- Version + Server status side-by-side -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+            <div class="orb-version-badge" style="position: static; font-size: 0.8em; opacity: 0.8;">v2.9.2</div>
+            <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8;">
+                <span class="indicator" id="server-indicator"></span>
+                <span id="server-status-text">Checking server...</span>
+                <span id="server-version" style="margin-left: 8px; font-size: 0.7em; opacity: 0.6;"></span>
+            </div>
         </div>
         
         <!-- JARVIS Video ORB -->
@@ -531,7 +531,7 @@
     </div>
     
     <!-- Transcript at bottom (with margin for mobile browser bar) -->
-    <div id="transcript" style="margin: 0 20px 60px 20px; width: min(640px, calc(100vw - 40px));">
+    <div id="transcript" style="margin: 0 20px 80px 20px; width: min(640px, calc(100vw - 40px));">
         <div class="label transcript-header">
             <span>Live Transcription</span>
             <div style="display: flex; align-items: center; gap: 12px;">

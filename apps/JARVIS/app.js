@@ -299,7 +299,6 @@ async function pollForTranscript(uploadFilename) {
                         transcriptText.textContent = data.transcript;
                         responseText.innerHTML = formatResponseText(data.jarvisResponse);
                         jarvisResponse.style.display = 'block';
-                        playResponse(data.jarvisResponse);
                     } else {
                         // Agent didn't return a response (failed or empty) – stop polling and show message
                         clearInterval(pollInterval);
@@ -332,7 +331,6 @@ async function pollForTranscript(uploadFilename) {
                     status.style.color = '#00ff88';
                     responseText.innerHTML = formatResponseText(data.jarvisResponse);
                     jarvisResponse.style.display = 'block';
-                    playResponse(data.jarvisResponse);
                 } else if (data.status === 'idle') {
                     clearThinkingTimer();
                     transcript.classList.remove('pulsate');
@@ -363,30 +361,6 @@ document.addEventListener('keydown', (e) => {
         recordBtn.click();
     }
 });
-
-// TTS disabled by default (user preference)
-let ttsEnabled = false;
-
-function playResponse(text) {
-    if (!ttsEnabled) return; // Skip if TTS disabled
-    
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-
-        const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(v => v.name.includes('Google US English')) ||
-                              voices.find(v => v.lang === 'en-US') ||
-                              voices[0];
-        if (preferredVoice) utterance.voice = preferredVoice;
-
-        window.speechSynthesis.speak(utterance);
-    }
-}
 
 function checkServerStatus() {
     fetch(`${API_BASE}/health`)
