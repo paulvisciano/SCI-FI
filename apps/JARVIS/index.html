@@ -8,7 +8,7 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            background: #000000; /* Pitch black - makes orb stand out */
+            background: #000000;
             color: #00ffff;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
             height: 100vh;
@@ -17,8 +17,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between; /* Space between orb (top) and transcript (bottom) */
             position: relative;
+            padding: 20px 0; /* Top + bottom padding */
         }
 
         /* Network Device Dots (Background) */
@@ -354,9 +355,9 @@
             border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 20px;
-            margin-top: 20px;
+            margin-bottom: 20px; /* Flush against bottom */
             width: min(640px, 90vw);
-            height: clamp(200px, 42vh, 420px); /* Larger height - more room for transcription */
+            height: clamp(200px, 42vh, 420px);
             overflow-y: auto;
             text-align: left;
             font-size: 0.95em;
@@ -522,9 +523,9 @@
         </div>
     </div>
     
-    <!-- Recording button + Server status stacked side-by-side at bottom -->
-    <div style="position: fixed; bottom: 20px; left: 0; right: 0; padding: 0 20px; box-sizing: border-box;">
-        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
+    <!-- Recording button + Server status near orb (top) -->
+    <div style="position: absolute; top: 20px; left: 0; right: 0; padding: 0 20px; box-sizing: border-box; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 8px;">
             <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
             <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8;">
                 <span class="indicator" id="server-indicator"></span>
@@ -532,10 +533,11 @@
                 <span id="server-version" style="margin-left: 8px; font-size: 0.7em; opacity: 0.6;"></span>
             </div>
         </div>
-        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; margin-top: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;"></div>
+        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
     </div>
     
     <div id="network-dots-container"></div>
     <script src="app.js"></script>
 </body>
+</html>
 </html>
