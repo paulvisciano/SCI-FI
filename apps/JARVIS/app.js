@@ -396,10 +396,18 @@ function checkServerStatus() {
             document.getElementById('server-indicator').classList.add('offline');
             document.getElementById('server-status-text').textContent = 'Server offline';
             document.getElementById('server-version').textContent = '';
-            // Still show client version even if server offline
-            document.getElementById('client-version').textContent = `UI: v${CLIENT_VERSION} (${CLIENT_BUILD_DATE})`;
         });
 }
+
+// Update orb version badge
+function updateOrbVersion() {
+    const orbVersionEl = document.getElementById('orb-version');
+    if (orbVersionEl) {
+        orbVersionEl.textContent = `v${CLIENT_VERSION}`;
+    }
+}
+
+updateOrbVersion();
 
 checkServerStatus();
 setInterval(checkServerStatus, 5000);

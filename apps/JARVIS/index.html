@@ -362,6 +362,25 @@
             animation: speed-up 0.3s ease;
         }
 
+        /* Version badge on orb */
+        .orb-version-badge {
+            position: absolute;
+            bottom: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7em;
+            color: #00ffff;
+            opacity: 0.7;
+            white-space: nowrap;
+            pointer-events: none;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
+        }
+
+        .jarvis-orb-container:hover .orb-version-badge {
+            opacity: 1;
+            text-shadow: 0 0 12px rgba(0, 255, 255, 0.8);
+        }
+
         @keyframes orb-pulse {
             0%, 100% { 
                 transform: scale(1);
@@ -547,7 +566,7 @@
         <h1 class="futuristic-title">J.A.R.V.I.S</h1>
         
         <!-- JARVIS Video ORB - Pure Neural Intelligence -->
-        <div class="jarvis-orb-container" id="jarvis-orb" title="Click to engage JARVIS">
+        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS v2.7.1 — Click to engage">
             <div class="jarvis-orb">
                 <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
                     <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
@@ -555,6 +574,7 @@
                 </video>
             </div>
             <div class="orb-glow-ring"></div>
+            <div class="orb-version-badge" id="orb-version">v2.7.1</div>
         </div>
         
         <div id="transcript">
@@ -583,7 +603,6 @@
             <span id="server-status-text">Checking server...</span>
             <span id="server-version" style="margin-left: 8px; font-size: 0.7em; opacity: 0.6;"></span>
         </div>
-        <div class="client-version" id="client-version" style="font-size: 0.7em; opacity: 0.5; margin-top: 4px;">UI: v--</div>
     </div>
     
     <div id="network-dots-container"></div>
