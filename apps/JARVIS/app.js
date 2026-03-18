@@ -366,16 +366,29 @@ function checkServerStatus() {
     fetch(`${API_BASE}/health`)
         .then(res => res.json())
         .then(data => {
-            document.getElementById('server-indicator').classList.remove('offline');
-            document.getElementById('server-status-text').textContent = 'Server online';
-            document.getElementById('server-version').textContent = `v${data.version} (${data.build})`;
-            // Display client version
-            document.getElementById('client-version').textContent = `UI: v${CLIENT_VERSION} (${CLIENT_BUILD_DATE})`;
+            const indicator = document.getElementById('server-indicator');
+            const statusText = document.getElementById('server-status-text');
+            
+            // Check if JARVIS process is alive (from /health endpoint)
+            if (data.jarvis && data.jarvis.alive) {
+                indicator.style.background = '#00ffff';
+                indicator.style.boxShadow = '0 0 8px #00ffff';
+                statusText.textContent = `JARVIS PID ${data.jarvis.pid} • ${data.jarvis.memory} • ${data.jarvis.uptime}`;
+                statusText.style.color = '#00ffff';
+            } else {
+                indicator.style.background = '#ff4444';
+                indicator.style.boxShadow = '0 0 8px #ff4444';
+                statusText.textContent = 'JARVIS process not found';
+                statusText.style.color = '#ff4444';
+            }
         })
         .catch(() => {
-            document.getElementById('server-indicator').classList.add('offline');
-            document.getElementById('server-status-text').textContent = 'Server offline';
-            document.getElementById('server-version').textContent = '';
+            const indicator = document.getElementById('server-indicator');
+            const statusText = document.getElementById('server-status-text');
+            indicator.style.background = '#ff4444';
+            indicator.style.boxShadow = '0 0 8px #ff4444';
+            statusText.textContent = 'Health check failed';
+            statusText.style.color = '#ff4444';
         });
 }
 
