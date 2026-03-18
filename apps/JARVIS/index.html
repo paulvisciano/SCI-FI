@@ -350,14 +350,14 @@
 
         /* Clean futuristic transcript - fixed height; content scrolls if long */
         #transcript {
-            background: rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #0a1128 0%, #1a1f3a 100%); /* Keep original gradient */
             border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 20px;
             margin-top: 20px;
-            width: min(640px, 90vw);            /* fixed, centered width */
-            height: clamp(160px, 32vh, 340px);  /* fixed visual height within reasonable bounds */
-            overflow-y: auto;                   /* scroll when content exceeds max height */
+            width: min(640px, 90vw);
+            height: clamp(160px, 32vh, 340px);
+            overflow-y: auto;
             text-align: left;
             font-size: 0.95em;
             line-height: 1.8;
