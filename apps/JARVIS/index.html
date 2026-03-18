@@ -500,21 +500,20 @@
 <body>
     <!-- Orb centered vertically -->
     <div class="container">
-        <h1 class="futuristic-title" style="margin-bottom: 20px;">J.A.R.V.I.S</h1>
+        <h1 class="futuristic-title" style="margin-bottom: 8px;">J.A.R.V.I.S</h1>
         
-        <!-- Controls below title (near orb) -->
-        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 8px;">
-            <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
-            <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8;">
-                <span class="indicator" id="server-indicator"></span>
-                <span id="server-status-text">Checking server...</span>
-                <span id="server-version" style="margin-left: 8px; font-size: 0.7em; opacity: 0.6;"></span>
-            </div>
+        <!-- Version under title -->
+        <div class="orb-version-badge" style="position: static; margin-bottom: 12px; font-size: 0.8em; opacity: 0.8;">v2.8.9</div>
+        
+        <!-- Server status under version -->
+        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8; margin-bottom: 20px;">
+            <span class="indicator" id="server-indicator"></span>
+            <span id="server-status-text">Checking server...</span>
+            <span id="server-version" style="margin-left: 8px; font-size: 0.7em; opacity: 0.6;"></span>
         </div>
-        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 20px;"></div>
         
         <!-- JARVIS Video ORB -->
-        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS v2.8.7 — Click to engage">
+        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS — Click to engage">
             <div class="jarvis-orb">
                 <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
                     <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
@@ -522,12 +521,17 @@
                 </video>
             </div>
             <div class="orb-glow-ring"></div>
-            <div class="orb-version-badge" id="orb-version">v2.8.8</div>
         </div>
+        
+        <!-- Recording status under orb -->
+        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 20px; margin-bottom: 20px;"></div>
+        
+        <!-- Record button under status -->
+        <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
     </div>
     
-    <!-- Transcript flush to bottom -->
-    <div id="transcript" style="margin: 0 20px 20px 20px; width: min(640px, calc(100vw - 40px));">
+    <!-- Transcript at bottom (with margin for mobile browser bar) -->
+    <div id="transcript" style="margin: 0 20px 60px 20px; width: min(640px, calc(100vw - 40px));">
         <div class="label transcript-header">
             <span>Live Transcription</span>
             <div style="display: flex; align-items: center; gap: 12px;">
