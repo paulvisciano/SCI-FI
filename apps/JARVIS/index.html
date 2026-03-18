@@ -498,8 +498,9 @@
     </style>
 </head>
 <body>
-    <!-- Controls near orb (top center) -->
-    <div style="position: absolute; top: 20px; left: 0; right: 0; padding: 0 20px; box-sizing: border-box; text-align: center; z-index: 10;">
+    <!-- Orb centered vertically -->
+    <div class="container">
+        <!-- Controls near orb (top of container) -->
         <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 8px;">
             <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
             <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8;">
@@ -508,15 +509,12 @@
                 <span id="server-version" style="margin-left: 8px; font-size: 0.7em; opacity: 0.6;"></span>
             </div>
         </div>
-        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
-    </div>
-    
-    <!-- Orb centered vertically -->
-    <div class="container">
+        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 20px;"></div>
+        
         <h1 class="futuristic-title" style="margin-bottom: 20px;">J.A.R.V.I.S</h1>
         
         <!-- JARVIS Video ORB -->
-        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS v2.8.4 — Click to engage">
+        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS v2.8.6 — Click to engage">
             <div class="jarvis-orb">
                 <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
                     <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
