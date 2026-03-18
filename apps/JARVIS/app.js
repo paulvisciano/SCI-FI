@@ -364,7 +364,12 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// TTS disabled by default (user preference)
+let ttsEnabled = false;
+
 function playResponse(text) {
+    if (!ttsEnabled) return; // Skip if TTS disabled
+    
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
 
