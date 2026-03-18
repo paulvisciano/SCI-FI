@@ -57,14 +57,14 @@ jarvisVideo.addEventListener('loadeddata', () => {
 jarvisOrb.addEventListener('mouseenter', () => {
     if (!isRecording) {
         jarvisOrb.classList.add('engaged');
-        jarvisVideo.playbackRate = 1.3;
+        // No speed change - keep video smooth
     }
 });
 
 jarvisOrb.addEventListener('mouseleave', () => {
     if (!isRecording && !isOrbEngaged) {
         jarvisOrb.classList.remove('engaged');
-        jarvisVideo.playbackRate = 1.0;
+        // No speed change - keep video smooth
     }
 });
 
@@ -74,10 +74,10 @@ jarvisOrb.addEventListener('click', () => {
 
     if (isOrbEngaged) {
         jarvisOrb.classList.add('engaged');
-        jarvisVideo.playbackRate = 1.5;
+        // No speed change - keep video smooth
     } else {
         jarvisOrb.classList.remove('engaged');
-        jarvisVideo.playbackRate = 1.0;
+        // No speed change - keep video smooth
     }
 });
 
@@ -131,7 +131,7 @@ async function startRecording() {
         recordBtn.classList.add('recording');
         jarvisOrb.classList.add('engaged', 'recording');
         jarvisOrbContainer.classList.add('recording');
-        jarvisVideo.playbackRate = 2.0;
+        // No speed change - keep video smooth
         status.textContent = '🔴 Recording...';
         status.style.color = '#ff4444';
         status.style.textShadow = '0 0 30px rgba(255, 68, 68, 0.8)';
@@ -153,7 +153,7 @@ async function stopRecording() {
     recordBtn.classList.remove('recording');
     jarvisOrb.classList.remove('engaged', 'recording');
     jarvisOrbContainer.classList.remove('recording');
-    jarvisVideo.playbackRate = 1.0;
+    // No speed change - keep video smooth
     status.textContent = 'Uploading...';
     status.style.color = '#ffd700';
     status.style.textShadow = '0 0 30px rgba(255, 215, 0, 0.6)';
