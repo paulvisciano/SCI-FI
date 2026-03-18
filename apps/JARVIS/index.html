@@ -286,6 +286,16 @@
             /* No filters, no animations */
         }
 
+        /* Tap feedback on mobile - brief glow + scale */
+        .jarvis-orb-container:active, .jarvis-orb-container.tapped {
+            transform: scale(0.95);
+        }
+        
+        .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
+            border-color: rgba(0, 255, 255, 0.8);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6), 0 0 60px rgba(0, 255, 255, 0.3);
+        }
+        
         /* Minimal engaged state - no brightness/contrast filters */
         .jarvis-orb.engaged {
             /* Empty - no visual changes on engage */

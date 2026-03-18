@@ -71,7 +71,7 @@ jarvisOrb.addEventListener('mouseleave', () => {
 });
 
 // ORB click handler - engage/disengage JARVIS
-jarvisOrb.addEventListener('click', () => {
+jarvisOrbContainer.addEventListener('click', () => {
     isOrbEngaged = !isOrbEngaged;
 
     if (isOrbEngaged) {
@@ -82,6 +82,15 @@ jarvisOrb.addEventListener('click', () => {
         // No speed change - keep video smooth
     }
 });
+
+// Mobile tap feedback - add tapped class briefly on touch
+jarvisOrbContainer.addEventListener('touchstart', () => {
+    jarvisOrbContainer.classList.add('tapped');
+}, { passive: true });
+
+jarvisOrbContainer.addEventListener('touchend', () => {
+    jarvisOrbContainer.classList.remove('tapped');
+}, { passive: true });
 
 // Check if browser supports MediaRecorder (mobile browsers may need HTTPS)
 const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
