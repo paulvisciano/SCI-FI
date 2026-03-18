@@ -500,7 +500,13 @@
 <body>
     <!-- Orb centered vertically -->
     <div class="container">
-        <h1 class="futuristic-title" style="margin-bottom: 20px;">J.A.R.V.I.S</h1>
+        <h1 class="futuristic-title" style="margin-bottom: 8px;">J.A.R.V.I.S</h1>
+        
+        <!-- Server status under title -->
+        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8; margin-bottom: 20px;">
+            <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px;"></span>
+            <span id="server-status-text" style="color: #00ffff;">v2.9.4 • PID 78076 • 70 MB • Since 0:00.24</span>
+        </div>
         
         <!-- JARVIS Video ORB -->
         <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS — Click to engage">
@@ -518,12 +524,6 @@
         
         <!-- Record button under status -->
         <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
-        
-        <!-- Server status (minimal dot indicator, bottom of container) -->
-        <div style="margin-top: 20px; font-size: 0.7em; opacity: 0.5; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <span class="indicator" id="server-indicator" style="width: 6px; height: 6px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff;"></span>
-            <span id="server-status-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Server online</span>
-        </div>
     </div>
     
     <!-- Transcript closer to orb (reduced top margin) -->
