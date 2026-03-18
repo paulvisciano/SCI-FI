@@ -257,8 +257,8 @@
         /* JARVIS Orb - Minimal styling, just circular mask */
         .jarvis-orb-container {
             position: relative;
-            width: 220px;
-            height: 220px;
+            width: 242px; /* 10% larger (was 220px) */
+            height: 242px;
             margin: 40px auto 20px;
             flex-shrink: 0;
             cursor: pointer;
@@ -286,35 +286,30 @@
             /* No filters, no animations */
         }
 
-        /* Tap feedback on mobile - visible glow + scale + ripple */
-        .jarvis-orb-container:active, .jarvis-orb-container.tapped {
-            transform: scale(0.92);
-        }
-        
+        /* Tap feedback - glow + flash (no scale, orb stays same size) */
         .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
             border-color: rgba(0, 255, 255, 1.0);
-            box-shadow: 0 0 40px rgba(0, 255, 255, 0.8), 0 0 80px rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 50px rgba(0, 255, 255, 1.0), 0 0 100px rgba(0, 255, 255, 0.5);
         }
         
-        /* Ripple effect on tap */
-        .jarvis-orb-container::after {
+        /* Flash overlay on tap - brief white/cyan flash */
+        .jarvis-orb-container::before {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(0, 255, 255, 0.4) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.6) 0%, transparent 80%);
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.1s ease, transform 0.2s ease;
+            transition: opacity 0.1s ease;
+            z-index: 10;
         }
         
-        .jarvis-orb-container:active::after, .jarvis-orb-container.tapped::after {
+        .jarvis-orb-container:active::before, .jarvis-orb-container.tapped::before {
             opacity: 1;
-            transform: translate(-50%, -50%) scale(1.2);
         }
         
         /* Minimal engaged state - no brightness/contrast filters */
