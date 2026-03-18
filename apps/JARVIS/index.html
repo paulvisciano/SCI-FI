@@ -17,9 +17,17 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between; /* Space between orb (top) and transcript (bottom) */
             position: relative;
-            padding: 20px 0; /* Top + bottom padding */
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            width: 100%;
+            padding: 20px 0;
         }
 
         /* Network Device Dots (Background) */
@@ -355,8 +363,7 @@
             border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 20px;
-            margin-bottom: 20px; /* Flush against bottom */
-            width: min(640px, 90vw);
+            width: min(640px, calc(100vw - 40px));
             height: clamp(200px, 42vh, 420px);
             overflow-y: auto;
             text-align: left;
@@ -491,40 +498,8 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="futuristic-title">J.A.R.V.I.S</h1>
-        
-        <!-- JARVIS Video ORB - Pure Neural Intelligence -->
-        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS v2.7.1 — Click to engage">
-            <div class="jarvis-orb">
-                <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
-                    <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-            <div class="orb-glow-ring"></div>
-            <div class="orb-version-badge" id="orb-version">v2.8.4</div>
-        </div>
-        
-        <div id="transcript">
-            <div class="label transcript-header">
-                <span>Live Transcription</span>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span id="transcript-time" style="font-size: 0.75em; color: #00ffff; opacity: 0.8; font-weight: 600;"></span>
-                    <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
-                </div>
-            </div>
-            <div id="transcript-text" style="margin-bottom:15px;"></div>
-            <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
-            <div class="jarvis-response" id="jarvis-response" style="display:none;">
-                <div class="label" style="margin-top:15px;">Jarvis Response</div>
-                <div id="response-text"></div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Recording button + Server status near orb (top) -->
-    <div style="position: absolute; top: 20px; left: 0; right: 0; padding: 0 20px; box-sizing: border-box; text-align: center;">
+    <!-- Controls near orb (top center) -->
+    <div style="position: absolute; top: 20px; left: 0; right: 0; padding: 0 20px; box-sizing: border-box; text-align: center; z-index: 10;">
         <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; margin-bottom: 8px;">
             <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
             <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8;">
@@ -534,6 +509,40 @@
             </div>
         </div>
         <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+    </div>
+    
+    <!-- Orb centered vertically -->
+    <div class="container">
+        <h1 class="futuristic-title" style="margin-bottom: 20px;">J.A.R.V.I.S</h1>
+        
+        <!-- JARVIS Video ORB -->
+        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS v2.8.4 — Click to engage">
+            <div class="jarvis-orb">
+                <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
+                    <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="orb-glow-ring"></div>
+            <div class="orb-version-badge" id="orb-version">v2.8.4</div>
+        </div>
+    </div>
+    
+    <!-- Transcript flush to bottom -->
+    <div id="transcript" style="margin: 0 20px 20px 20px; width: min(640px, calc(100vw - 40px));">
+        <div class="label transcript-header">
+            <span>Live Transcription</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="transcript-time" style="font-size: 0.75em; color: #00ffff; opacity: 0.8; font-weight: 600;"></span>
+                <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
+            </div>
+        </div>
+        <div id="transcript-text" style="margin-bottom:15px;"></div>
+        <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
+        <div class="jarvis-response" id="jarvis-response" style="display:none;">
+            <div class="label" style="margin-top:15px;">Jarvis Response</div>
+            <div id="response-text"></div>
+        </div>
     </div>
     
     <div id="network-dots-container"></div>
