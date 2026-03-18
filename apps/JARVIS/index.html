@@ -14,9 +14,6 @@
             height: 100vh;
             width: 100vw;
             overflow: hidden; /* No scroll - fixed viewport */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             position: relative;
         }
         
@@ -517,8 +514,8 @@
         <!-- Record button under status -->
         <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
         
-        <!-- Transcript panel (minimal top margin, no bottom margin - spacer is outside) -->
-        <div id="transcript" style="margin-top: 12px; margin-left: 20px; margin-right: 20px; width: min(640px, calc(100vw - 40px));">
+        <!-- Transcript panel (margin-bottom pushes it away from bottom, but doesn't affect centering) -->
+        <div id="transcript" style="margin-top: 12px; margin-left: 20px; margin-right: 20px; margin-bottom: 80px; width: min(640px, calc(100vw - 40px));">
             <div class="label transcript-header">
                 <span>Live Transcription</span>
                 <div style="display: flex; align-items: center; gap: 12px;">
@@ -534,9 +531,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Spacer OUTSIDE container (doesn't affect centering, just clears mobile bar) -->
-    <div style="height: 80px; width: 100%;"></div>
     
     <div id="network-dots-container"></div>
     <script src="app.js"></script>
