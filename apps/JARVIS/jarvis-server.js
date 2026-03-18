@@ -21,7 +21,7 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '2.7.1';
+const VERSION = '2.9.5';
 const BUILD_DATE = '2026-03-18';
 
 const CONFIG = {
@@ -364,15 +364,46 @@ function handleRequest(req, res) {
         }
     }
 
-    // Health check
+    // Health check - includes JARVIS process status
     if (req.url === '/health') {
+        // Get JARVIS process info (PID 267 or find by name)
+        let jarvisPid = null;
+        let jarvisMemory = null;
+        let jarvisUptime = null;
+        
+        try {
+            // Find JARVIS process by name
+            const psOutput = execSync('ps aux | grep -i "JARVIS" | grep -v grep | grep -v "J.A.R.V.I.S" | head -1', { encoding: 'utf8' });
+            const pidMatch = psOutput.match(/\s+(\d+)\s+/);
+            if (pidMatch) {
+                jarvisPid = parseInt(pidMatch[1]);
+                
+                // Get memory (RSS in KB, column 6)
+                const memMatch = psOutput.split(/\s+/)[5];
+                jarvisMemory = Math.round(parseInt(memMatch) / 1024) + ' MB';
+                
+                // Calculate uptime from process start time (column 9)
+                const startTime = psOutput.split(/\s+/)[8]; // e.g., "Tue08PM"
+                // Simple uptime calc: if starts with "Tue", it's been running since Tuesday
+                jarvisUptime = 'Since ' + startTime;
+            }
+        } catch (err) {
+            console.warn('Process check failed:', err.message);
+        }
+        
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
             status: 'ok', 
             version: VERSION, 
             build: BUILD_DATE,
             inbox: CONFIG.inboxDir, 
-            model: CONFIG.whisperModel 
+            model: CONFIG.whisperModel,
+            jarvis: {
+                pid: jarvisPid,
+                memory: jarvisMemory,
+                uptime: jarvisUptime,
+                alive: jarvisPid !== null
+            }
         }));
         return;
     }
