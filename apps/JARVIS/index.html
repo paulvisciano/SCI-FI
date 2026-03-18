@@ -275,7 +275,7 @@
             border-radius: 50%;
             overflow: hidden;
             position: relative;
-            /* No box-shadow, no transitions, no filters - pure video */
+            border: 2px solid rgba(0, 255, 255, 0.3); /* Subtle cyan border around orb */
         }
 
         .jarvis-orb video {
@@ -350,7 +350,7 @@
 
         /* Clean futuristic transcript - fixed height; content scrolls if long */
         #transcript {
-            background: linear-gradient(135deg, #0a1128 0%, #1a1f3a 100%); /* Keep original gradient */
+            background: linear-gradient(135deg, #0a1128 0%, #1a1f3a 100%);
             border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 20px;
@@ -366,6 +366,16 @@
             flex-shrink: 0;
             cursor: pointer;
             position: relative;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+        
+        #transcript.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
         }
         
         #transcript:hover {
