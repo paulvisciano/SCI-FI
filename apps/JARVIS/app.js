@@ -1,4 +1,9 @@
 // JARVIS Voice Recorder UI - extracted from index.html
+
+// Client version (bumped when UI changes ship)
+const CLIENT_VERSION = '2.7.1';
+const CLIENT_BUILD_DATE = '2026-03-18';
+
 function toggleTranscriptPath() {
     const pathEl = document.getElementById('transcript-path');
     if (pathEl.style.display === 'none' || pathEl.style.display === '') {
@@ -384,11 +389,15 @@ function checkServerStatus() {
             document.getElementById('server-indicator').classList.remove('offline');
             document.getElementById('server-status-text').textContent = 'Server online';
             document.getElementById('server-version').textContent = `v${data.version} (${data.build})`;
+            // Display client version
+            document.getElementById('client-version').textContent = `UI: v${CLIENT_VERSION} (${CLIENT_BUILD_DATE})`;
         })
         .catch(() => {
             document.getElementById('server-indicator').classList.add('offline');
             document.getElementById('server-status-text').textContent = 'Server offline';
             document.getElementById('server-version').textContent = '';
+            // Still show client version even if server offline
+            document.getElementById('client-version').textContent = `UI: v${CLIENT_VERSION} (${CLIENT_BUILD_DATE})`;
         });
 }
 

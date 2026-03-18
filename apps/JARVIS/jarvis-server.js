@@ -21,8 +21,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '2.7.0';
-const BUILD_DATE = '2026-03-16';
+const VERSION = '2.7.1';
+const BUILD_DATE = '2026-03-18';
 
 const CONFIG = {
     port: process.env.VOICE_PORT || 18787,
