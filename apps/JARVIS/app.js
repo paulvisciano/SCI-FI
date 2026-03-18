@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.8.2';
+const CLIENT_VERSION = '2.8.3';
 const CLIENT_BUILD_DATE = '2026-03-18';
 
 function toggleTranscriptPath() {
