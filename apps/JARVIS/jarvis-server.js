@@ -372,19 +372,19 @@ function handleRequest(req, res) {
         let jarvisUptime = null;
         
         try {
-            // Find JARVIS process by name
-            const psOutput = execSync('ps aux | grep -i "JARVIS" | grep -v grep | grep -v "J.A.R.V.I.S" | head -1', { encoding: 'utf8' });
-            const pidMatch = psOutput.match(/\s+(\d+)\s+/);
-            if (pidMatch) {
-                jarvisPid = parseInt(pidMatch[1]);
+            // Find JARVIS process by name (PID is column 2, RSS is column 6, start time is column 10)
+            const psOutput = execSync('ps aux | grep -i "JARVIS" | grep -v grep | grep -v "J.A.R.V.I.S" | head -1', { encoding: 'utf8' }).trim();
+            
+            if (psOutput) {
+                const fields = psOutput.split(/\s+/);
+                jarvisPid = parseInt(fields[1]); // PID is column 2
                 
                 // Get memory (RSS in KB, column 6)
-                const memMatch = psOutput.split(/\s+/)[5];
-                jarvisMemory = Math.round(parseInt(memMatch) / 1024) + ' MB';
+                const rssKB = parseInt(fields[5]);
+                jarvisMemory = Math.round(rssKB / 1024) + ' MB';
                 
-                // Calculate uptime from process start time (column 9)
-                const startTime = psOutput.split(/\s+/)[8]; // e.g., "Tue08PM"
-                // Simple uptime calc: if starts with "Tue", it's been running since Tuesday
+                // Start time is column 10 (e.g., "Tue08PM")
+                const startTime = fields[9] || 'unknown';
                 jarvisUptime = 'Since ' + startTime;
             }
         } catch (err) {

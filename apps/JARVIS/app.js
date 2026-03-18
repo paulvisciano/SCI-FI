@@ -370,15 +370,15 @@ function checkServerStatus() {
             const statusText = document.getElementById('server-status-text');
             
             // Check if JARVIS process is alive (from /health endpoint)
-            if (data.jarvis && data.jarvis.alive) {
+            if (data.jarvis && data.jarvis.alive && data.jarvis.pid) {
                 indicator.style.background = '#00ffff';
                 indicator.style.boxShadow = '0 0 8px #00ffff';
-                statusText.textContent = `JARVIS PID ${data.jarvis.pid} • ${data.jarvis.memory} • ${data.jarvis.uptime}`;
+                statusText.textContent = `PID ${data.jarvis.pid} • ${data.jarvis.memory || '?'} • ${data.jarvis.uptime || '?'}`;
                 statusText.style.color = '#00ffff';
             } else {
                 indicator.style.background = '#ff4444';
                 indicator.style.boxShadow = '0 0 8px #ff4444';
-                statusText.textContent = 'JARVIS process not found';
+                statusText.textContent = 'JARVIS not running';
                 statusText.style.color = '#ff4444';
             }
         })
