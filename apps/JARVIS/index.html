@@ -286,14 +286,35 @@
             /* No filters, no animations */
         }
 
-        /* Tap feedback on mobile - brief glow + scale */
+        /* Tap feedback on mobile - visible glow + scale + ripple */
         .jarvis-orb-container:active, .jarvis-orb-container.tapped {
-            transform: scale(0.95);
+            transform: scale(0.92);
         }
         
         .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
-            border-color: rgba(0, 255, 255, 0.8);
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.6), 0 0 60px rgba(0, 255, 255, 0.3);
+            border-color: rgba(0, 255, 255, 1.0);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.8), 0 0 80px rgba(0, 255, 255, 0.4);
+        }
+        
+        /* Ripple effect on tap */
+        .jarvis-orb-container::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.4) 0%, transparent 70%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.1s ease, transform 0.2s ease;
+        }
+        
+        .jarvis-orb-container:active::after, .jarvis-orb-container.tapped::after {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.2);
         }
         
         /* Minimal engaged state - no brightness/contrast filters */
