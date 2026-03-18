@@ -127,15 +127,14 @@ async function startRecording() {
         mediaRecorder.start(2000);
         isRecording = true;
 
+        // Minimal DOM updates - don't touch orb classes (causes video reflow)
         recordBtn.textContent = 'STOP';
-        recordBtn.classList.add('recording');
-        jarvisOrb.classList.add('engaged', 'recording');
-        jarvisOrbContainer.classList.add('recording');
-        // No speed change - keep video smooth
+        // Removed: recordBtn.classList.add('recording');
+        // Removed: jarvisOrb.classList.add('engaged', 'recording');
+        // Removed: jarvisOrbContainer.classList.add('recording');
+        
+        // Update status text only (no inline style changes)
         status.textContent = '🔴 Recording...';
-        status.style.color = '#ff4444';
-        status.style.textShadow = '0 0 30px rgba(255, 68, 68, 0.8)';
-        status.style.opacity = '1';
         transcript.classList.add('visible');
         transcriptText.textContent = 'Listening...';
         jarvisResponse.style.display = 'none';
@@ -150,10 +149,10 @@ async function stopRecording() {
     isRecording = false;
 
     recordBtn.textContent = 'REC';
-    recordBtn.classList.remove('recording');
-    jarvisOrb.classList.remove('engaged', 'recording');
-    jarvisOrbContainer.classList.remove('recording');
-    // No speed change - keep video smooth
+    // Removed: recordBtn.classList.remove('recording');
+    // Removed: jarvisOrb.classList.remove('engaged', 'recording');
+    // Removed: jarvisOrbContainer.classList.remove('recording');
+    
     status.textContent = 'Uploading...';
     status.style.color = '#ffd700';
     status.style.textShadow = '0 0 30px rgba(255, 215, 0, 0.6)';
