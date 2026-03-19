@@ -247,6 +247,22 @@
             margin-bottom: 30px;
             min-height: 1.2em;
             letter-spacing: 3px;
+        }
+        
+        /* Recording hint - shows on orb hover */
+        .recording-hint {
+            font-size: 0.7em;
+            color: #00ffff;
+            opacity: 0.6;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            text-align: center;
+            transition: opacity 0.2s;
+        }
+        
+        .jarvis-orb-container:hover + .status + .recording-hint,
+        .recording-hint:hover {
+            opacity: 1;
             text-transform: uppercase;
             font-weight: 300;
             opacity: 0.8;
@@ -394,8 +410,9 @@
             position: relative;
             opacity: 0;
             transform: translateY(10px);
-            transition: opacity 0.3s ease, transform 0.3s ease;
+            transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease, height 0.3s ease, position 0.3s ease, z-index 0.3s ease;
             pointer-events: none;
+            z-index: 10;
         }
         
         #transcript.visible {
@@ -407,6 +424,48 @@
         #transcript:hover {
             border-color: rgba(0, 255, 255, 0.5);
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+        
+        /* Fullscreen/Expand mode - occupies full page for reading large transcripts */
+        #transcript.fullscreen {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 100px;
+            width: calc(100vw - 40px);
+            height: calc(100vh - 120px);
+            z-index: 1000;
+            border-color: rgba(0, 255, 255, 0.8);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);
+            transform: none;
+        }
+        
+        /* Expand button in transcript header */
+        .transcript-expand-btn {
+            display: inline-block;
+            margin-left: 12px;
+            padding: 4px 12px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 6px;
+            color: #00ffff;
+            font-size: 0.75em;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.8;
+        }
+        
+        .transcript-expand-btn:hover {
+            background: rgba(0, 255, 255, 0.2);
+            border-color: rgba(0, 255, 255, 0.6);
+            opacity: 1;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+        
+        .transcript-expand-btn.expanded {
+            background: rgba(0, 255, 255, 0.3);
+            border-color: rgba(0, 255, 255, 0.8);
         }
         
         #transcript-path {
@@ -494,7 +553,13 @@
             padding-bottom: 10px;
             margin-bottom: 10px;
             border-bottom: 1px solid rgba(0, 255, 255, 0.15);
-            background: transparent;
+            background: rgba(10, 17, 40, 0.98); /* Solid background, not transparent */
+            backdrop-filter: blur(5px);
+        }
+        
+        #transcript.fullscreen .transcript-header {
+            background: rgba(10, 17, 40, 0.98);
+            backdrop-filter: blur(10px);
         }
 
         .jarvis-response {
@@ -527,7 +592,7 @@
         </div>
         
         <!-- JARVIS Video ORB -->
-        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS — Click to engage">
+        <div class="jarvis-orb-container" id="jarvis-orb" title="JARVIS — Double-click or press Space to record">
             <div class="jarvis-orb">
                 <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
                     <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
@@ -538,10 +603,10 @@
         </div>
         
         <!-- Recording status under orb -->
-        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 20px; margin-bottom: 12px;"></div>
+        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 20px; margin-bottom: 8px;"></div>
         
-        <!-- Record button under status -->
-        <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
+        <!-- Recording hint under status -->
+        <div class="recording-hint" id="recording-hint" style="font-size: 0.7em; opacity: 0.6; color: #00ffff; margin-bottom: 12px;">Double-click orb or press Space to record</div>
     </div>
     
     <!-- Transcript panel OUTSIDE container (bottom of page, doesn't affect centering) -->
@@ -551,6 +616,7 @@
             <div style="display: flex; align-items: center; gap: 12px;">
                 <span id="transcript-time" style="font-size: 1.05em; color: #00ffff; opacity: 0.95; font-weight: 700;"></span>
                 <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
+                <button class="transcript-expand-btn" onclick="toggleTranscriptFullscreen()" title="Expand to fullscreen">⛶ Expand</button>
             </div>
         </div>
         <div id="transcript-text" style="margin-bottom:15px;"></div>

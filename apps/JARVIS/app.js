@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.8';
+const CLIENT_VERSION = '2.9.9';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 function toggleTranscriptPath() {
@@ -17,10 +17,28 @@ function toggleTranscriptPath() {
     }
 }
 
+function toggleTranscriptFullscreen() {
+    const transcriptEl = document.getElementById('transcript');
+    const expandBtn = document.querySelector('.transcript-expand-btn');
+    
+    if (!transcriptEl || !expandBtn) return;
+    
+    transcriptEl.classList.toggle('fullscreen');
+    
+    if (transcriptEl.classList.contains('fullscreen')) {
+        expandBtn.textContent = '⛶ Collapse';
+        expandBtn.classList.add('expanded');
+        expandBtn.title = 'Collapse to normal size';
+    } else {
+        expandBtn.textContent = '⛶ Expand';
+        expandBtn.classList.remove('expanded');
+        expandBtn.title = 'Expand to fullscreen';
+    }
+}
+
 // Global API base for all fetch calls
 const API_BASE = window.location.protocol + '//' + (window.location.host || 'localhost:18787');
 
-const recordBtn = document.getElementById('record-btn');
 const status = document.getElementById('status');
 const transcript = document.getElementById('transcript');
 const transcriptText = document.getElementById('transcript-text');
@@ -45,7 +63,6 @@ let lastTranscript = '';
 // Check if video loaded successfully, if not show fallback button
 jarvisVideo.addEventListener('error', () => {
     console.error('Video failed to load, showing fallback button');
-    recordBtn.style.display = 'block';
     jarvisOrb.style.display = 'none';
 });
 
@@ -98,15 +115,6 @@ if (!hasMediaDevices) {
     console.warn('MediaDevices check failed, but attempting recording anyway...');
 }
 
-// Record button still works (for keyboard shortcut or mobile)
-recordBtn.addEventListener('click', async () => {
-    if (!isRecording) {
-        await startRecording();
-    } else {
-        await stopRecording();
-    }
-});
-
 // Also allow ORB click to start/stop recording when not engaged
 jarvisOrb.addEventListener('dblclick', async (e) => {
     e.stopPropagation();
@@ -139,8 +147,6 @@ async function startRecording() {
         isRecording = true;
 
         // Minimal DOM updates - don't touch orb classes (causes video reflow)
-        recordBtn.textContent = 'STOP';
-        // Removed: recordBtn.classList.add('recording');
         // Removed: jarvisOrb.classList.add('engaged', 'recording');
         // Removed: jarvisOrbContainer.classList.add('recording');
         
@@ -159,8 +165,6 @@ async function stopRecording() {
     mediaRecorder.stop();
     isRecording = false;
 
-    recordBtn.textContent = 'REC';
-    // Removed: recordBtn.classList.remove('recording');
     // Removed: jarvisOrb.classList.remove('engaged', 'recording');
     // Removed: jarvisOrbContainer.classList.remove('recording');
     
@@ -364,10 +368,14 @@ async function pollForTranscript(uploadFilename) {
 }
 
 // Keyboard shortcut (Space to record)
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
     if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
-        recordBtn.click();
+         if (!isRecording) {
+        await startRecording();
+    } else {
+        await stopRecording();
+    }
     }
 });
 
