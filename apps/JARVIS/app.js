@@ -193,8 +193,15 @@ async function startRecording() {
         // Recording state - subtle red glow (CSS-only, no video reflow)
         jarvisOrb.classList.add('recording');
         
-        // Update status text only
+        // Update status text
         status.textContent = '🔴 Recording...';
+        
+        // Update recording hint
+        const hint = document.getElementById('recording-hint');
+        if (hint) {
+            hint.textContent = 'Press Space to stop recording';
+        }
+        
         transcript.classList.add('visible');
         transcriptText.textContent = 'Listening...';
         jarvisResponse.style.display = 'none';
@@ -210,6 +217,12 @@ async function stopRecording() {
 
     // Remove recording state
     jarvisOrb.classList.remove('recording');
+    
+    // Restore recording hint
+    const hint = document.getElementById('recording-hint');
+    if (hint) {
+        hint.textContent = 'Press Space to record';
+    }
     
     status.textContent = 'Uploading...';
     status.style.color = '#ffd700';
