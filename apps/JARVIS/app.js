@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.19';
+const CLIENT_VERSION = '2.9.20';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -159,14 +159,35 @@ if (!hasMediaDevices) {
     console.warn('MediaDevices check failed, but attempting recording anyway...');
 }
 
-// Also allow ORB click to start/stop recording when not engaged
-jarvisOrb.addEventListener('dblclick', async (e) => {
+// ORB click/tap - show hint to press Space (don't start recording directly)
+jarvisOrb.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (!isRecording) {
-        await startRecording();
-    } else {
-        await stopRecording();
+    // Show hint: tell user to press Space to record
+    const hint = document.getElementById('recording-hint');
+    if (hint) {
+        hint.textContent = 'Press Space to record';
+        hint.style.opacity = '1';
+        // Flash the hint briefly to draw attention
+        setTimeout(() => {
+            hint.style.opacity = '0.6';
+        }, 1500);
     }
+    console.log('[Orb click] Hint shown: Press Space to record');
+});
+
+// Double-click also shows hint (same behavior)
+jarvisOrb.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    const hint = document.getElementById('recording-hint');
+    if (hint) {
+        hint.textContent = 'Press Space to record';
+        hint.style.opacity = '1';
+        setTimeout(() => {
+            hint.style.opacity = '0.6';
+        }, 1500);
+    }
+    console.log('[Orb dblclick] Hint shown: Press Space to record');
+});
 });
 
 async function startRecording() {
