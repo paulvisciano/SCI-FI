@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.26';
+const CLIENT_VERSION = '2.9.27';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -200,6 +200,20 @@ if (sendTextBtn && textMessageInput) {
         const message = textMessageInput.value.trim();
         if (!message) return;
         
+        // Disable send button while processing
+        sendTextBtn.disabled = true;
+        sendTextBtn.style.opacity = '0.5';
+        sendTextBtn.style.cursor = 'not-allowed';
+        
+        // Show message in transcript immediately (like live transcription)
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        document.getElementById('transcript-time').textContent = `${dateStr} ${timeStr}`;
+        transcriptText.innerHTML = `<span style="color: #00ffff;">💬 ${message}</span>`;
+        transcript.classList.add('visible');
+        transcript.classList.add('pulsate');
+        
         showStatus('Sending message...', 'info');
         
         try {
@@ -224,10 +238,18 @@ if (sendTextBtn && textMessageInput) {
                 pollForTranscript();
             } else {
                 showStatus('❌ Failed: ' + (result.message || 'Unknown error'), 'error');
+                // Re-enable button on error
+                sendTextBtn.disabled = false;
+                sendTextBtn.style.opacity = '1';
+                sendTextBtn.style.cursor = 'pointer';
             }
         } catch (err) {
             showStatus('⚠️ Server offline', 'warning');
             console.error('Text message failed:', err);
+            // Re-enable button on error
+            sendTextBtn.disabled = false;
+            sendTextBtn.style.opacity = '1';
+            sendTextBtn.style.cursor = 'pointer';
         }
     });
     
