@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.16';
+const CLIENT_VERSION = '2.9.18';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -454,15 +454,6 @@ function checkServerStatus() {
                 // Restore faded state after updating text (polling doesn't break fade)
                 if (wasFaded && statusEl) {
                     statusEl.classList.add('faded');
-                }
-                
-                // Trigger orb pulse on health check (makes orb feel alive + connected to server)
-                const jarvisOrb = document.getElementById('jarvis-orb');
-                if (jarvisOrb) {
-                    jarvisOrb.classList.remove('health-pulse'); // Reset animation
-                    void jarvisOrb.offsetWidth; // Force reflow (restarts animation)
-                    jarvisOrb.classList.add('health-pulse'); // Trigger pulse
-                    console.log('[UI v2.9.15] Orb health pulse triggered');
                 }
                 
                 // Setup fade-in-out logic on first successful health check

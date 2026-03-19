@@ -346,24 +346,11 @@
             /* Empty - pure video, no effects */
         }
         
-        /* Health check pulse - prominent glow pulse (triggered by JS on each health poll) */
-        .jarvis-orb.health-pulse {
-            animation: orb-health-pulse 0.8s ease-out !important;
-        }
-        
-        @keyframes orb-health-pulse {
-            0% {
-                box-shadow: 0 0 40px rgba(0, 255, 255, 0.3) !important;
-                border-color: rgba(0, 255, 255, 0.8) !important;
-            }
-            50% {
-                box-shadow: 0 0 80px rgba(0, 255, 255, 0.8) !important;
-                border-color: rgba(0, 255, 255, 1.0) !important;
-            }
-            100% {
-                box-shadow: 0 0 40px rgba(0, 255, 255, 0.3) !important;
-                border-color: rgba(0, 255, 255, 0.8) !important;
-            }
+        /* Recording state - subtle red glow (minimal, performance-safe) */
+        .jarvis-orb.recording {
+            border-color: rgba(255, 68, 68, 0.4);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+            animation: orb-record-pulse 3s ease-in-out infinite;
         }
 
         /* Version badge - static, no effects */
