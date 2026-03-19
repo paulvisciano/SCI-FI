@@ -8,17 +8,26 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
-            background: linear-gradient(135deg, #0a1128 0%, #1a1f3a 100%);
+            background: #000000;
             color: #00ffff;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
             height: 100vh;
             width: 100vw;
-            overflow-x: hidden; /* Prevent horizontal scroll */
+            overflow: hidden; /* No scroll - fixed viewport */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .container {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            position: relative;
+            flex: 1;
+            width: 100%;
+            padding: 20px;
         }
 
         /* Network Device Dots (Background) */
@@ -48,11 +57,17 @@
             opacity: 0.8;
         }
         
-        .network-dot:hover, .network-dot.selected {
+        .network-dot:hover {
             transform: scale(1.8);
             opacity: 1;
             z-index: 100;
             box-shadow: 0 0 20px #00d9ff, 0 0 40px #00d9ff88;
+        }
+        
+        .network-dot.selected {
+            opacity: 1;
+            z-index: 100;
+            /* No scale transform on click - keeps size stable for form entry */
         }
         
         .network-dot.gateway {
@@ -79,9 +94,10 @@
             border-radius: 8px;
             padding: 14px;
             min-width: 220px;
+            max-width: 300px;
             font-size: 12px;
             color: #00ffff;
-            white-space: nowrap;
+            white-space: normal;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.2s;
@@ -89,10 +105,61 @@
             box-shadow: 0 4px 20px rgba(0, 217, 255, 0.3);
         }
         
-        .network-dot:hover .network-dot-tooltip,
+        /* Show tooltip on hover */
+        .network-dot:hover .network-dot-tooltip {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Keep tooltip visible when dot is selected (clicked) */
         .network-dot.selected .network-dot-tooltip {
             opacity: 1;
             pointer-events: auto;
+        }
+        
+        .network-dot-tooltip h4 {
+            margin: 0 0 6px 0;
+            font-size: 11px;
+            color: #00d9ff;
+            text-transform: uppercase;
+        }
+        
+        .network-dot-tooltip p {
+            margin: 3px 0;
+            color: #aabbcc;
+        }
+        
+        .network-dot-tooltip input {
+            width: 100%;
+            box-sizing: border-box;
+            margin: 4px 0;
+            padding: 6px 8px;
+            background: rgba(0, 217, 255, 0.1);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 4px;
+            color: #00ffff;
+            font-size: 11px;
+        }
+        
+        .network-dot-tooltip input::placeholder {
+            color: rgba(0, 255, 255, 0.4);
+        }
+        
+        .network-dot-tooltip button {
+            width: 100%;
+            margin-top: 6px;
+            padding: 6px 12px;
+            background: rgba(0, 217, 255, 0.2);
+            border: 1px solid rgba(0, 217, 255, 0.4);
+            border-radius: 4px;
+            color: #00ffff;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        
+        .network-dot-tooltip button:hover {
+            background: rgba(0, 217, 255, 0.3);
         }
         
         .network-dot-tooltip h4 {
@@ -174,15 +241,7 @@
             background: #00d9ff33;
         }
 
-        .container {
-            text-align: center;
-            max-width: 600px;
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 600px; /* Prevent layout shift */
-        }
+        /* Removed duplicate .container - using first definition at line 23 */
 
         h1.futuristic-title {
             font-size: 3em;
@@ -208,11 +267,22 @@
             letter-spacing: 2px;
             text-transform: uppercase;
             font-weight: 300;
-            opacity: 0.8;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            opacity: 1;
+            transition: opacity 1.5s ease;
+        }
+        
+        /* Fade out (applied by JS after 3 seconds) - !important to override inline styles */
+        .server-status.faded {
+            opacity: 0.15 !important;
+        }
+        
+        /* Fade in on hover over status itself */
+        .server-status:hover {
+            opacity: 1 !important;
         }
         
         .server-status .indicator {
@@ -246,6 +316,22 @@
             margin-bottom: 30px;
             min-height: 1.2em;
             letter-spacing: 3px;
+        }
+        
+        /* Recording hint - shows on orb hover */
+        .recording-hint {
+            font-size: 0.7em;
+            color: #00ffff;
+            opacity: 0.6;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            text-align: center;
+            transition: opacity 0.2s;
+        }
+        
+        .jarvis-orb-container:hover + .status + .recording-hint,
+        .recording-hint:hover {
+            opacity: 1;
             text-transform: uppercase;
             font-weight: 300;
             opacity: 0.8;
@@ -253,82 +339,20 @@
         }
 
         /* JARVIS Video ORB - Pure Neural Intelligence */
+        /* JARVIS Orb - Minimal styling, just circular mask */
         .jarvis-orb-container {
             position: relative;
-            width: 220px;
-            height: 220px;
+            width: 242px; /* 10% larger (was 220px) */
+            height: 242px;
             margin: 40px auto 20px;
-            flex-shrink: 0; /* Don't compress */
+            flex-shrink: 0;
             cursor: pointer;
-            -webkit-tap-highlight-color: transparent; /* Remove mobile tap highlight */
-            -webkit-touch-callout: none; /* Disable iOS callout menu */
-            user-select: none; /* Prevent selection */
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
-        }
-
-        /* Futuristic glow ring around orb */
-        .orb-glow-ring {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 260px;
-            height: 260px;
-            border-radius: 50%;
-            border: 2px solid rgba(0, 255, 255, 0.2);
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1);
-            opacity: 0.6;
-            transition: all 0.3s ease;
-            pointer-events: none;
-            animation: ring-pulse 3s ease-in-out infinite;
-        }
-
-        @keyframes ring-pulse {
-            0%, 100% { 
-                transform: translate(-50%, -50%) scale(1);
-                opacity: 0.6;
-                box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1);
-            }
-            50% { 
-                transform: translate(-50%, -50%) scale(1.05);
-                opacity: 0.8;
-                box-shadow: 0 0 50px rgba(0, 255, 255, 0.5), inset 0 0 50px rgba(0, 255, 255, 0.2);
-            }
-        }
-
-        .jarvis-orb-container:hover .orb-glow-ring {
-            opacity: 1;
-            box-shadow: 0 0 60px rgba(0, 255, 255, 0.6), inset 0 0 60px rgba(0, 255, 255, 0.3);
-        }
-
-        .jarvis-orb-container.recording .orb-glow-ring {
-            border-color: rgba(255, 68, 68, 0.6);
-            box-shadow: 0 0 60px rgba(255, 68, 68, 0.6), inset 0 0 60px rgba(255, 68, 68, 0.3);
-            animation: ring-alert 1s ease-in-out infinite;
-        }
-
-        @keyframes ring-alert {
-            0%, 100% { 
-                transform: translate(-50%, -50%) scale(1);
-                opacity: 1;
-            }
-            50% { 
-                transform: translate(-50%, -50%) scale(1.1);
-                opacity: 0.8;
-            }
-        }
-
-        @keyframes halo-pulse {
-            0%, 100% {
-                transform: translate(-50%, -50%) scale(1);
-                opacity: 0.8;
-            }
-            50% {
-                transform: translate(-50%, -50%) scale(1.1);
-                opacity: 0.4;
-            }
         }
 
         .jarvis-orb {
@@ -337,29 +361,67 @@
             border-radius: 50%;
             overflow: hidden;
             position: relative;
-            box-shadow: 0 0 40px rgba(0, 255, 255, 0.4);
-            transition: all 0.3s ease;
+            border: 1px solid rgba(0, 255, 255, 0.15); /* Ultra-subtle border - barely visible */
         }
 
         .jarvis-orb video {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            /* No filters, no animations - pure video */
         }
 
-        .jarvis-orb:hover {
-            transform: scale(1.08);
-            box-shadow: 0 0 80px rgba(0, 255, 255, 0.8), 0 0 120px rgba(0, 255, 255, 0.4);
+        /* Subtle hover glow - minimal, doesn't affect video playback */
+        .jarvis-orb-container:hover .jarvis-orb {
+            border-color: rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.15);
         }
 
+        /* Tap feedback - subtle glow (no scale, no flash, keeps video smooth) */
+        .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
+            border-color: rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.25);
+        }
+        
+        /* Recording state - subtle red glow (minimal, performance-safe) */
+        .jarvis-orb.recording {
+            border-color: rgba(255, 68, 68, 0.4);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+            animation: orb-record-pulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes orb-record-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+            }
+            50% { 
+                box-shadow: 0 0 45px rgba(255, 68, 68, 0.3);
+            }
+        }
+        
+        /* Minimal engaged state - no filters, no slowdowns */
         .jarvis-orb.engaged {
-            filter: brightness(1.4) contrast(1.1);
-            box-shadow: 0 0 80px rgba(0, 255, 255, 0.8), 0 0 160px rgba(0, 255, 255, 0.5);
-            animation: orb-pulse 0.6s ease-in-out infinite;
+            /* Empty - pure video, no effects */
+        }
+        
+        /* Recording state - subtle red glow (minimal, performance-safe) */
+        .jarvis-orb.recording {
+            border-color: rgba(255, 68, 68, 0.4);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+            animation: orb-record-pulse 3s ease-in-out infinite;
         }
 
-        .jarvis-orb.engaged video {
-            animation: speed-up 0.3s ease;
+        /* Version badge - static, no effects */
+        .orb-version-badge {
+            position: absolute;
+            bottom: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7em;
+            color: #00ffff;
+            opacity: 0.7;
+            white-space: nowrap;
+            pointer-events: none;
         }
 
         @keyframes orb-pulse {
@@ -373,55 +435,15 @@
             }
         }
 
-        @keyframes speed-up {
-            from { filter: brightness(1); }
-            to { filter: brightness(1.4); }
-        }
-
-        /* Legacy record button (hidden by default, shown on mobile or if video fails) */
-        #record-btn {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            border: 4px solid #00ffff;
-            background: rgba(0, 255, 255, 0.15);
-            color: #00ffff;
-            font-size: 1.2em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-            margin: 0 auto 30px;
-            display: none; /* Hidden by default, ORB is primary */
-        }
-
-        #record-btn:hover {
-            background: rgba(0, 255, 255, 0.3);
-            transform: scale(1.05);
-        }
-
-        #record-btn.recording {
-            background: rgba(255, 0, 0, 0.4);
-            border-color: #ff4444;
-            box-shadow: 0 0 50px rgba(255, 68, 68, 0.6);
-            animation: pulse 1s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
         /* Clean futuristic transcript - fixed height; content scrolls if long */
         #transcript {
-            background: rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #0a1128 0%, #1a1f3a 100%);
             border: 1px solid rgba(0, 255, 255, 0.2);
             border-radius: 12px;
             padding: 20px;
-            margin-top: 20px;
-            width: min(640px, 90vw);            /* fixed, centered width */
-            height: clamp(160px, 32vh, 340px);  /* fixed visual height within reasonable bounds */
-            overflow-y: auto;                   /* scroll when content exceeds max height */
+            width: min(640px, calc(100vw - 40px));
+            height: clamp(200px, 42vh, 420px);
+            overflow-y: auto;
             text-align: left;
             font-size: 0.95em;
             line-height: 1.8;
@@ -430,11 +452,64 @@
             flex-shrink: 0;
             cursor: pointer;
             position: relative;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease, height 0.3s ease, position 0.3s ease, z-index 0.3s ease;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        #transcript.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
         }
         
         #transcript:hover {
             border-color: rgba(0, 255, 255, 0.5);
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+        
+        /* Fullscreen/Expand mode - occupies full page for reading large transcripts */
+        #transcript.fullscreen {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 100px;
+            width: calc(100vw - 40px);
+            height: calc(100vh - 120px);
+            z-index: 1000;
+            border-color: rgba(0, 255, 255, 0.8);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);
+            transform: none;
+        }
+        
+        /* Expand button in transcript header */
+        .transcript-expand-btn {
+            display: inline-block;
+            margin-left: 12px;
+            padding: 4px 12px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 6px;
+            color: #00ffff;
+            font-size: 0.75em;
+            cursor: pointer;
+            transition: all 0.2s;
+            opacity: 0.8;
+        }
+        
+        .transcript-expand-btn:hover {
+            background: rgba(0, 255, 255, 0.2);
+            border-color: rgba(0, 255, 255, 0.6);
+            opacity: 1;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+        
+        .transcript-expand-btn.expanded {
+            background: rgba(0, 255, 255, 0.3);
+            border-color: rgba(0, 255, 255, 0.8);
         }
         
         #transcript-path {
@@ -511,7 +586,7 @@
             opacity: 0.6;
         }
 
-        /* Sticky transcript header background so content doesn't show through while scrolling */
+        /* Sticky transcript header - clean minimal */
         .transcript-header {
             position: sticky;
             top: 0;
@@ -519,9 +594,16 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding-bottom: 8px;
-            margin-bottom: 8px;
-            background: linear-gradient(to bottom, rgba(10,17,40,0.98), rgba(10,17,40,0.92));
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+            background: rgba(10, 17, 40, 0.98); /* Solid background, not transparent */
+            backdrop-filter: blur(5px);
+        }
+        
+        #transcript.fullscreen .transcript-header {
+            background: rgba(10, 17, 40, 0.98);
+            backdrop-filter: blur(10px);
         }
 
         .jarvis-response {
@@ -543,12 +625,23 @@
     </style>
 </head>
 <body>
+    <!-- Orb centered vertically -->
     <div class="container">
-        <h1 class="futuristic-title">J.A.R.V.I.S</h1>
+        <!-- Title with client version inline (top right) -->
+        <div class="title-container" style="display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-bottom: 8px;">
+            <h1 class="futuristic-title" style="margin: 0; font-size: 3.1em;">J.A.R.V.I.S</h1>
+            <span id="client-version-inline" style="font-size: 0.75em; color: #64ffda; opacity: 0.7;">v2.9.10</span>
+        </div>
         
-        <!-- JARVIS Video ORB - Pure Neural Intelligence -->
-        <div class="jarvis-orb-container" id="jarvis-orb" title="Click to engage JARVIS">
-            <div class="jarvis-orb">
+        <!-- Server status under title (all server info) -->
+        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; margin-bottom: 20px;">
+            <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px;"></span>
+            <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
+        </div>
+        
+        <!-- JARVIS Video ORB -->
+        <div class="jarvis-orb-container" id="jarvis-orb-container">
+            <div class="jarvis-orb" id="jarvis-orb">
                 <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
                     <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
                     Your browser does not support the video tag.
@@ -557,38 +650,28 @@
             <div class="orb-glow-ring"></div>
         </div>
         
-        <div id="transcript">
-            <div class="label transcript-header">
-                <span>Live Transcription</span>
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span id="transcript-time" style="font-size: 0.75em; color: #00ffff; opacity: 0.8; font-weight: 600;"></span>
-                    <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
-                </div>
-            </div>
-            <div id="transcript-text" style="margin-bottom:15px;"></div>
-            <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
-            <div class="jarvis-response" id="jarvis-response" style="display:none;">
-                <div class="label" style="margin-top:15px;">Jarvis Response</div>
-                <div id="response-text"></div>
-            </div>
-        </div>
+        <!-- Recording status under orb -->
+        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 20px; margin-bottom: 8px;"></div>
+        
+        <!-- Recording hint under status -->
+        <div class="recording-hint" id="recording-hint" style="font-size: 0.7em; opacity: 0.6; color: #00ffff; margin-bottom: 12px;">Press Space to record</div>
     </div>
     
-    <!-- Recording button + optional location sharing + Server status at bottom, full width on mobile -->
-    <div style="position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; padding: 0 20px; box-sizing: border-box;">
-        <div style="display:flex; justify-content:center; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap;">
-            <button id="record-btn" style="padding: 12px 24px; background: rgba(0,255,255,0.2); border: 2px solid #00ffff; color: #00ffff; border-radius: 8px; font-size: 14px; cursor: pointer; letter-spacing: 2px;">REC</button>
-            <button id="share-location-btn" style="padding: 8px 14px; background: rgba(0,217,255,0.18); border: 1px solid #00d9ff; color: #00d9ff; border-radius: 999px; font-size: 11px; cursor: pointer; letter-spacing: 1.5px; text-transform: uppercase;">📍 Share once</button>
-            <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#64ffda; cursor:pointer;">
-                <input id="include-location-toggle" type="checkbox" style="accent-color:#00d9ff; cursor:pointer;">
-                <span>Include location with messages</span>
-            </label>
+    <!-- Transcript panel OUTSIDE container (bottom of page, doesn't affect centering) -->
+    <div id="transcript" style="margin: 0 20px 80px 20px; width: min(640px, calc(100vw - 40px));">
+        <div class="label transcript-header">
+            <span>Live Transcription</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="transcript-time" style="font-size: 1.05em; color: #00ffff; opacity: 0.95; font-weight: 700;"></span>
+                <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
+                <button class="transcript-expand-btn" onclick="toggleTranscriptFullscreen()" title="Expand to fullscreen">⛶ Expand</button>
+            </div>
         </div>
-        <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
-        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            <span class="indicator" id="server-indicator"></span>
-            <span id="server-status-text">Checking server...</span>
-            <span id="server-version" style="margin-left: 8px; font-size: 0.7em; opacity: 0.6;"></span>
+        <div id="transcript-text" style="margin-bottom:15px;"></div>
+        <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
+        <div class="jarvis-response" id="jarvis-response" style="display:none;">
+            <div class="label" style="margin-top:15px;">Jarvis Response</div>
+            <div id="response-text"></div>
         </div>
     </div>
     

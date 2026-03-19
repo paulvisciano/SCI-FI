@@ -1,1 +1,4 @@
 https-*.pem
+
+# Ensure orb video is NOT ignored here, even though root .gitignore has *.mp4
+!assets/jarvis-orb-video.mp4

@@ -1,4 +1,53 @@
 // JARVIS Voice Recorder UI - extracted from index.html
+
+// Client version (bumped when UI changes ship)
+const CLIENT_VERSION = '2.9.24';
+const CLIENT_BUILD_DATE = '2026-03-19';
+
+// Fade server status after 3 seconds, reappear on hover
+let fadeTimer;
+function setupServerStatusFade() {
+    const serverStatus = document.getElementById('server-status');
+    const titleContainer = document.querySelector('.title-container');
+    
+    if (!serverStatus || !titleContainer) return;
+    
+    console.log('[UI v2.9.11] Setting up fade-on-hover...');
+    
+    // Fade out after 3 seconds
+    fadeTimer = setTimeout(() => {
+        serverStatus.classList.add('faded');
+        console.log('[UI v2.9.11] Server status faded out');
+    }, 3000);
+    
+    // Fade in on hover over title container or status
+    titleContainer.addEventListener('mouseenter', () => {
+        serverStatus.classList.remove('faded');
+        clearTimeout(fadeTimer);
+        console.log('[UI v2.9.11] Server status faded in (title hover)');
+    });
+    
+    titleContainer.addEventListener('mouseleave', () => {
+        fadeTimer = setTimeout(() => {
+            serverStatus.classList.add('faded');
+            console.log('[UI v2.9.11] Server status faded out (title leave)');
+        }, 2000);
+    });
+    
+    serverStatus.addEventListener('mouseenter', () => {
+        serverStatus.classList.remove('faded');
+        clearTimeout(fadeTimer);
+        console.log('[UI v2.9.11] Server status faded in (status hover)');
+    });
+    
+    serverStatus.addEventListener('mouseleave', () => {
+        fadeTimer = setTimeout(() => {
+            serverStatus.classList.add('faded');
+            console.log('[UI v2.9.11] Server status faded out (status leave)');
+        }, 2000);
+    });
+}
+
 function toggleTranscriptPath() {
     const pathEl = document.getElementById('transcript-path');
     if (pathEl.style.display === 'none' || pathEl.style.display === '') {
@@ -12,17 +61,35 @@ function toggleTranscriptPath() {
     }
 }
 
+function toggleTranscriptFullscreen() {
+    const transcriptEl = document.getElementById('transcript');
+    const expandBtn = document.querySelector('.transcript-expand-btn');
+    
+    if (!transcriptEl || !expandBtn) return;
+    
+    transcriptEl.classList.toggle('fullscreen');
+    
+    if (transcriptEl.classList.contains('fullscreen')) {
+        expandBtn.textContent = '⛶ Collapse';
+        expandBtn.classList.add('expanded');
+        expandBtn.title = 'Collapse to normal size';
+    } else {
+        expandBtn.textContent = '⛶ Expand';
+        expandBtn.classList.remove('expanded');
+        expandBtn.title = 'Expand to fullscreen';
+    }
+}
+
 // Global API base for all fetch calls
 const API_BASE = window.location.protocol + '//' + (window.location.host || 'localhost:18787');
 
-const recordBtn = document.getElementById('record-btn');
 const status = document.getElementById('status');
 const transcript = document.getElementById('transcript');
 const transcriptText = document.getElementById('transcript-text');
 const jarvisResponse = document.getElementById('jarvis-response');
 const responseText = document.getElementById('response-text');
 const jarvisOrb = document.getElementById('jarvis-orb');
-const jarvisOrbContainer = document.getElementById('jarvis-orb').parentElement;
+const jarvisOrbContainer = document.getElementById('jarvis-orb-container');
 const jarvisVideo = document.getElementById('jarvis-video');
 const includeLocationToggle = document.getElementById('include-location-toggle');
 
@@ -61,7 +128,6 @@ let lastTranscript = '';
 // Check if video loaded successfully, if not show fallback button
 jarvisVideo.addEventListener('error', () => {
     console.error('Video failed to load, showing fallback button');
-    recordBtn.style.display = 'block';
     jarvisOrb.style.display = 'none';
 });
 
@@ -128,35 +194,46 @@ if (shareLocationBtn) {
 
 jarvisVideo.addEventListener('loadeddata', () => {
     console.log('Video loaded successfully');
+    // Set playback speed to 1.25x - slightly faster, still smooth
+    jarvisVideo.playbackRate = 1.25;
 });
 
 // Mouse enter/leave effects - make ORB feel alive
 jarvisOrb.addEventListener('mouseenter', () => {
     if (!isRecording) {
         jarvisOrb.classList.add('engaged');
-        jarvisVideo.playbackRate = 1.3;
+        // No speed change - keep video smooth
     }
 });
 
 jarvisOrb.addEventListener('mouseleave', () => {
     if (!isRecording && !isOrbEngaged) {
         jarvisOrb.classList.remove('engaged');
-        jarvisVideo.playbackRate = 1.0;
+        // No speed change - keep video smooth
     }
 });
 
 // ORB click handler - engage/disengage JARVIS
-jarvisOrb.addEventListener('click', () => {
+jarvisOrbContainer.addEventListener('click', () => {
     isOrbEngaged = !isOrbEngaged;
 
     if (isOrbEngaged) {
         jarvisOrb.classList.add('engaged');
-        jarvisVideo.playbackRate = 1.5;
+        // No speed change - keep video smooth
     } else {
         jarvisOrb.classList.remove('engaged');
-        jarvisVideo.playbackRate = 1.0;
+        // No speed change - keep video smooth
     }
 });
+
+// Mobile tap feedback - add tapped class briefly on touch
+jarvisOrbContainer.addEventListener('touchstart', () => {
+    jarvisOrbContainer.classList.add('tapped');
+}, { passive: true });
+
+jarvisOrbContainer.addEventListener('touchend', () => {
+    jarvisOrbContainer.classList.remove('tapped');
+}, { passive: true });
 
 // Check if browser supports MediaRecorder (mobile browsers may need HTTPS)
 const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
@@ -164,16 +241,20 @@ if (!hasMediaDevices) {
     console.warn('MediaDevices check failed, but attempting recording anyway...');
 }
 
-// Record button still works (for keyboard shortcut or mobile)
-recordBtn.addEventListener('click', async () => {
+// ORB click/tap - start/stop recording (works on mobile + desktop)
+// Mobile: tap orb (no Space key)
+// Desktop: can use Space key OR tap orb (both work)
+jarvisOrb.addEventListener('click', async (e) => {
+    e.stopPropagation();
     if (!isRecording) {
         await startRecording();
     } else {
         await stopRecording();
     }
+    console.log('[Orb click] Recording toggled');
 });
 
-// Also allow ORB click to start/stop recording when not engaged
+// Double-click also toggles recording (for users who prefer it)
 jarvisOrb.addEventListener('dblclick', async (e) => {
     e.stopPropagation();
     if (!isRecording) {
@@ -181,6 +262,7 @@ jarvisOrb.addEventListener('dblclick', async (e) => {
     } else {
         await stopRecording();
     }
+    console.log('[Orb dblclick] Recording toggled');
 });
 
 async function startRecording() {
@@ -204,15 +286,18 @@ async function startRecording() {
         mediaRecorder.start(2000);
         isRecording = true;
 
-        recordBtn.textContent = 'STOP';
-        recordBtn.classList.add('recording');
-        jarvisOrb.classList.add('engaged', 'recording');
-        jarvisOrbContainer.classList.add('recording');
-        jarvisVideo.playbackRate = 2.0;
+        // Recording state - subtle red glow (CSS-only, no video reflow)
+        jarvisOrb.classList.add('recording');
+        
+        // Update status text
         status.textContent = '🔴 Recording...';
-        status.style.color = '#ff4444';
-        status.style.textShadow = '0 0 30px rgba(255, 68, 68, 0.8)';
-        status.style.opacity = '1';
+        
+        // Update recording hint
+        const hint = document.getElementById('recording-hint');
+        if (hint) {
+            hint.textContent = 'Press Space to stop recording';
+        }
+        
         transcript.classList.add('visible');
         transcriptText.textContent = 'Listening...';
         jarvisResponse.style.display = 'none';
@@ -226,11 +311,15 @@ async function stopRecording() {
     mediaRecorder.stop();
     isRecording = false;
 
-    recordBtn.textContent = 'REC';
-    recordBtn.classList.remove('recording');
-    jarvisOrb.classList.remove('engaged', 'recording');
-    jarvisOrbContainer.classList.remove('recording');
-    jarvisVideo.playbackRate = 1.0;
+    // Remove recording state
+    jarvisOrb.classList.remove('recording');
+    
+    // Restore recording hint
+    const hint = document.getElementById('recording-hint');
+    if (hint) {
+        hint.textContent = 'Press Space to record';
+    }
+    
     status.textContent = 'Uploading...';
     status.style.color = '#ffd700';
     status.style.textShadow = '0 0 30px rgba(255, 215, 0, 0.6)';
@@ -381,7 +470,6 @@ async function pollForTranscript(uploadFilename) {
                         transcriptText.textContent = data.transcript;
                         responseText.innerHTML = formatResponseText(data.jarvisResponse);
                         jarvisResponse.style.display = 'block';
-                        playResponse(data.jarvisResponse);
                     } else {
                         // Agent didn't return a response (failed or empty) – stop polling and show message
                         clearInterval(pollInterval);
@@ -414,7 +502,6 @@ async function pollForTranscript(uploadFilename) {
                     status.style.color = '#00ff88';
                     responseText.innerHTML = formatResponseText(data.jarvisResponse);
                     jarvisResponse.style.display = 'block';
-                    playResponse(data.jarvisResponse);
                 } else if (data.status === 'idle') {
                     clearThinkingTimer();
                     transcript.classList.remove('pulsate');
@@ -439,57 +526,113 @@ async function pollForTranscript(uploadFilename) {
 }
 
 // Keyboard shortcut (Space to record)
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
     if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
-        recordBtn.click();
+         if (!isRecording) {
+        await startRecording();
+    } else {
+        await stopRecording();
+    }
     }
 });
-
-function playResponse(text) {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-
-        const voices = window.speechSynthesis.getVoices();
-        const preferredVoice = voices.find(v => v.name.includes('Google US English')) ||
-                              voices.find(v => v.lang === 'en-US') ||
-                              voices[0];
-        if (preferredVoice) utterance.voice = preferredVoice;
-
-        window.speechSynthesis.speak(utterance);
-    }
-}
 
 function checkServerStatus() {
     fetch(`${API_BASE}/health`)
         .then(res => res.json())
         .then(data => {
-            document.getElementById('server-indicator').classList.remove('offline');
-            document.getElementById('server-status-text').textContent = 'Server online';
-            document.getElementById('server-version').textContent = `v${data.version} (${data.build})`;
+            const indicator = document.getElementById('server-indicator');
+            const statusText = document.getElementById('server-status-text');
+            
+            // Check if JARVIS process is alive (from /health endpoint)
+            // Response: { status: 'ok', version: VERSION, build: BUILD_DATE, jarvis: { pid, memory, uptime } }
+            if (data.status === 'ok') {
+                indicator.style.background = '#00ffff';
+                indicator.style.boxShadow = '0 0 8px #00ffff';
+                // Server version from /health endpoint (reads jarvis-server.js VERSION constant)
+                const serverVersion = data.version ? `v${data.version}` : 'v?';
+                const pid = data.jarvis?.pid || '?';
+                const memory = data.jarvis?.memory || '?';
+                const uptime = data.jarvis?.uptime || '?';
+                
+                // Show server info underneath title (version, PID, memory, uptime)
+                const statusEl = document.getElementById('server-status');
+                const statusTextEl = document.getElementById('server-status-text');
+                const wasFaded = statusEl?.classList.contains('faded'); // Preserve fade state
+                
+                statusTextEl.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
+                
+                // Client version inline next to J.A.R.V.I.S title (top right)
+                document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
+                statusText.style.color = '#00ffff';
+                
+                // Restore faded state after updating text (polling doesn't break fade)
+                if (wasFaded && statusEl) {
+                    statusEl.classList.add('faded');
+                }
+                
+                // Setup fade-in-out logic on first successful health check
+                if (!window.serverStatusFadeSetup) {
+                    setupServerStatusFade();
+                    window.serverStatusFadeSetup = true;
+                    console.log('[UI v2.9.11] Fade setup called on first health check');
+                }
+            } else {
+                indicator.style.background = '#ff4444';
+                indicator.style.boxShadow = '0 0 8px #ff4444';
+                document.getElementById('server-status-text').textContent = 'Server: Offline';
+                document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
+                statusText.style.color = '#ff4444';
+            }
         })
         .catch(() => {
-            document.getElementById('server-indicator').classList.add('offline');
-            document.getElementById('server-status-text').textContent = 'Server offline';
-            document.getElementById('server-version').textContent = '';
+            const indicator = document.getElementById('server-indicator');
+            const statusText = document.getElementById('server-status-text');
+            indicator.style.background = '#ff4444';
+            indicator.style.boxShadow = '0 0 8px #ff4444';
+            statusText.textContent = 'Health check failed';
+            statusText.style.color = '#ff4444';
         });
 }
+
+// Update orb version badge
+function updateOrbVersion() {
+    const orbVersionEl = document.getElementById('orb-version');
+    if (orbVersionEl) {
+        orbVersionEl.textContent = `v${CLIENT_VERSION}`;
+    }
+}
+
+updateOrbVersion();
 
 checkServerStatus();
 setInterval(checkServerStatus, 5000);
 
-// === Network Dots Integration ===
+// === Network Dots Integration (with Device Identity) ===
 (function() {
     const protocol = window.location.protocol;
     const host = window.location.host || 'localhost:18787';
     const API_BASE_NET = `${protocol}//${host}`;
     let devices = [];
+    let deviceRegistry = {}; // MAC -> device info from registry
     let dotElements = [];
+
+    // Load device registry from server
+    async function loadDeviceRegistry() {
+        try {
+            const res = await fetch(`${API_BASE_NET}/api/devices`);
+            const data = await res.json();
+            if (data.devices) {
+                deviceRegistry = {};
+                data.devices.forEach(d => {
+                    deviceRegistry[d.mac.toUpperCase()] = d;
+                });
+                console.log('[DeviceIdentity] Loaded', data.devices.length, 'devices from registry');
+            }
+        } catch (err) {
+            console.warn('[DeviceIdentity] Registry fetch failed:', err);
+        }
+    }
 
     async function loadDevices() {
         try {
@@ -501,6 +644,22 @@ setInterval(checkServerStatus, 5000);
         } catch (err) {
             console.warn('Network fetch failed:', err);
         }
+    }
+
+    function formatLastSeen(isoString) {
+        if (!isoString) return 'Unknown';
+        const date = new Date(isoString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
     }
 
     function renderDots() {
@@ -524,15 +683,55 @@ setInterval(checkServerStatus, 5000);
             dot.style.top = `${y - 8}px`;
             dot.style.animationDelay = `${idx * 0.5}s`;
 
+            // Look up device in registry
+            const macKey = device.mac.toUpperCase();
+            const registeredDevice = deviceRegistry[macKey];
+            
+            const displayName = registeredDevice ? registeredDevice.name : device.manufacturer;
+            const owner = registeredDevice ? registeredDevice.owner : 'unknown';
+            const lastSeen = registeredDevice ? formatLastSeen(registeredDevice.last_seen) : 'First seen';
+            const connectionCount = registeredDevice ? registeredDevice.connection_count : 1;
+
+            // Color by owner
+            let borderColor = '#00d9ff'; // Default cyan
+            if (owner === 'paul') borderColor = '#00ff88'; // Green
+            else if (owner === 'eric') borderColor = '#00d9ff'; // Cyan
+            else if (registeredDevice) borderColor = '#ffcc00'; // Yellow for known unknown
+            if (device.isGateway) borderColor = '#00ff88'; // Gateway always green
+
+            dot.style.borderColor = borderColor;
+            if (device.isGateway) {
+                dot.style.background = 'radial-gradient(circle, #00ff88 0%, transparent 70%)';
+            }
+
             const tooltip = document.createElement('div');
             tooltip.className = 'network-dot-tooltip';
-            tooltip.innerHTML = `
-                <h4>${device.manufacturer}</h4>
-                <p>IP: ${device.ip}</p>
-                <p>MAC: ${device.mac.toUpperCase()}</p>
-                <p>Type: ${device.deviceType}</p>
-                <span class="qr-btn" data-ip="${device.ip}">📱 Show QR</span>
-            `;
+            
+            console.log('[QR] Rendering tooltip for device:', device);
+            if (registeredDevice) {
+                // Show friendly name from registry
+                tooltip.innerHTML = `
+                    <h4>${displayName}</h4>
+                    <p>Owner: ${owner}</p>
+                    <p>MAC: ${device.mac.toUpperCase()}</p>
+                    <p>Visits: ${connectionCount}</p>
+                    <p>Last seen: ${lastSeen}</p>
+                    <span class="qr-btn" onclick="showQRCode('${device.ip}')">📱 Show QR</span>
+                `;
+            } else {
+                // Unknown device - show registration prompt
+                tooltip.innerHTML = `
+                    <h4>${displayName}</h4>
+                    <p>MAC: ${device.mac.toUpperCase()}</p>
+                    <p>Type: ${device.deviceType}</p>
+                    <div style="margin-top:8px; border-top:1px solid #00d9ff33; padding-top:8px;">
+                        <input type="text" id="reg-name-${idx}" placeholder="Device name..." style="width:100%; margin-bottom:4px; background:#0a1128; border:1px solid #00d9ff; color:#00ffff; padding:4px; font-size:10px;" />
+                        <input type="text" id="reg-owner-${idx}" placeholder="Owner (paul/eric)" style="width:100%; margin-bottom:4px; background:#0a1128; border:1px solid #00d9ff; color:#00ffff; padding:4px; font-size:10px;" />
+                        <button class="qr-btn" onclick="registerDevice(${idx}, '${device.mac.toUpperCase()}')" style="width:100%;">Register</button>
+                    </div>
+                    <span class="qr-btn" onclick="showQRCode('${device.ip}')">📱 Show QR</span>
+                `;
+            }
 
             dot.appendChild(tooltip);
             container.appendChild(dot);
@@ -547,14 +746,43 @@ setInterval(checkServerStatus, 5000);
             document.addEventListener('click', () => {
                 dotElements.forEach(d => d.classList.remove('selected'));
             });
-
-            const qrBtn = tooltip.querySelector('.qr-btn');
-            qrBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showQRCode(device.ip);
-            });
         });
     }
+    
+    // Make showQRCode globally accessible for onclick
+    window.showQRCode = showQRCode;
+
+    // Register unknown device
+    window.registerDevice = async function(idx, mac) {
+        const nameInput = document.getElementById(`reg-name-${idx}`);
+        const ownerInput = document.getElementById(`reg-owner-${idx}`);
+        const name = nameInput.value.trim();
+        const owner = ownerInput.value.trim().toLowerCase();
+        
+        if (!name) {
+            alert('Please enter a device name');
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${API_BASE_NET}/api/register-device`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mac, name, owner: owner || 'unknown' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                console.log('[DeviceIdentity] Registered:', data.device.name);
+                // Reload registry and re-render
+                await loadDeviceRegistry();
+                renderDots();
+            } else {
+                alert('Registration failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            alert('Registration failed: ' + err.message);
+        }
+    };
 
     function showQRCode(ip) {
         let modal = document.getElementById('qr-modal');
@@ -577,20 +805,30 @@ setInterval(checkServerStatus, 5000);
         modal.style.display = 'block';
         modal.querySelector('.qr-status').textContent = 'Generating...';
         modal.querySelector('.qr-image').style.display = 'none';
+        
+        console.log('[QR] Fetching QR code for', ip);
 
+        // Fetch QR code from server
         fetch(`${API_BASE_NET}/network/qr`)
-            .then(res => res.json())
+            .then(res => {
+                console.log('[QR] Response status:', res.status);
+                return res.json();
+            })
             .then(data => {
+                console.log('[QR] Response data:', data ? 'received' : 'empty');
                 if (data.error) {
-                    modal.querySelector('.qr-status').textContent = 'Failed to generate';
+                    console.error('[QR] Server error:', data.error);
+                    modal.querySelector('.qr-status').textContent = 'Failed: ' + data.error;
                     return;
                 }
-                modal.querySelector('.qr-status').textContent = `Scan to connect to ${ip}:18787`;
+                modal.querySelector('.qr-status').textContent = `Scan to connect`;
                 modal.querySelector('.qr-image').src = data.qr;
                 modal.querySelector('.qr-image').style.display = 'block';
                 modal.querySelector('.qr-url').textContent = data.url;
+                console.log('[QR] QR code displayed');
             })
-            .catch(() => {
+            .catch(err => {
+                console.error('[QR] Fetch error:', err);
                 modal.querySelector('.qr-status').textContent = 'Generation failed';
             });
     }

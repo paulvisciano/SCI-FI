@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { exec, execSync } = require('child_process');
 const QRCode = require('qrcode');
+const deviceRegistry = require('./device-registry');
 
 // === HTTPS Configuration ===
 const HTTPS_ENABLED = true;
@@ -21,8 +22,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '2.7.1';
-const BUILD_DATE = '2026-03-17';
+const VERSION = '2.9.5';
+const BUILD_DATE = '2026-03-18';
 
 const CONFIG = {
     port: process.env.VOICE_PORT || 18787,
@@ -283,6 +284,66 @@ function handleRequest(req, res) {
       return;
     }
 
+    // Device registry API - list all devices
+    if (req.method === 'GET' && req.url === '/api/devices') {
+      const devices = deviceRegistry.listDevices();
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ devices }));
+      return;
+    }
+
+    // Device registry API - register/update device
+    if (req.method === 'POST' && req.url === '/api/register-device') {
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', () => {
+        try {
+          const body = Buffer.concat(chunks).toString();
+          const data = JSON.parse(body);
+          const { mac, name, owner } = data;
+          
+          if (!mac) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'MAC address required' }));
+            return;
+          }
+          
+          const device = deviceRegistry.updateDevice(mac, { name, owner: owner || 'unknown' });
+          if (device) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, device }));
+          } else {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Device not found' }));
+          }
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid JSON' }));
+        }
+      });
+      return;
+    }
+
+    // Device registry API - delete device
+    if (req.method === 'DELETE' && req.url.startsWith('/api/delete-device')) {
+      const mac = req.url.split('=')[1];
+      if (!mac) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'MAC address required' }));
+        return;
+      }
+      
+      const removed = deviceRegistry.deleteDevice(mac);
+      if (removed) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, device: removed }));
+      } else {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Device not found' }));
+      }
+      return;
+    }
+
     if (req.method === 'POST' && req.url === '/upload') {
         const chunks = [];
         req.on('data', chunk => chunks.push(chunk));
@@ -399,6 +460,32 @@ function handleRequest(req, res) {
                 cacheHeaders['Expires'] = '0';
             }
             
+            // Device fingerprinting on root path (index.html)
+            if (urlPath === '/') {
+                const userAgent = req.headers['user-agent'] || 'Unknown';
+                const ip = req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
+                const cleanIp = ip.replace('::ffff:', ''); // Strip IPv6 prefix
+                
+                console.log(`[Device Fingerprint] UA: ${userAgent.substring(0, 80)}..., IP: ${cleanIp}`);
+                
+                // Get MAC from ARP table
+                const mac = deviceRegistry.getMacFromArp(cleanIp);
+                
+                if (mac) {
+                    const device = deviceRegistry.findOrCreateDevice(mac, userAgent, cleanIp);
+                    console.log(`[Device] ${device.name} (${device.mac}) - Visit #${device.connection_count}`);
+                    
+                    // Pass device info to frontend via custom headers
+                    cacheHeaders['X-Device-Id'] = device.id;
+                    cacheHeaders['X-Device-Name'] = device.name;
+                    cacheHeaders['X-Device-Mac'] = device.mac;
+                    cacheHeaders['X-Device-Last-Seen'] = device.last_seen;
+                    cacheHeaders['X-Device-Connection-Count'] = String(device.connection_count);
+                } else {
+                    console.log(`[Device] MAC lookup failed for IP: ${cleanIp}`);
+                }
+            }
+            
             fs.readFile(filePath, (err, data) => {
                 if (err) {
                     res.writeHead(500);
@@ -415,15 +502,46 @@ function handleRequest(req, res) {
         }
     }
 
-    // Health check
+    // Health check - includes JARVIS process status
     if (req.url === '/health') {
+        // Get JARVIS process info (PID 267 or find by name)
+        let jarvisPid = null;
+        let jarvisMemory = null;
+        let jarvisUptime = null;
+        
+        try {
+            // Find JARVIS process by name (PID is column 2, RSS is column 6, start time is column 10)
+            const psOutput = execSync('ps aux | grep -i "JARVIS" | grep -v grep | grep -v "J.A.R.V.I.S" | head -1', { encoding: 'utf8' }).trim();
+            
+            if (psOutput) {
+                const fields = psOutput.split(/\s+/);
+                jarvisPid = parseInt(fields[1]); // PID is column 2
+                
+                // Get memory (RSS in KB, column 6)
+                const rssKB = parseInt(fields[5]);
+                jarvisMemory = Math.round(rssKB / 1024) + ' MB';
+                
+                // Start time is column 10 (e.g., "Tue08PM")
+                const startTime = fields[9] || 'unknown';
+                jarvisUptime = startTime;  // Just the time, no "Since" prefix
+            }
+        } catch (err) {
+            console.warn('Process check failed:', err.message);
+        }
+        
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
             status: 'ok', 
             version: VERSION, 
             build: BUILD_DATE,
             inbox: CONFIG.inboxDir, 
-            model: CONFIG.whisperModel 
+            model: CONFIG.whisperModel,
+            jarvis: {
+                pid: jarvisPid,
+                memory: jarvisMemory,
+                uptime: jarvisUptime,
+                alive: jarvisPid !== null
+            }
         }));
         return;
     }

@@ -4,6 +4,9 @@
 *.mov
 *.avi
 
+# Allow checked-in app assets that we explicitly want in git
+!apps/JARVIS/assets/jarvis-orb-video.mp4
+
 # Logs
 *.log
 *.err
