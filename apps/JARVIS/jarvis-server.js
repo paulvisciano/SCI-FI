@@ -111,6 +111,28 @@ function getDeviceType(mac, ip, isGateway) {
   return 'device';
 }
 
+// Lookup MAC address from IP using ARP table
+function getMacFromIp(ip, callback) {
+  exec('/usr/sbin/arp -a', { timeout: 5000 }, (err, arpOut) => {
+    if (err) return callback(err);
+    
+    const arpLines = arpOut.split('\n');
+    for (const line of arpLines) {
+      if (line.includes(ip)) {
+        // Match both formats: (IP) at MAC or IP at MAC
+        const match = line.match(/\(([\d.]+)\).*at\s+([\w:]+)|([\d.]+)\s+at\s+([\w:]+)/);
+        if (match) {
+          const mac = match[2] || match[4];
+          if (mac) {
+            return callback(null, mac.toUpperCase());
+          }
+        }
+      }
+    }
+    callback(new Error('IP not found in ARP table'), null);
+  });
+}
+
 function getNetworkInfo(callback) {
   // Use full paths for macOS commands
   exec('/usr/sbin/ipconfig getpacket en0', { timeout: 5000 }, (err1, ipconfigOut) => {
@@ -712,6 +734,41 @@ function handleRequest(req, res) {
     if (req.url === '/error/last') {
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify(lastError || { status: 'no_error' }));
+        return;
+    }
+
+    // Serve root page — capture User-Agent for device fingerprinting
+    if (req.method === 'GET' && req.url === '/') {
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        const ip = req.connection.remoteAddress || req.socket.remoteAddress;
+        const timestamp = new Date().toISOString();
+        
+        console.log(`[Device Fingerprint] Root visit — UA: ${userAgent.substring(0, 80)}, IP: ${ip}`);
+        
+        // Try to get MAC from ARP table for this IP
+        getMacFromIp(ip, (macErr, mac) => {
+            if (macErr) {
+                console.warn('[Device Fingerprint] ARP lookup failed:', macErr.message);
+            } else if (mac) {
+                console.log(`[Device Fingerprint] MAC found: ${mac}`);
+                // Auto-create or update device record
+                const device = deviceRegistry.findOrCreateDevice(mac, userAgent, ip, timestamp);
+                console.log(`[Device Fingerprint] Device: ${device.name} (${device.mac}) — Visit #${device.connection_count}`);
+            }
+        });
+        
+        // Serve the UI
+        const filePath = path.join(__dirname, 'index.html');
+        const ext = path.extname(filePath);
+        fs.readFile(filePath, (err, data) => {
+            if (err) {
+                res.writeHead(404);
+                res.end('Not found');
+            } else {
+                res.writeHead(200, { 'Content-Type': 'text/html' });
+                res.end(data);
+            }
+        });
         return;
     }
 
