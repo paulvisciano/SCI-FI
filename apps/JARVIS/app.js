@@ -89,7 +89,7 @@ const transcriptText = document.getElementById('transcript-text');
 const jarvisResponse = document.getElementById('jarvis-response');
 const responseText = document.getElementById('response-text');
 const jarvisOrb = document.getElementById('jarvis-orb');
-const jarvisOrbContainer = document.getElementById('jarvis-orb').parentElement;
+const jarvisOrbContainer = document.getElementById('jarvis-orb-container');
 const jarvisVideo = document.getElementById('jarvis-video');
 
 let mediaRecorder;
