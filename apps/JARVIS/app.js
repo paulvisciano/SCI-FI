@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.20';
+const CLIENT_VERSION = '2.9.21';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -159,34 +159,28 @@ if (!hasMediaDevices) {
     console.warn('MediaDevices check failed, but attempting recording anyway...');
 }
 
-// ORB click/tap - show hint to press Space (don't start recording directly)
-jarvisOrb.addEventListener('click', (e) => {
+// ORB click/tap - start/stop recording (works on mobile + desktop)
+// Mobile: tap orb (no Space key)
+// Desktop: can use Space key OR tap orb (both work)
+jarvisOrb.addEventListener('click', async (e) => {
     e.stopPropagation();
-    // Show hint: tell user to press Space to record
-    const hint = document.getElementById('recording-hint');
-    if (hint) {
-        hint.textContent = 'Press Space to record';
-        hint.style.opacity = '1';
-        // Flash the hint briefly to draw attention
-        setTimeout(() => {
-            hint.style.opacity = '0.6';
-        }, 1500);
+    if (!isRecording) {
+        await startRecording();
+    } else {
+        await stopRecording();
     }
-    console.log('[Orb click] Hint shown: Press Space to record');
+    console.log('[Orb click] Recording toggled');
 });
 
-// Double-click also shows hint (same behavior)
-jarvisOrb.addEventListener('dblclick', (e) => {
+// Double-click also toggles recording (for users who prefer it)
+jarvisOrb.addEventListener('dblclick', async (e) => {
     e.stopPropagation();
-    const hint = document.getElementById('recording-hint');
-    if (hint) {
-        hint.textContent = 'Press Space to record';
-        hint.style.opacity = '1';
-        setTimeout(() => {
-            hint.style.opacity = '0.6';
-        }, 1500);
+    if (!isRecording) {
+        await startRecording();
+    } else {
+        await stopRecording();
     }
-    console.log('[Orb dblclick] Hint shown: Press Space to record');
+    console.log('[Orb dblclick] Recording toggled');
 });
 
 async function startRecording() {
