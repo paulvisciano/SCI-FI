@@ -348,21 +348,21 @@
         
         /* Health check pulse - prominent glow pulse (triggered by JS on each health poll) */
         .jarvis-orb.health-pulse {
-            animation: orb-health-pulse 0.8s ease-out;
+            animation: orb-health-pulse 0.8s ease-out !important;
         }
         
         @keyframes orb-health-pulse {
             0% {
-                box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
-                border-color: rgba(0, 255, 255, 0.3);
+                box-shadow: 0 0 40px rgba(0, 255, 255, 0.3) !important;
+                border-color: rgba(0, 255, 255, 0.8) !important;
             }
             50% {
-                box-shadow: 0 0 80px rgba(0, 255, 255, 0.8);
-                border-color: rgba(0, 255, 255, 0.8);
+                box-shadow: 0 0 80px rgba(0, 255, 255, 0.8) !important;
+                border-color: rgba(0, 255, 255, 1.0) !important;
             }
             100% {
-                box-shadow: 0 0 40px rgba(0, 255, 255, 0.3);
-                border-color: rgba(0, 255, 255, 0.3);
+                box-shadow: 0 0 40px rgba(0, 255, 255, 0.3) !important;
+                border-color: rgba(0, 255, 255, 0.8) !important;
             }
         }
 
