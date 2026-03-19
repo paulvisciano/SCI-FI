@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.21';
+const CLIENT_VERSION = '2.9.22';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -721,20 +721,30 @@ setInterval(checkServerStatus, 5000);
         modal.style.display = 'block';
         modal.querySelector('.qr-status').textContent = 'Generating...';
         modal.querySelector('.qr-image').style.display = 'none';
+        
+        console.log('[QR] Fetching QR code for', ip);
 
+        // Fetch QR code from server
         fetch(`${API_BASE_NET}/network/qr`)
-            .then(res => res.json())
+            .then(res => {
+                console.log('[QR] Response status:', res.status);
+                return res.json();
+            })
             .then(data => {
+                console.log('[QR] Response data:', data ? 'received' : 'empty');
                 if (data.error) {
-                    modal.querySelector('.qr-status').textContent = 'Failed to generate';
+                    console.error('[QR] Server error:', data.error);
+                    modal.querySelector('.qr-status').textContent = 'Failed: ' + data.error;
                     return;
                 }
-                modal.querySelector('.qr-status').textContent = `Scan to connect to ${ip}:18787`;
+                modal.querySelector('.qr-status').textContent = `Scan to connect`;
                 modal.querySelector('.qr-image').src = data.qr;
                 modal.querySelector('.qr-image').style.display = 'block';
                 modal.querySelector('.qr-url').textContent = data.url;
+                console.log('[QR] QR code displayed');
             })
-            .catch(() => {
+            .catch(err => {
+                console.error('[QR] Fetch error:', err);
                 modal.querySelector('.qr-status').textContent = 'Generation failed';
             });
     }
