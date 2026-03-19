@@ -7,7 +7,12 @@ description: Search the neural graph FIRST for any query (people, places, events
 
 ## Overview
 
-This skill searches **structured knowledge** (neural graph) before **raw data** (transcripts). The graph is processed, indexed, and connected — instant traversal. Transcripts are raw, unstructured, and slow — fallback only.
+This skill searches **any neural graph** (structured knowledge) before **raw data** (transcripts). Works with:
+- JARVIS neurograph (`~/JARVIS/RAW/memories/`)
+- Paul's memory neurograph (`~/Personal/paulvisciano.github.io/memory/data/`)
+- Any neurograph instance (user-specified path)
+
+The graph is processed, indexed, and connected — instant traversal. Transcripts are raw, unstructured, and slow — fallback only.
 
 **Why:** Sherry retrieval proved it — graph search found everything instantly (person node, weed cafe, March 15, device #25). Transcript search failed (4 min hang, nothing found).
 
@@ -15,13 +20,30 @@ This skill searches **structured knowledge** (neural graph) before **raw data** 
 
 ### 1. Neural Graph FIRST (nodes.json + synapses.json)
 
-**Always start here:**
+**Detect neurograph location:**
+```bash
+# JARVIS neurograph (default)
+NEUROGRAPH_PATH="${NEUROGRAPH_PATH:-$HOME/JARVIS/RAW/memories}"
+
+# Paul's memory neurograph (alternative)
+# NEUROGRAPH_PATH="$HOME/Personal/paulvisciano.github.io/memory/data"
+
+# Or user-specified path
+# NEUROGRAPH_PATH="/path/to/custom/neurograph"
+```
+
+**Query nodes.json (structured neurons):**
 ```bash
 # Query nodes.json (structured neurons)
-cd ~/JARVIS
 python3 << 'EOF'
 import json
-nodes = json.load(open('RAW/memories/nodes.json'))
+import os
+
+# Detect neurograph path
+neurograph_path = os.getenv('NEUROGRAPH_PATH', os.path.expanduser('~/JARVIS/RAW/memories'))
+nodes_file = os.path.join(neurograph_path, 'nodes.json')
+
+nodes = json.load(open(nodes_file))
 query = "sherry"  # or any search term
 results = [n for n in nodes if query.lower() in n['id'].lower() or 
            query.lower() in n.get('label', '').lower() or
@@ -29,8 +51,8 @@ results = [n for n in nodes if query.lower() in n['id'].lower() or
 print(f"Found {len(results)} nodes")
 for r in results:
     print(f"- {r['id']}: {r['label']}")
-    print(f"  Category: {r['category']}")
-    print(f"  Description: {r['attributes']['description'][:200]}")
+    print(f"  Category: {r.get('category', 'N/A')}")
+    print(f"  Description: {r.get('attributes', {}).get('description', '')[:200]}")
     print()
 EOF
 ```
@@ -40,6 +62,7 @@ EOF
 - Synapses link everything (person → temporal → learning → device)
 - Instant traversal (JSON, indexed)
 - Processed knowledge (raw data → learning → neuron)
+- **Works for any neurograph** (JARVIS, Paul's memory, custom instances)
 
 ### 2. Learnings SECOND (distilled insights)
 
@@ -85,15 +108,16 @@ grep -i "sherry" ~/RAW/archive/2026-03-15/audio/*.txt
 
 ## Examples
 
-### Example 1: Find Person (Sherry)
+### Example 1: Find Person (Sherry) — JARVIS Neurograph
 
 **Query:** "Who is Sherry? Where did I meet her?"
 
-**Step 1: Neural Graph**
+**Step 1: Neural Graph (JARVIS)**
 ```bash
+export NEUROGRAPH_PATH=~/JARVIS/RAW/memories
 python3 -c "
-import json
-nodes = json.load(open('~/JARVIS/RAW/memories/nodes.json'))
+import json, os
+nodes = json.load(open(os.path.join(os.getenv('NEUROGRAPH_PATH'), 'nodes.json')))
 results = [n for n in nodes if 'sherry' in n['id'].lower()]
 for r in results:
     print(r['id'], r['label'], r['attributes']['description'])
@@ -107,46 +131,48 @@ grep -ri "sherry" ~/JARVIS/RAW/learnings/
 # Found: offline-mode-validated.md, sherry-visit-network-device-25.md
 ```
 
-**Step 3: Archive (not needed — graph had everything)**
+**Result:** Instant — Sherry person node, weed cafe, March 15, device #25.
+
+### Example 2: Find Person (Paul) — Paul's Memory Neurograph
+
+**Query:** "Who is Paul? What's his role?"
+
+**Step 1: Neural Graph (Paul's Memory)**
 ```bash
-# Skip — already found person node + learnings
-```
-
-**Result:** Instant — Sherry person node, weed cafe, March 15, device #25, learnings linked.
-
-### Example 2: Find Event (Fork Onboarding)
-
-**Query:** "When did Eric fork setup happen?"
-
-**Step 1: Neural Graph**
-```bash
+export NEUROGRAPH_PATH=~/Personal/paulvisciano.github.io/memory/data
 python3 -c "
-import json
-nodes = json.load(open('~/JARVIS/RAW/memories/nodes.json'))
-results = [n for n in nodes if 'fork' in n['id'].lower() or 'eric' in n['id'].lower()]
+import json, os
+nodes = json.load(open(os.path.join(os.getenv('NEUROGRAPH_PATH'), 'nodes.json')))
+results = [n for n in nodes if 'paul' in n['id'].lower()]
 for r in results:
-    print(r['id'], r['moments'])
+    print(r['id'], r['label'], r['attributes']['role'])
 "
-# Found: fork-001-eric-live (March 17), fork-setup-troubleshooting (March 18)
+# Found: paul (Urban Runner, digital nomad, AI storyteller)
 ```
 
-**Step 2: Learnings**
+**Step 2: Learnings (if applicable)**
 ```bash
-grep -ri "fork.*eric" ~/JARVIS/RAW/learnings/
-# Found: fork-setup-troubleshooting.md (March 18)
+# Paul's memory structure may differ — check raw/ folder
+ls ~/Personal/paulvisciano.github.io/memory/raw/
 ```
 
-**Result:** Instant — March 17 (Eric live), March 18 (learning created).
+**Result:** Instant — Paul person node, role, temporal activations.
 
-### Example 3: Find Concept (Sovereignty)
+### Example 3: Find Concept (Sovereignty) — Any Neurograph
 
 **Query:** "What is 100% sovereign definition?"
 
-**Step 1: Neural Graph**
+**Step 1: Neural Graph (detect or specify)**
 ```bash
+# Auto-detect JARVIS neurograph
+export NEUROGRAPH_PATH=~/JARVIS/RAW/memories
+
+# Or specify Paul's memory
+# export NEUROGRAPH_PATH=~/Personal/paulvisciano.github.io/memory/data
+
 python3 -c "
-import json
-nodes = json.load(open('~/JARVIS/RAW/memories/nodes.json'))
+import json, os
+nodes = json.load(open(os.path.join(os.getenv('NEUROGRAPH_PATH'), 'nodes.json')))
 results = [n for n in nodes if 'sovereign' in n['id'].lower()]
 for r in results:
     print(r['id'], r['attributes']['description'])
@@ -154,13 +180,7 @@ for r in results:
 # Found: 100-percent-sovereign-definition (complete data ownership, no cloud)
 ```
 
-**Step 2: Learnings**
-```bash
-grep -ri "100.*sovereign" ~/JARVIS/RAW/learnings/
-# Found: 100-percent-sovereign-definition.md (March 7)
-```
-
-**Result:** Instant — concept node + learning file.
+**Result:** Instant — concept node + definition (works for any neurograph).
 
 ---
 
