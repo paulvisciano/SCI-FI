@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.22';
+const CLIENT_VERSION = '2.9.23';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -619,6 +619,7 @@ setInterval(checkServerStatus, 5000);
             const tooltip = document.createElement('div');
             tooltip.className = 'network-dot-tooltip';
             
+            console.log('[QR] Rendering tooltip for device:', device);
             if (registeredDevice) {
                 // Show friendly name from registry
                 tooltip.innerHTML = `
@@ -627,7 +628,7 @@ setInterval(checkServerStatus, 5000);
                     <p>MAC: ${device.mac.toUpperCase()}</p>
                     <p>Visits: ${connectionCount}</p>
                     <p>Last seen: ${lastSeen}</p>
-                    <span class="qr-btn" data-ip="${device.ip}">📱 Show QR</span>
+                    <span class="qr-btn" data-ip="${device.ip || ''}">📱 Show QR</span>
                 `;
             } else {
                 // Unknown device - show registration prompt
@@ -640,7 +641,7 @@ setInterval(checkServerStatus, 5000);
                         <input type="text" id="reg-owner-${idx}" placeholder="Owner (paul/eric)" style="width:100%; margin-bottom:4px; background:#0a1128; border:1px solid #00d9ff; color:#00ffff; padding:4px; font-size:10px;" />
                         <button class="qr-btn" onclick="registerDevice(${idx}, '${device.mac.toUpperCase()}')" style="width:100%;">Register</button>
                     </div>
-                    <span class="qr-btn" data-ip="${device.ip}" style="margin-top:4px;">📱 Show QR</span>
+                    <span class="qr-btn" data-ip="${device.ip || ''}" style="margin-top:4px;">📱 Show QR</span>
                 `;
             }
 
@@ -659,11 +660,19 @@ setInterval(checkServerStatus, 5000);
             });
 
             const qrBtn = tooltip.querySelector('.qr-btn');
-            if (qrBtn && qrBtn.dataset.ip) {
-                qrBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showQRCode(device.ip);
-                });
+            if (qrBtn) {
+                console.log('[QR] Found QR button, dataset:', qrBtn.dataset);
+                if (qrBtn.dataset.ip) {
+                    qrBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        console.log('[QR] Button clicked, calling showQRCode for', device.ip);
+                        showQRCode(device.ip);
+                    });
+                } else {
+                    console.warn('[QR] QR button has no data-ip');
+                }
+            } else {
+                console.warn('[QR] No QR button found in tooltip');
             }
         });
     }
