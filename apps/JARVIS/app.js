@@ -188,7 +188,6 @@ jarvisOrb.addEventListener('dblclick', (e) => {
     }
     console.log('[Orb dblclick] Hint shown: Press Space to record');
 });
-});
 
 async function startRecording() {
     try {
