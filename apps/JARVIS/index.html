@@ -209,22 +209,22 @@
             letter-spacing: 2px;
             text-transform: uppercase;
             font-weight: 300;
-            opacity: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            opacity: 1;
             transition: opacity 0.4s ease;
         }
         
-        /* Fade out (applied by JS after 3 seconds) */
+        /* Fade out (applied by JS after 3 seconds) - !important to override inline styles */
         .server-status.faded {
-            opacity: 0.15;
+            opacity: 0.15 !important;
         }
         
         /* Fade in on hover over status itself */
         .server-status:hover {
-            opacity: 1;
+            opacity: 1 !important;
         }
         
         .server-status .indicator {
@@ -569,7 +569,7 @@
         </div>
         
         <!-- Server status under title (all server info) -->
-        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 1; margin-bottom: 20px; transition: opacity 0.4s ease;">
+        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; margin-bottom: 20px;">
             <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px;"></span>
             <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
         </div>
