@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.27';
+const CLIENT_VERSION = '2.9.28';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -200,6 +200,9 @@ if (sendTextBtn && textMessageInput) {
         const message = textMessageInput.value.trim();
         if (!message) return;
         
+        // Clear input immediately
+        textMessageInput.value = '';
+        
         // Disable send button while processing
         sendTextBtn.disabled = true;
         sendTextBtn.style.opacity = '0.5';
@@ -227,7 +230,6 @@ if (sendTextBtn && textMessageInput) {
             
             if (result.ok || result.success) {
                 showStatus('✅ Message sent!', 'success');
-                textMessageInput.value = '';
                 
                 // Optionally include location if toggle is checked
                 if (includeLocationToggle && includeLocationToggle.checked) {
