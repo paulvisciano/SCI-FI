@@ -493,13 +493,31 @@ updateOrbVersion();
 checkServerStatus();
 setInterval(checkServerStatus, 5000);
 
-// === Network Dots Integration ===
+// === Network Dots Integration (with Device Identity) ===
 (function() {
     const protocol = window.location.protocol;
     const host = window.location.host || 'localhost:18787';
     const API_BASE_NET = `${protocol}//${host}`;
     let devices = [];
+    let deviceRegistry = {}; // MAC -> device info from registry
     let dotElements = [];
+
+    // Load device registry from server
+    async function loadDeviceRegistry() {
+        try {
+            const res = await fetch(`${API_BASE_NET}/api/devices`);
+            const data = await res.json();
+            if (data.devices) {
+                deviceRegistry = {};
+                data.devices.forEach(d => {
+                    deviceRegistry[d.mac.toUpperCase()] = d;
+                });
+                console.log('[DeviceIdentity] Loaded', data.devices.length, 'devices from registry');
+            }
+        } catch (err) {
+            console.warn('[DeviceIdentity] Registry fetch failed:', err);
+        }
+    }
 
     async function loadDevices() {
         try {
@@ -511,6 +529,22 @@ setInterval(checkServerStatus, 5000);
         } catch (err) {
             console.warn('Network fetch failed:', err);
         }
+    }
+
+    function formatLastSeen(isoString) {
+        if (!isoString) return 'Unknown';
+        const date = new Date(isoString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
     }
 
     function renderDots() {
@@ -534,15 +568,54 @@ setInterval(checkServerStatus, 5000);
             dot.style.top = `${y - 8}px`;
             dot.style.animationDelay = `${idx * 0.5}s`;
 
+            // Look up device in registry
+            const macKey = device.mac.toUpperCase();
+            const registeredDevice = deviceRegistry[macKey];
+            
+            const displayName = registeredDevice ? registeredDevice.name : device.manufacturer;
+            const owner = registeredDevice ? registeredDevice.owner : 'unknown';
+            const lastSeen = registeredDevice ? formatLastSeen(registeredDevice.last_seen) : 'First seen';
+            const connectionCount = registeredDevice ? registeredDevice.connection_count : 1;
+
+            // Color by owner
+            let borderColor = '#00d9ff'; // Default cyan
+            if (owner === 'paul') borderColor = '#00ff88'; // Green
+            else if (owner === 'eric') borderColor = '#00d9ff'; // Cyan
+            else if (registeredDevice) borderColor = '#ffcc00'; // Yellow for known unknown
+            if (device.isGateway) borderColor = '#00ff88'; // Gateway always green
+
+            dot.style.borderColor = borderColor;
+            if (device.isGateway) {
+                dot.style.background = 'radial-gradient(circle, #00ff88 0%, transparent 70%)';
+            }
+
             const tooltip = document.createElement('div');
             tooltip.className = 'network-dot-tooltip';
-            tooltip.innerHTML = `
-                <h4>${device.manufacturer}</h4>
-                <p>IP: ${device.ip}</p>
-                <p>MAC: ${device.mac.toUpperCase()}</p>
-                <p>Type: ${device.deviceType}</p>
-                <span class="qr-btn" data-ip="${device.ip}">📱 Show QR</span>
-            `;
+            
+            if (registeredDevice) {
+                // Show friendly name from registry
+                tooltip.innerHTML = `
+                    <h4>${displayName}</h4>
+                    <p>Owner: ${owner}</p>
+                    <p>MAC: ${device.mac.toUpperCase()}</p>
+                    <p>Visits: ${connectionCount}</p>
+                    <p>Last seen: ${lastSeen}</p>
+                    <span class="qr-btn" data-ip="${device.ip}">📱 Show QR</span>
+                `;
+            } else {
+                // Unknown device - show registration prompt
+                tooltip.innerHTML = `
+                    <h4>${displayName}</h4>
+                    <p>MAC: ${device.mac.toUpperCase()}</p>
+                    <p>Type: ${device.deviceType}</p>
+                    <div style="margin-top:8px; border-top:1px solid #00d9ff33; padding-top:8px;">
+                        <input type="text" id="reg-name-${idx}" placeholder="Device name..." style="width:100%; margin-bottom:4px; background:#0a1128; border:1px solid #00d9ff; color:#00ffff; padding:4px; font-size:10px;" />
+                        <input type="text" id="reg-owner-${idx}" placeholder="Owner (paul/eric)" style="width:100%; margin-bottom:4px; background:#0a1128; border:1px solid #00d9ff; color:#00ffff; padding:4px; font-size:10px;" />
+                        <button class="qr-btn" onclick="registerDevice(${idx}, '${device.mac.toUpperCase()}')" style="width:100%;">Register</button>
+                    </div>
+                    <span class="qr-btn" data-ip="${device.ip}" style="margin-top:4px;">📱 Show QR</span>
+                `;
+            }
 
             dot.appendChild(tooltip);
             container.appendChild(dot);
@@ -559,12 +632,46 @@ setInterval(checkServerStatus, 5000);
             });
 
             const qrBtn = tooltip.querySelector('.qr-btn');
-            qrBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showQRCode(device.ip);
-            });
+            if (qrBtn && qrBtn.dataset.ip) {
+                qrBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showQRCode(device.ip);
+                });
+            }
         });
     }
+
+    // Register unknown device
+    window.registerDevice = async function(idx, mac) {
+        const nameInput = document.getElementById(`reg-name-${idx}`);
+        const ownerInput = document.getElementById(`reg-owner-${idx}`);
+        const name = nameInput.value.trim();
+        const owner = ownerInput.value.trim().toLowerCase();
+        
+        if (!name) {
+            alert('Please enter a device name');
+            return;
+        }
+        
+        try {
+            const res = await fetch(`${API_BASE_NET}/api/register-device`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mac, name, owner: owner || 'unknown' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                console.log('[DeviceIdentity] Registered:', data.device.name);
+                // Reload registry and re-render
+                await loadDeviceRegistry();
+                renderDots();
+            } else {
+                alert('Registration failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (err) {
+            alert('Registration failed: ' + err.message);
+        }
+    };
 
     function showQRCode(ip) {
         let modal = document.getElementById('qr-modal');

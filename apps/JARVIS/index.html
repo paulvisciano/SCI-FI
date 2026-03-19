@@ -88,20 +88,59 @@
             border-radius: 8px;
             padding: 14px;
             min-width: 220px;
+            max-width: 300px;
             font-size: 12px;
             color: #00ffff;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
+            white-space: normal;
+            opacity: 1;
+            pointer-events: auto;
             z-index: 100;
             box-shadow: 0 4px 20px rgba(0, 217, 255, 0.3);
         }
         
-        .network-dot:hover .network-dot-tooltip,
-        .network-dot.selected .network-dot-tooltip {
-            opacity: 1;
-            pointer-events: auto;
+        .network-dot-tooltip h4 {
+            margin: 0 0 6px 0;
+            font-size: 11px;
+            color: #00d9ff;
+            text-transform: uppercase;
+        }
+        
+        .network-dot-tooltip p {
+            margin: 3px 0;
+            color: #aabbcc;
+        }
+        
+        .network-dot-tooltip input {
+            width: 100%;
+            box-sizing: border-box;
+            margin: 4px 0;
+            padding: 6px 8px;
+            background: rgba(0, 217, 255, 0.1);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 4px;
+            color: #00ffff;
+            font-size: 11px;
+        }
+        
+        .network-dot-tooltip input::placeholder {
+            color: rgba(0, 255, 255, 0.4);
+        }
+        
+        .network-dot-tooltip button {
+            width: 100%;
+            margin-top: 6px;
+            padding: 6px 12px;
+            background: rgba(0, 217, 255, 0.2);
+            border: 1px solid rgba(0, 217, 255, 0.4);
+            border-radius: 4px;
+            color: #00ffff;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        
+        .network-dot-tooltip button:hover {
+            background: rgba(0, 217, 255, 0.3);
         }
         
         .network-dot-tooltip h4 {
