@@ -385,7 +385,7 @@ function handleRequest(req, res) {
                 
                 // Start time is column 10 (e.g., "Tue08PM")
                 const startTime = fields[9] || 'unknown';
-                jarvisUptime = 'Since ' + startTime;
+                jarvisUptime = startTime;  // Just the time, no "Since" prefix
             }
         } catch (err) {
             console.warn('Process check failed:', err.message);

@@ -292,45 +292,47 @@
             border-radius: 50%;
             overflow: hidden;
             position: relative;
-            border: 2px solid rgba(0, 255, 255, 0.3); /* Subtle cyan border around orb */
+            border: 1px solid rgba(0, 255, 255, 0.15); /* Ultra-subtle border - barely visible */
         }
 
         .jarvis-orb video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* No filters, no animations */
+            /* No filters, no animations - pure video */
         }
 
-        /* Tap feedback - glow + flash (no scale, orb stays same size) */
+        /* Subtle hover glow - minimal, doesn't affect video playback */
+        .jarvis-orb-container:hover .jarvis-orb {
+            border-color: rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.15);
+        }
+
+        /* Tap feedback - subtle glow (no scale, no flash, keeps video smooth) */
         .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
-            border-color: rgba(0, 255, 255, 1.0);
-            box-shadow: 0 0 50px rgba(0, 255, 255, 1.0), 0 0 100px rgba(0, 255, 255, 0.5);
+            border-color: rgba(0, 255, 255, 0.5);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.25);
         }
         
-        /* Flash overlay on tap - brief white/cyan flash */
-        .jarvis-orb-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(0, 255, 255, 0.6) 0%, transparent 80%);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.1s ease;
-            z-index: 10;
+        /* Recording state - subtle red glow (minimal, performance-safe) */
+        .jarvis-orb.recording {
+            border-color: rgba(255, 68, 68, 0.4);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+            animation: orb-record-pulse 3s ease-in-out infinite;
         }
         
-        .jarvis-orb-container:active::before, .jarvis-orb-container.tapped::before {
-            opacity: 1;
+        @keyframes orb-record-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
+            }
+            50% { 
+                box-shadow: 0 0 45px rgba(255, 68, 68, 0.3);
+            }
         }
         
-        /* Minimal engaged state - no brightness/contrast filters */
+        /* Minimal engaged state - no filters, no slowdowns */
         .jarvis-orb.engaged {
-            /* Empty - no visual changes on engage */
+            /* Empty - pure video, no effects */
         }
 
         /* Version badge - static, no effects */
@@ -355,40 +357,6 @@
                 transform: scale(1.08);
                 box-shadow: 0 0 120px rgba(0, 255, 255, 1), 0 0 200px rgba(0, 255, 255, 0.7);
             }
-        }
-
-        /* Legacy record button (hidden by default, shown on mobile or if video fails) */
-        #record-btn {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            border: 4px solid #00ffff;
-            background: rgba(0, 255, 255, 0.15);
-            color: #00ffff;
-            font-size: 1.2em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-            margin: 0 auto 30px;
-            display: none; /* Hidden by default, ORB is primary */
-        }
-
-        #record-btn:hover {
-            background: rgba(0, 255, 255, 0.3);
-            transform: scale(1.05);
-        }
-
-        #record-btn.recording {
-            background: rgba(255, 0, 0, 0.4);
-            border-color: #ff4444;
-            box-shadow: 0 0 50px rgba(255, 68, 68, 0.6);
-            animation: pulse 1s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
         }
 
         /* Clean futuristic transcript - fixed height; content scrolls if long */
@@ -583,12 +551,16 @@
 <body>
     <!-- Orb centered vertically -->
     <div class="container">
-        <h1 class="futuristic-title" style="margin-bottom: 8px;">J.A.R.V.I.S</h1>
+        <!-- Title with client version inline (top right) -->
+        <div style="display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-bottom: 8px;">
+            <h1 class="futuristic-title" style="margin: 0; font-size: 3.1em;">J.A.R.V.I.S</h1>
+            <span id="client-version-inline" style="font-size: 0.75em; color: #64ffda; opacity: 0.7;">v2.9.10</span>
+        </div>
         
-        <!-- Server status under title -->
+        <!-- Server status under title (all server info) -->
         <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; opacity: 0.8; margin-bottom: 20px;">
             <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px;"></span>
-            <span id="server-status-text" style="color: #00ffff;">v2.9.8</span>
+            <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
         </div>
         
         <!-- JARVIS Video ORB -->

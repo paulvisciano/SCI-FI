@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.9';
+const CLIENT_VERSION = '2.9.10';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 function toggleTranscriptPath() {
@@ -146,11 +146,10 @@ async function startRecording() {
         mediaRecorder.start(2000);
         isRecording = true;
 
-        // Minimal DOM updates - don't touch orb classes (causes video reflow)
-        // Removed: jarvisOrb.classList.add('engaged', 'recording');
-        // Removed: jarvisOrbContainer.classList.add('recording');
+        // Recording state - subtle red glow (CSS-only, no video reflow)
+        jarvisOrb.classList.add('recording');
         
-        // Update status text only (no inline style changes)
+        // Update status text only
         status.textContent = '🔴 Recording...';
         transcript.classList.add('visible');
         transcriptText.textContent = 'Listening...';
@@ -165,8 +164,8 @@ async function stopRecording() {
     mediaRecorder.stop();
     isRecording = false;
 
-    // Removed: jarvisOrb.classList.remove('engaged', 'recording');
-    // Removed: jarvisOrbContainer.classList.remove('recording');
+    // Remove recording state
+    jarvisOrb.classList.remove('recording');
     
     status.textContent = 'Uploading...';
     status.style.color = '#ffd700';
@@ -387,15 +386,27 @@ function checkServerStatus() {
             const statusText = document.getElementById('server-status-text');
             
             // Check if JARVIS process is alive (from /health endpoint)
-            if (data.jarvis && data.jarvis.alive && data.jarvis.pid) {
+            // Response: { status: 'ok', version: VERSION, build: BUILD_DATE, jarvis: { pid, memory, uptime } }
+            if (data.status === 'ok') {
                 indicator.style.background = '#00ffff';
                 indicator.style.boxShadow = '0 0 8px #00ffff';
-                statusText.textContent = `v${CLIENT_VERSION} • PID ${data.jarvis.pid} • ${data.jarvis.memory || '?'} • ${data.jarvis.uptime || '?'}`;
+                // Server version from /health endpoint (reads jarvis-server.js VERSION constant)
+                const serverVersion = data.version ? `v${data.version}` : 'v?';
+                const pid = data.jarvis?.pid || '?';
+                const memory = data.jarvis?.memory || '?';
+                const uptime = data.jarvis?.uptime || '?';
+                
+                // Show server info underneath title (version, PID, memory, uptime)
+                document.getElementById('server-status-text').textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
+                
+                // Client version inline next to JARVIS title (top right)
+                document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
                 statusText.style.color = '#00ffff';
             } else {
                 indicator.style.background = '#ff4444';
                 indicator.style.boxShadow = '0 0 8px #ff4444';
-                statusText.textContent = 'JARVIS not running';
+                document.getElementById('server-status-text').textContent = 'Server: Offline';
+                document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
                 statusText.style.color = '#ff4444';
             }
         })
