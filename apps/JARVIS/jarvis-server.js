@@ -370,8 +370,13 @@ function handleRequest(req, res) {
                     console.error('❌ Failed to send text message to agent:', agentErr.message);
                 }
                 
+                // Set transcript status to processing (so polling works like voice)
+                const textFilename = `text-${Date.now()}.txt`;
+                const textPath = path.join(CONFIG.liveDir, textFilename);
+                fs.writeFileSync(textPath, message, 'utf8');
+                
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, message: 'Text message sent' }));
+                res.end(JSON.stringify({ success: true, message: 'Text message sent', filename: textFilename }));
             } catch (err) {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, error: err.message }));

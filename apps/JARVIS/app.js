@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.28';
+const CLIENT_VERSION = '2.9.29';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -236,8 +236,12 @@ if (sendTextBtn && textMessageInput) {
                     shareLocationOnce();
                 }
                 
-                // Reuse existing pollForTranscript (no filename needed for text messages)
-                pollForTranscript();
+                // Reuse existing pollForTranscript with filename (so polling works)
+                if (result.filename) {
+                    pollForTranscript(result.filename);
+                } else {
+                    pollForTranscript();
+                }
             } else {
                 showStatus('❌ Failed: ' + (result.message || 'Unknown error'), 'error');
                 // Re-enable button on error
