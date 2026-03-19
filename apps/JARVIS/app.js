@@ -4,6 +4,43 @@
 const CLIENT_VERSION = '2.9.10';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
+// Fade server status after 3 seconds, reappear on hover
+let fadeTimer;
+function setupServerStatusFade() {
+    const serverStatus = document.getElementById('server-status');
+    const title = document.querySelector('.futuristic-title');
+    
+    if (!serverStatus || !title) return;
+    
+    // Fade out after 3 seconds
+    fadeTimer = setTimeout(() => {
+        serverStatus.classList.add('faded');
+    }, 3000);
+    
+    // Fade in on hover over title or status
+    title.addEventListener('mouseenter', () => {
+        serverStatus.classList.remove('faded');
+        clearTimeout(fadeTimer);
+        // Fade out again after 2 seconds when mouse leaves
+        title.addEventListener('mouseleave', () => {
+            fadeTimer = setTimeout(() => {
+                serverStatus.classList.add('faded');
+            }, 2000);
+        }, { once: true });
+    });
+    
+    serverStatus.addEventListener('mouseenter', () => {
+        serverStatus.classList.remove('faded');
+        clearTimeout(fadeTimer);
+    });
+    
+    serverStatus.addEventListener('mouseleave', () => {
+        fadeTimer = setTimeout(() => {
+            serverStatus.classList.add('faded');
+        }, 2000);
+    });
+}
+
 function toggleTranscriptPath() {
     const pathEl = document.getElementById('transcript-path');
     if (pathEl.style.display === 'none' || pathEl.style.display === '') {
@@ -402,6 +439,12 @@ function checkServerStatus() {
                 // Client version inline next to JARVIS title (top right)
                 document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
                 statusText.style.color = '#00ffff';
+                
+                // Setup fade-in-out logic (call once on first load)
+                if (!window.serverStatusFadeSetup) {
+                    setupServerStatusFade();
+                    window.serverStatusFadeSetup = true;
+                }
             } else {
                 indicator.style.background = '#ff4444';
                 indicator.style.boxShadow = '0 0 8px #ff4444';
