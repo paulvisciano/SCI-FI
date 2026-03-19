@@ -220,8 +220,8 @@ if (sendTextBtn && textMessageInput) {
                     shareLocationOnce();
                 }
                 
-                // Poll for agent response (same as voice upload)
-                pollForAgentResponse();
+                // Reuse existing pollForTranscript (no filename needed for text messages)
+                pollForTranscript();
             } else {
                 showStatus('❌ Failed: ' + (result.message || 'Unknown error'), 'error');
             }
@@ -237,74 +237,6 @@ if (sendTextBtn && textMessageInput) {
             sendTextBtn.click();
         }
     });
-}
-
-// Poll for agent response after text message (similar to voice upload polling)
-async function pollForAgentResponse() {
-    let attempts = 0;
-    const maxAttempts = 60; // 1 minute for text messages
-    let agentWaitStart = null;
-    let thinkingTimer = null;
-
-    const clearThinkingTimer = () => {
-        if (thinkingTimer) {
-            clearInterval(thinkingTimer);
-            thinkingTimer = null;
-        }
-        agentWaitStart = null;
-    };
-
-    const pollInterval = setInterval(async () => {
-        attempts++;
-
-        try {
-            const response = await fetch(`${API_BASE}/transcript/latest`);
-            if (response.ok) {
-                const data = await response.json();
-
-                if (data.status === 'processing') {
-                    if (!agentWaitStart) {
-                        agentWaitStart = Date.now();
-                        thinkingTimer = setInterval(() => {
-                            const elapsed = (Date.now() - agentWaitStart) / 1000;
-                            status.textContent = `Agent thinking… ${formatElapsed(elapsed)}`;
-                        }, 1000);
-                    }
-                } else if (data.status === 'done' && data.jarvisResponse) {
-                    clearInterval(pollInterval);
-                    clearThinkingTimer();
-                    transcript.classList.remove('pulsate');
-                    status.textContent = '✅ Complete';
-                    status.style.color = '#00ff88';
-                    status.style.textShadow = '0 0 30px rgba(0, 255, 136, 0.6)';
-                    status.style.opacity = '1';
-                    responseText.innerHTML = formatResponseText(data.jarvisResponse);
-                    jarvisResponse.style.display = 'block';
-                } else if (data.status === 'done' && !data.jarvisResponse) {
-                    clearInterval(pollInterval);
-                    clearThinkingTimer();
-                    status.textContent = '⚠️ No response';
-                    status.style.color = '#ffd700';
-                    responseText.innerHTML = '<span style="color: #888;">No response from agent.</span>';
-                    jarvisResponse.style.display = 'block';
-                } else if (data.status === 'error') {
-                    clearInterval(pollInterval);
-                    clearThinkingTimer();
-                    status.textContent = '❌ Error';
-                    status.style.color = '#ff4444';
-                }
-            }
-        } catch (err) {
-            console.error('Poll error:', err);
-        }
-
-        if (attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            clearThinkingTimer();
-            status.textContent = '⏱️ Timeout';
-            status.style.color = '#ff8800';
-        }
-    }, 1000);
 }
 
 jarvisVideo.addEventListener('loadeddata', () => {
