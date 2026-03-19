@@ -456,6 +456,15 @@ function checkServerStatus() {
                     statusEl.classList.add('faded');
                 }
                 
+                // Trigger orb pulse on health check (makes orb feel alive + connected to server)
+                const jarvisOrb = document.getElementById('jarvis-orb');
+                if (jarvisOrb) {
+                    jarvisOrb.classList.remove('health-pulse'); // Reset animation
+                    void jarvisOrb.offsetWidth; // Force reflow (restarts animation)
+                    jarvisOrb.classList.add('health-pulse'); // Trigger pulse
+                    console.log('[UI v2.9.15] Orb health pulse triggered');
+                }
+                
                 // Setup fade-in-out logic on first successful health check
                 if (!window.serverStatusFadeSetup) {
                     setupServerStatusFade();
