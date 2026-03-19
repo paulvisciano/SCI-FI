@@ -57,11 +57,17 @@
             opacity: 0.8;
         }
         
-        .network-dot:hover, .network-dot.selected {
+        .network-dot:hover {
             transform: scale(1.8);
             opacity: 1;
             z-index: 100;
             box-shadow: 0 0 20px #00d9ff, 0 0 40px #00d9ff88;
+        }
+        
+        .network-dot.selected {
+            opacity: 1;
+            z-index: 100;
+            /* No scale transform on click - keeps size stable for form entry */
         }
         
         .network-dot.gateway {
@@ -92,10 +98,23 @@
             font-size: 12px;
             color: #00ffff;
             white-space: normal;
-            opacity: 1;
-            pointer-events: auto;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
             z-index: 100;
             box-shadow: 0 4px 20px rgba(0, 217, 255, 0.3);
+        }
+        
+        /* Show tooltip on hover */
+        .network-dot:hover .network-dot-tooltip {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Keep tooltip visible when dot is selected (clicked) */
+        .network-dot.selected .network-dot-tooltip {
+            opacity: 1;
+            pointer-events: auto;
         }
         
         .network-dot-tooltip h4 {
