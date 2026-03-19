@@ -92,6 +92,8 @@ const jarvisOrb = document.getElementById('jarvis-orb');
 const jarvisOrbContainer = document.getElementById('jarvis-orb-container');
 const jarvisVideo = document.getElementById('jarvis-video');
 const includeLocationToggle = document.getElementById('include-location-toggle');
+const textMessageInput = document.getElementById('text-message-input');
+const sendTextBtn = document.getElementById('send-text-btn');
 
 function showStatus(message, level = 'info') {
     if (!status) return;
@@ -189,6 +191,48 @@ async function shareLocationOnce() {
 if (shareLocationBtn) {
     shareLocationBtn.addEventListener('click', () => {
         shareLocationOnce();
+    });
+}
+
+// Text message input - send typed messages to server
+if (sendTextBtn && textMessageInput) {
+    sendTextBtn.addEventListener('click', async () => {
+        const message = textMessageInput.value.trim();
+        if (!message) return;
+        
+        showStatus('Sending message...', 'info');
+        
+        try {
+            const response = await fetch(`${API_BASE}/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, type: 'text' })
+            });
+            
+            const result = await response.json();
+            
+            if (result.ok || result.success) {
+                showStatus('✅ Message sent!', 'success');
+                textMessageInput.value = '';
+                
+                // Optionally include location if toggle is checked
+                if (includeLocationToggle && includeLocationToggle.checked) {
+                    shareLocationOnce();
+                }
+            } else {
+                showStatus('❌ Failed: ' + (result.message || 'Unknown error'), 'error');
+            }
+        } catch (err) {
+            showStatus('⚠️ Server offline', 'warning');
+            console.error('Text message failed:', err);
+        }
+    });
+    
+    // Allow Enter key to send
+    textMessageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendTextBtn.click();
+        }
     });
 }
 

@@ -344,6 +344,42 @@ function handleRequest(req, res) {
       return;
     }
 
+    // Text message endpoint - for typing messages on bus/noisy environments
+    if (req.method === 'POST' && req.url === '/message') {
+        let body = '';
+        req.on('data', chunk => { body += chunk.toString('utf8'); });
+        req.on('end', async () => {
+            try {
+                const parsed = JSON.parse(body || '{}');
+                const { message, type } = parsed;
+                
+                if (!message || typeof message !== 'string') {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Message required' }));
+                    return;
+                }
+                
+                // Forward to main agent (same as voice messages)
+                try {
+                    const agentOutput = execSync(
+                        `openclaw agent --agent main --message "[TEXT] ${message.replace(/"/g, '\\"')}" 2>&1`,
+                        { encoding: 'utf8' }
+                    );
+                    console.log('✅ Text message sent to main agent');
+                } catch (agentErr) {
+                    console.error('❌ Failed to send text message to agent:', agentErr.message);
+                }
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, message: 'Text message sent' }));
+            } catch (err) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: err.message }));
+            }
+        });
+        return;
+    }
+
     if (req.method === 'POST' && req.url === '/upload') {
         const chunks = [];
         req.on('data', chunk => chunks.push(chunk));

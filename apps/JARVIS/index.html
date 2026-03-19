@@ -661,6 +661,12 @@
             <input id="include-location-toggle" type="checkbox" style="accent-color: #00d9ff; cursor: pointer; width: 14px; height: 14px;">
             <label for="include-location-toggle" style="cursor: pointer;">Include location with messages</label>
         </div>
+        
+        <!-- Text input for typing messages (useful on bus/noisy environments) -->
+        <div class="text-input-container" style="margin-top: 16px; margin-bottom: 12px; display: flex; gap: 8px;">
+            <input type="text" id="text-message-input" placeholder="Type a message..." style="flex: 1; background: rgba(0,217,255,0.1); border: 1px solid rgba(0,217,255,0.3); border-radius: 6px; color: #00ffff; padding: 8px 12px; font-size: 12px; outline: none;" />
+            <button id="send-text-btn" style="background: rgba(0,217,255,0.2); border: 1px solid #00d9ff; color: #00ffff; border-radius: 6px; padding: 8px 16px; font-size: 11px; cursor: pointer; text-transform: uppercase;">Send</button>
+        </div>
     </div>
     
     <!-- Transcript panel OUTSIDE container (bottom of page, doesn't affect centering) -->
