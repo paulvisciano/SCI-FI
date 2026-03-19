@@ -441,16 +441,26 @@ function checkServerStatus() {
                 const uptime = data.jarvis?.uptime || '?';
                 
                 // Show server info underneath title (version, PID, memory, uptime)
-                document.getElementById('server-status-text').textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
+                const statusEl = document.getElementById('server-status');
+                const statusTextEl = document.getElementById('server-status-text');
+                const wasFaded = statusEl?.classList.contains('faded'); // Preserve fade state
                 
-                // Client version inline next to JARVIS title (top right)
+                statusTextEl.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
+                
+                // Client version inline next to J.A.R.V.I.S title (top right)
                 document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
                 statusText.style.color = '#00ffff';
                 
-                // Setup fade-in-out logic (call once on first load)
+                // Restore faded state after updating text (polling doesn't break fade)
+                if (wasFaded && statusEl) {
+                    statusEl.classList.add('faded');
+                }
+                
+                // Setup fade-in-out logic on first successful health check
                 if (!window.serverStatusFadeSetup) {
                     setupServerStatusFade();
                     window.serverStatusFadeSetup = true;
+                    console.log('[UI v2.9.11] Fade setup called on first health check');
                 }
             } else {
                 indicator.style.background = '#ff4444';
