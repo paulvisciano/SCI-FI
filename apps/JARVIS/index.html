@@ -217,13 +217,12 @@
             transition: opacity 0.4s ease;
         }
         
-        /* Fade out after 3 seconds */
+        /* Fade out (applied by JS after 3 seconds) */
         .server-status.faded {
             opacity: 0.15;
         }
         
-        /* Fade in on hover over title or status */
-        .futuristic-title:hover ~ .server-status,
+        /* Fade in on hover over status itself */
         .server-status:hover {
             opacity: 1;
         }
@@ -564,7 +563,7 @@
     <!-- Orb centered vertically -->
     <div class="container">
         <!-- Title with client version inline (top right) -->
-        <div style="display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-bottom: 8px;">
+        <div class="title-container" style="display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-bottom: 8px;">
             <h1 class="futuristic-title" style="margin: 0; font-size: 3.1em;">J.A.R.V.I.S</h1>
             <span id="client-version-inline" style="font-size: 0.75em; color: #64ffda; opacity: 0.7;">v2.9.10</span>
         </div>

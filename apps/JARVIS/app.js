@@ -1,42 +1,49 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.10';
+const CLIENT_VERSION = '2.9.11';
 const CLIENT_BUILD_DATE = '2026-03-19';
 
 // Fade server status after 3 seconds, reappear on hover
 let fadeTimer;
 function setupServerStatusFade() {
     const serverStatus = document.getElementById('server-status');
-    const title = document.querySelector('.futuristic-title');
+    const titleContainer = document.querySelector('.title-container');
     
-    if (!serverStatus || !title) return;
+    if (!serverStatus || !titleContainer) return;
+    
+    console.log('[UI v2.9.11] Setting up fade-on-hover...');
     
     // Fade out after 3 seconds
     fadeTimer = setTimeout(() => {
         serverStatus.classList.add('faded');
+        console.log('[UI v2.9.11] Server status faded out');
     }, 3000);
     
-    // Fade in on hover over title or status
-    title.addEventListener('mouseenter', () => {
+    // Fade in on hover over title container or status
+    titleContainer.addEventListener('mouseenter', () => {
         serverStatus.classList.remove('faded');
         clearTimeout(fadeTimer);
-        // Fade out again after 2 seconds when mouse leaves
-        title.addEventListener('mouseleave', () => {
-            fadeTimer = setTimeout(() => {
-                serverStatus.classList.add('faded');
-            }, 2000);
-        }, { once: true });
+        console.log('[UI v2.9.11] Server status faded in (title hover)');
+    });
+    
+    titleContainer.addEventListener('mouseleave', () => {
+        fadeTimer = setTimeout(() => {
+            serverStatus.classList.add('faded');
+            console.log('[UI v2.9.11] Server status faded out (title leave)');
+        }, 2000);
     });
     
     serverStatus.addEventListener('mouseenter', () => {
         serverStatus.classList.remove('faded');
         clearTimeout(fadeTimer);
+        console.log('[UI v2.9.11] Server status faded in (status hover)');
     });
     
     serverStatus.addEventListener('mouseleave', () => {
         fadeTimer = setTimeout(() => {
             serverStatus.classList.add('faded');
+            console.log('[UI v2.9.11] Server status faded out (status leave)');
         }, 2000);
     });
 }
