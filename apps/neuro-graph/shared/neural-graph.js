@@ -392,13 +392,17 @@ function resolvePath(path) {
             const maxDate = dates[dates.length - 1];
 
             // Order nodes so archive/file (and others) are sorted by creation date — temporal dimension along orbit
-            const temporal = rawNodes.filter(n => (n.category || '').toLowerCase() === 'temporal');
-            const learning = rawNodes.filter(n => (n.category || '').toLowerCase() === 'learning');
+            const temporal = rawNodes.filter(n => ((n.category || n.type || '')).toLowerCase() === 'temporal');
+            // Treat `openclaw-skill` as a learning-like node (outer ring).
+            const learning = rawNodes.filter(n => {
+                const cat = (n.category || n.type || '').toLowerCase();
+                return cat === 'learning' || cat === 'openclaw-skill';
+            });
             const archive = rawNodes.filter(n => (n.category || '').toLowerCase() === 'archive');
             const file = rawNodes.filter(n => (n.category || '').toLowerCase() === 'file');
             const rest = rawNodes.filter(n => {
-                const c = (n.category || '').toLowerCase();
-                return c !== 'temporal' && c !== 'learning' && c !== 'archive' && c !== 'file';
+                const c = (n.category || n.type || '').toLowerCase();
+                return c !== 'temporal' && c !== 'learning' && c !== 'openclaw-skill' && c !== 'archive' && c !== 'file';
             });
             const byCreated = (a, b) => (getCreated(a) || '').localeCompare(getCreated(b) || '') || 0;
             // Temporal nodes: sort strictly by date (ascending = oldest first); same date → stable order by idKey
@@ -450,15 +454,14 @@ function resolvePath(path) {
                         const temporalX = depthScale * 0.28 * (Math.sin(tOrbit) + 0.4 * Math.sin(tOrbit * 2.1));
 
                         const angle = (idx * 137.5) * (Math.PI / 180);
-                        const cat = (n.category || '').toLowerCase();
+                        const cat = (n.category || n.type || '').toLowerCase();
                         let radius;
                         let yOffset;
                         let useAngle = angle;
 
-                        const isLearning = cat === 'learning';
-                        const isArchive = cat === 'archive';
-                        const isFile = cat === 'file';
-                        if (isLearning || isArchive || isFile) {
+                        const isLearning = cat === 'learning' || cat === 'openclaw-skill';
+                        const isArchiveOrFile = cat === 'archive' || cat === 'file';
+                        if (isLearning || isArchiveOrFile) {
                             // Two rings by creation time of day: learnings = outer ring, archive/file = inner ring.
                             // Same layout as an analog clock: 12 at top, 3 right, 6 bottom, 9 left; hour positions 1–12.
                             const hours = getTimeOfDayHours(n);
@@ -470,7 +473,8 @@ function resolvePath(path) {
                                 radius = (7200 + Math.random() * 600) * SPREAD_SCALE;
                                 yOffset = (3200 + (Math.random() - 0.5) * 120) * SPREAD_SCALE;
                             } else {
-                                radius = ((isArchive ? 4200 : 3800) + Math.random() * (isArchive ? 500 : 400)) * SPREAD_SCALE;
+                                // Treat archive + file as the same inner-belt orbit.
+                                radius = (4200 + Math.random() * 500) * SPREAD_SCALE;
                                 yOffset = (2200 + (Math.random() - 0.5) * 80) * SPREAD_SCALE;
                             }
                             x = temporalX + Math.sin(useAngle) * radius;
@@ -500,21 +504,18 @@ function resolvePath(path) {
                 }
                 
                 // Node size encodes importance (scale 1 = smaller nodes, more fit on screen)
-                const catForSize = (n.category || '').toLowerCase();
+                const catForSize = (n.category || n.type || '').toLowerCase();
                 let baseSize;
                 let sizeBoost;
                 if (catForSize === 'temporal') {
                     baseSize = 56;
                     sizeBoost = 7.2;
-                } else if (catForSize === 'learning') {
-                    baseSize = 24;
-                    sizeBoost = 3.2;
-                } else if (catForSize === 'archive') {
+                } else if (catForSize === 'learning' || catForSize === 'openclaw-skill') {
+                    baseSize = 56;
+                    sizeBoost = 8.2;
+                } else if (catForSize === 'archive' || catForSize === 'file') {
                     baseSize = 28;
                     sizeBoost = 4.4;
-                } else if (catForSize === 'file') {
-                    baseSize = 4;
-                    sizeBoost = 0.9;
                 } else if (catForSize === 'region') {
                     baseSize = 10;
                     sizeBoost = 1.8;
@@ -525,12 +526,13 @@ function resolvePath(path) {
                 const freq = Number(n.frequency);
                 let size = (baseSize + ((Number.isFinite(freq) ? freq : 10) / 85) * 10 * sizeBoost) * NODE_SIZE_SCALE;
                 if (catForSize === 'temporal') size *= 0.5;  // 2x smaller temporal nodes
-                if (catForSize === 'archive') {
+                if (catForSize === 'archive' || catForSize === 'file') {
                     const path = n.attributes?.filePath || n.attributes?.rawContentPath || n.attributes?.path || n.label || '';
                     const isTranscript = path && typeof path === 'string' && path.split('/').pop().split('\\').pop().toLowerCase() === 'transcript.md';
                     size *= isTranscript ? 0.7 : 0.2;   // transcript larger so it's easy to spot; other archive 5x smaller
                 }
                 if (catForSize === 'learning') size *= 0.5;  // 2x smaller learning nodes
+                if (catForSize === 'openclaw-skill') size *= 2; // 2x larger than other nodes
                 size *= 2;  // 2x larger nodes overall (on top of NODE_SIZE_SCALE)
                 const glow = size * 2.5;
                 const isMemoryRef = n.attributes?.type === 'memory-reference';
@@ -588,7 +590,7 @@ function resolvePath(path) {
                     id: idx,
                     idKey: n.id,
                     name: n.label,
-                    type: n.category,
+                    type: n.category || n.type || '',
                     x, y, z,
                     vx: 0, vy: 0, vz: 0,
                     size,
@@ -1048,7 +1050,7 @@ function resolvePath(path) {
                             const nodeDate = (n.created || n.attributes?.created || n.attributes?.date || '').toString().trim();
                             if (!nodeDate) return;
                             const sameDate = nodeDate.startsWith(temporalDate) || temporalDate.startsWith(nodeDate);
-                            const isLearningOrArchive = ((n.type || n.category || '').toLowerCase() === 'learning') || ((n.type || n.category || '').toLowerCase() === 'archive') || ((n.type || n.category || '').toLowerCase() === 'file');
+                            const isLearningOrArchive = ((n.type || n.category || '').toLowerCase() === 'learning') || ((n.type || n.category || '').toLowerCase() === 'openclaw-skill') || ((n.type || n.category || '').toLowerCase() === 'archive') || ((n.type || n.category || '').toLowerCase() === 'file');
                             if (sameDate && isLearningOrArchive) temporalFocusNodeIds.add(i);
                         });
                     }
@@ -1166,7 +1168,7 @@ function resolvePath(path) {
                             const nodeDate = (n.created || n.attributes?.created || n.attributes?.date || '').toString().trim();
                             if (!nodeDate) return;
                             const sameDate = nodeDate.startsWith(temporalDate) || temporalDate.startsWith(nodeDate);
-                            const isLearningOrArchive = ((n.type || n.category || '').toLowerCase() === 'learning') || ((n.type || n.category || '').toLowerCase() === 'archive') || ((n.type || n.category || '').toLowerCase() === 'file');
+                            const isLearningOrArchive = ((n.type || n.category || '').toLowerCase() === 'learning') || ((n.type || n.category || '').toLowerCase() === 'openclaw-skill') || ((n.type || n.category || '').toLowerCase() === 'archive') || ((n.type || n.category || '').toLowerCase() === 'file');
                             if (sameDate && isLearningOrArchive) activeNodeIds.add(i);
                         });
                     }
@@ -1175,6 +1177,7 @@ function resolvePath(path) {
                 // Spotlight: dim factor for content outside radius around cursor
                 const spotlightActive = mouseOverCanvas && !isNaN(mouseCanvasX) && !isNaN(mouseCanvasY);
                 const distToMouse = (x, y) => Math.hypot(x - mouseCanvasX, y - mouseCanvasY);
+                const isLearningLike = (t) => t === 'learning' || t === 'openclaw-skill';
 
                 // Draw synapses (edges) between neurons.
                 // Most edges are thin + subtle; connections between temporal nodes and learning
@@ -1195,8 +1198,8 @@ function resolvePath(path) {
                     const fromType = (nodes[e.from]?.type || '').toLowerCase();
                     const toType = (nodes[e.to]?.type || '').toLowerCase();
                     const isTemporalLearningEdge =
-                        (fromType === 'temporal' && toType === 'learning') ||
-                        (fromType === 'learning' && toType === 'temporal');
+                        (fromType === 'temporal' && isLearningLike(toType)) ||
+                        (toType === 'temporal' && isLearningLike(fromType));
                     
                     if (isConnected) {
                         // Highlight: connected to selected node — bright white line
@@ -1652,7 +1655,10 @@ function resolvePath(path) {
             timeFiltered.forEach(n => {
                 if (n.isMemoryRef) hasMemoryRef = true;
                 const t = (n.type || '').toLowerCase();
-                if (t) types.add(t);
+                if (!t) return;
+                // Treat openclaw-skill as learning for category UI grouping.
+                if (t === 'openclaw-skill') types.add('learning');
+                else types.add(t);
             });
             const order = filterCategoryOrder || [];
             const ordered = order.filter(cat => types.has(cat));
@@ -1734,7 +1740,17 @@ function resolvePath(path) {
             if (currentCategoryFilter === 'all') return true;
             if (currentCategoryFilter === 'memorylinks') return !!n.isMemoryRef;
             const typeForFilter = (CONFIG.filterToType && CONFIG.filterToType[currentCategoryFilter]) || currentCategoryFilter;
-            return (n.type || '').toLowerCase() === (typeForFilter || '').toLowerCase();
+            const nodeType = (n.type || '').toLowerCase();
+            const filterType = (typeForFilter || '').toLowerCase();
+            if (filterType === 'learning') {
+                // Treat `openclaw-skill` as a learning-like node for filter purposes.
+                return nodeType === 'learning' || nodeType === 'openclaw-skill';
+            }
+            if (filterType === 'archive' || filterType === 'file') {
+                // Treat archive and file nodes as the same for filtering.
+                return nodeType === 'archive' || nodeType === 'file';
+            }
+            return nodeType === filterType;
         }
         // Index-aware version for hot loops: avoids findIndex inside nodePassesTimeFilter.
         function nodePassesFilterByIndex(idx) {
@@ -1744,7 +1760,15 @@ function resolvePath(path) {
             if (currentCategoryFilter === 'all') return true;
             if (currentCategoryFilter === 'memorylinks') return !!n.isMemoryRef;
             const typeForFilter = (CONFIG.filterToType && CONFIG.filterToType[currentCategoryFilter]) || currentCategoryFilter;
-            return (n.type || '').toLowerCase() === (typeForFilter || '').toLowerCase();
+            const nodeType = (n.type || '').toLowerCase();
+            const filterType = (typeForFilter || '').toLowerCase();
+            if (filterType === 'learning') {
+                return nodeType === 'learning' || nodeType === 'openclaw-skill';
+            }
+            if (filterType === 'archive' || filterType === 'file') {
+                return nodeType === 'archive' || nodeType === 'file';
+            }
+            return nodeType === filterType;
         }
         // Time filters live in the zoom panel (next to minimap), not in the side menu
         populateCategoryFilterRow();
@@ -2242,8 +2266,8 @@ function resolvePath(path) {
                 return;
             }
 
-            // Learning nodes: show learning details
-            if (category === 'learning') {
+            // Learning nodes (and learning-like): show learning details
+            if (category === 'learning' || category === 'openclaw-skill') {
                 openLearningPreview(node, panel, titleEl, bodyEl);
                 return;
             }
@@ -2365,7 +2389,10 @@ function resolvePath(path) {
                 const t = (n.type || '').toLowerCase();
                 return t === 'file' || t === 'archive';
             });
-            const learnings = linked.filter(n => (n.type || '').toLowerCase() === 'learning');
+            const learnings = linked.filter(n => {
+                const t = (n.type || '').toLowerCase();
+                return t === 'learning' || t === 'openclaw-skill';
+            });
 
             const fileCards = files.map(f => {
                 const label = f.name || f.label || f.idKey || 'Untitled';
@@ -2731,7 +2758,10 @@ function resolvePath(path) {
                         return typeof c === 'string' && c.startsWith(date);
                     });
                     if (linkedByDate.length > 0) {
-                        const learningCount = linkedByDate.filter(n => (n.type || n.category || '').toLowerCase() === 'learning').length;
+                        const learningCount = linkedByDate.filter(n => {
+                            const t = (n.type || n.category || '').toLowerCase();
+                            return t === 'learning' || t === 'openclaw-skill';
+                        }).length;
                         const fileArchiveCount = linkedByDate.filter(n => { const t = (n.type || n.category || '').toLowerCase(); return t === 'archive' || t === 'file'; }).length;
                         connected.push(`Linked by date: ${linkedByDate.length} nodes (${learningCount} learnings, ${fileArchiveCount} files/archives)`);
                     }
@@ -2759,7 +2789,7 @@ function resolvePath(path) {
                     if (sizeText) cardDetailsHtml += `<div><strong>Size:</strong> ${sizeText}</div>`;
                     cardDetailsHtml += '</div>';
                 }
-            } else if (cat === 'learning') {
+            } else if (cat === 'learning' || cat === 'openclaw-skill') {
                 const created = attrs.created || node.created || '';
                 const sourceDoc = attrs.sourceDocument || node.sourceDocument || '';
                 if (created || (attrs.description && !descText) || sourceDoc) {
@@ -2780,7 +2810,7 @@ function resolvePath(path) {
                 cardDetailsHtml += `<div><strong>Linked:</strong> ${linked} nodes</div></div>`;
             }
 
-            const hasRichPreview = node.attributes && (cat === 'temporal' || cat === 'learning' || cat === 'file' || cat === 'archive');
+            const hasRichPreview = node.attributes && (cat === 'temporal' || cat === 'learning' || cat === 'openclaw-skill' || cat === 'file' || cat === 'archive');
             const openPanelBtn = hasRichPreview
                 ? `<button type="button" class="node-popover-open-panel" aria-label="Open in side panel">📂 Open in panel</button>`
                 : '';
