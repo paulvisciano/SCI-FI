@@ -2558,7 +2558,13 @@ function resolvePath(path) {
                 }
                 window.location.hash = node.idKey;
                 focusOnNode(node);
-                showNodeDetails(node);
+                if (nodeType === 'file' || nodeType === 'archive') {
+                    // For file/archive nodes, skip the inline info popover and open the file panel directly.
+                    showNodeDetails(null);
+                    openFilePreview(node);
+                } else {
+                    showNodeDetails(node);
+                }
             } else {
                 clearSelection();
                 closeFilePreview();
@@ -2693,8 +2699,15 @@ function resolvePath(path) {
                     if (node.isMemoryRef) {
                         openMemoryLinkSidebar(node);
                     } else {
-                        showNodeDetails(node);
-                        if (window.innerWidth <= 768) showNodeDetailsInDrawer(node);
+                        const nodeType = (node.type || node.category || '').toLowerCase();
+                        if (nodeType === 'file' || nodeType === 'archive') {
+                            // Prevent the inline node-popover from reopening after hash navigation.
+                            showNodeDetails(null);
+                            openFilePreview(node);
+                        } else {
+                            showNodeDetails(node);
+                            if (window.innerWidth <= 768) showNodeDetailsInDrawer(node);
+                        }
                     }
                 }
             }
@@ -3013,9 +3026,14 @@ function resolvePath(path) {
             if (node.isMemoryRef) {
                 openMemoryLinkSidebar(node);
             } else {
-                showNodeDetails(node);
+                if (nodeType === 'file' || nodeType === 'archive') {
+                    showNodeDetails(null);
+                    openFilePreview(node);
+                } else {
+                    showNodeDetails(node);
+                }
             }
-            if (window.innerWidth <= 768) showNodeDetailsInDrawer(node);
+            if (window.innerWidth <= 768 && !(nodeType === 'file' || nodeType === 'archive')) showNodeDetailsInDrawer(node);
             window.location.hash = node.idKey;
             focusOnNode(node);
         };
