@@ -23,6 +23,10 @@ apps/JARVIS/data
 apps/JARVIS/archive
 apps/JARVIS/neuro-graph
 apps/neuro-graph/shared
+apps/neuro-graph/JARVIS-memories
+apps/neuro-graph/PAUL-memories
+apps/neuro-graph/archive
+apps/neuro-graph/learnings
 
 # Secrets
 *.pem

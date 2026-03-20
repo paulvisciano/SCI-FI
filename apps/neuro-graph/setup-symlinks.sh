@@ -30,10 +30,10 @@ echo ""
 
 # Define required symlinks based on neural-graph.js expectations
 # Format: "link_name:target_path"
-SYMLINKS="memories:$HOME/JARVIS/RAW/memories
+SYMLINKS="JARVIS-memories:$HOME/JARVIS/RAW/memories
 archive:$HOME/RAW/archive
 learnings:$HOME/JARVIS/RAW/learnings
-paul-memory:$HOME/RAW/memory"
+PAUL-memories:$HOME/RAW/memories"
 
 # Remove old/wrong symlinks
 cleanup_old_links() {
