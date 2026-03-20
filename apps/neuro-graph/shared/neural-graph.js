@@ -33,39 +33,59 @@ function resolvePath(path) {
     resolved = resolved.replace('{BASE_URL}', BASE_URL);
   }
 
-  // Absolute RAW archive paths on disk → /archive/...
-  // e.g. /Users/paulvisciano/RAW/archive/2026-03-13/audio/recording-....webm
-  if (resolved.startsWith('/Users/paulvisciano/RAW/archive/')) {
-    return APP_BASE_PATH + '/archive/' + resolved.slice('/Users/paulvisciano/RAW/archive/'.length);
-  }
+  // Rewrite absolute /JARVIS/ filesystem paths into website-served URLs.
+  // Skills + scripts + any other artifacts under ~/JARVIS should be reachable via `/JARVIS/...`.
+  const rewriteJarvis = function(p) {
+    const prefixes = [
+      'file:///Users/paulvisciano/JARVIS/',
+      '/Users/paulvisciano/JARVIS/',
+      '/JARVIS/',
+      'JARVIS/'
+    ];
+    for (let i = 0; i < prefixes.length; i++) {
+      const pre = prefixes[i];
+      if (p.startsWith(pre)) {
+        const rest = p.slice(pre.length);
+        return APP_BASE_PATH + '/JARVIS/' + rest;
+      }
+    }
+    return null;
+  };
 
-  // Absolute /RAW/archive paths → /archive/...
-  // e.g. /RAW/archive/2026-03-13/audio/recording-....webm
-  if (resolved.startsWith('/RAW/archive/')) {
-    return APP_BASE_PATH + '/archive/' + resolved.slice('/RAW/archive/'.length);
-  }
+  const jarvisUrl = rewriteJarvis(resolved);
+  if (jarvisUrl) return jarvisUrl;
 
-  // Home shortcut RAW archive paths → /archive/...
-  // e.g. ~/RAW/archive/2026-03-13/audio/...
-  if (resolved.startsWith('~/RAW/archive/')) {
-    return '/archive/' + resolved.slice('~/RAW/archive/'.length);
-  }
+  // Rewrite RAW archive + learnings into website-served URLs.
+  // These inputs can show up as absolute `/Users/...`, absolute `/RAW/...`, `~/RAW/...`,
+  // or relative `RAW/archive/...`, depending on how the node JSON was generated.
+  const rewriteRawArchive = function(p) {
+    const targetBase = APP_BASE_PATH + '/RAW/archive/';
+    const prefixes = [
+      '/Users/paulvisciano/RAW/archive/',
+      '/RAW/archive/',
+      '~/RAW/archive/',
+      'RAW/archive/',
+      'archive/'
+    ];
+    for (let i = 0; i < prefixes.length; i++) {
+      const pre = prefixes[i];
+      if (p.startsWith(pre)) return targetBase + p.slice(pre.length);
+    }
+    return null;
+  };
 
-  // Handle archive paths (symlinked folder)
-  // RAW archive from ingest → /archive/...
-  if (resolved.startsWith('RAW/archive/')) {
-    return APP_BASE_PATH + '/archive/' + resolved.slice('RAW/archive/'.length);
-  }
+  const rewriteRawLearnings = function(p) {
+    const targetBase = APP_BASE_PATH + '/JARVIS/RAW/learnings/';
+    const prefix = 'RAW/learnings/';
+    if (p.startsWith(prefix)) return targetBase + p.slice(prefix.length);
+    return null;
+  };
 
-  // RAW learnings (markdown in git) → /learnings/...
-  if (resolved.startsWith('RAW/learnings/')) {
-    return APP_BASE_PATH + '/learnings/' + resolved.slice('RAW/learnings/'.length);
-  }
+  const archiveUrl = rewriteRawArchive(resolved);
+  if (archiveUrl) return archiveUrl;
 
-  // Plain archive paths → /archive/...
-  if (resolved.startsWith('archive/')) {
-    return APP_BASE_PATH + '/archive/' + resolved.slice('archive/'.length);
-  }
+  const learningsUrl = rewriteRawLearnings(resolved);
+  if (learningsUrl) return learningsUrl;
 
   // Absolute paths: use as-is
   if (resolved.startsWith('/')) {

@@ -30,14 +30,14 @@ echo ""
 
 # Define required symlinks based on neural-graph.js expectations
 # Format: "link_name:target_path"
-SYMLINKS="JARVIS-memories:$HOME/JARVIS/RAW/memories
-archive:$HOME/RAW/archive
-learnings:$HOME/JARVIS/RAW/learnings
-USER-memories:$HOME/RAW/memories"
+# Expose the whole JARVIS subtree (memories, learnings, skills, etc.) to the website.
+# Expose RAW archive/memory files to the website as well.
+SYMLINKS="JARVIS:$HOME/JARVIS
+RAW:$HOME/RAW"
 
 # Remove old/wrong symlinks
 cleanup_old_links() {
-  local old_links="shared/memories shared/archive shared/learnings"
+  local old_links="JARVIS-memories USER-memories archive learnings shared/memories shared/archive shared/learnings"
   
   for link in $old_links; do
     if [[ -L "$link" ]]; then
