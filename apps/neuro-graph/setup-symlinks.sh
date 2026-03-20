@@ -33,11 +33,11 @@ echo ""
 SYMLINKS="JARVIS-memories:$HOME/JARVIS/RAW/memories
 archive:$HOME/RAW/archive
 learnings:$HOME/JARVIS/RAW/learnings
-PAUL-memories:$HOME/RAW/memories"
+USER-memories:$HOME/RAW/memories"
 
 # Remove old/wrong symlinks
 cleanup_old_links() {
-  local old_links="JARVIS-memories shared/memories shared/archive shared/learnings"
+  local old_links="shared/memories shared/archive shared/learnings"
   
   for link in $old_links; do
     if [[ -L "$link" ]]; then
