@@ -2847,11 +2847,10 @@ function resolvePath(path) {
             const pop = getNodePopover();
             const content = pop.querySelector('#node-popover-content');
             if (!node) {
-                if (hoverTemporalPopoverOpen) {
-                    pop.classList.remove('is-open');
-                    if (content) content.innerHTML = '';
-                    hoverTemporalPopoverOpen = false;
-                }
+                // When clearing selection (e.g. from the Close button), always hide the inline popover.
+                pop.classList.remove('is-open');
+                if (content) content.innerHTML = '';
+                hoverTemporalPopoverOpen = false;
                 return;
             }
             hoverTemporalPopoverOpen = !!(opts && opts.inline);
