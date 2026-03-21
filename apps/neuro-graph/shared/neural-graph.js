@@ -126,6 +126,7 @@ function resolvePath(path) {
         let viewToggleLabelUpdate = function() {};
         // When a temporal node is selected, show only that node + its chain (same view, hide others)
         let temporalFocusNodeIds = null;
+        let temporalFocusCacheKey = null;
 
         function getCanvasWidth() {
             const leftOffset = panelOpen ? PANEL_WIDTH : 0;
@@ -293,6 +294,13 @@ function resolvePath(path) {
 
         let nodes = [];
         let edges = [];
+        /** Full graph from nodes.json / synapses.json (unfiltered). Display `nodes`/`edges` are derived once per filter change. */
+        let graphFullNodes = [];
+        let graphFullEdges = [];
+        /** True when `nodes` is a filtered subset of graphFullNodes (time + category baked in). */
+        let displayGraphFromFilter = false;
+        /** Bumps when graphFullNodes/edges are replaced or grown (invalidates category-type cache). */
+        let graphStructureVersion = 0;
 
         function useFallbackGraph() {
             const SIZE = 5, SPREAD = 12;
@@ -306,6 +314,11 @@ function resolvePath(path) {
                 { from: 0, to: 2, weight: 7 },
                 { from: 1, to: 2, weight: 6 }
             ];
+            graphFullNodes = nodes;
+            graphFullEdges = edges;
+            graphStructureVersion++;
+            populateCategoryFilterRow();
+            rebuildDisplayGraphFromFull();
             populateFilterList();
             render();
             if (nodes.length > 0) {
@@ -343,6 +356,29 @@ function resolvePath(path) {
             const end = new Date(start);
             end.setDate(start.getDate() + 6);
             return { start: toLocalYYYYMMDD(start), end: toLocalYYYYMMDD(end) };
+        }
+        /** Start of calendar today (local clock / browser timezone). */
+        function getStartOfTodayLocalMs() {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+        }
+        /** Monday 00:00:00 local (same week definition as getThisWeekRange). */
+        function getStartOfWeekMondayLocalMs() {
+            const d = new Date();
+            const day = d.getDay();
+            const mondayOffset = day === 0 ? -6 : 1 - day;
+            const start = new Date(d);
+            start.setDate(d.getDate() + mondayOffset);
+            start.setHours(0, 0, 0, 0);
+            return start.getTime();
+        }
+        /** End of Sunday 23:59:59.999 local for the current calendar week. */
+        function getEndOfWeekSundayLocalMs() {
+            const t0 = getStartOfWeekMondayLocalMs();
+            const end = new Date(t0);
+            end.setDate(end.getDate() + 7);
+            return end.getTime() - 1;
         }
 
         // Map raw nodes/synapses JSON to internal graph format (shared by initial load and time-travel).
@@ -678,10 +714,15 @@ function resolvePath(path) {
         function applyGraph(rawNodes, rawSynapses, viewState) {
             if (!rawNodes || !rawNodes.length || !rawSynapses) return;
             const { nodes: n, edges: e } = mapRawToGraph(rawNodes, rawSynapses);
-            nodes = n;
-            edges = e;
+            graphFullNodes = n;
+            graphFullEdges = e;
+            graphStructureVersion++;
             timeFilterPassingIndicesCache = null;
             timeFilterPassingIndicesCacheKey = null;
+            temporalFocusCacheKey = null;
+            temporalFocusNodeIds = null;
+            populateCategoryFilterRow();
+            rebuildDisplayGraphFromFull();
             currentTimelineView = viewState;
             setTimelineActive(viewState);
             populateFilterList();
@@ -824,10 +865,10 @@ function resolvePath(path) {
         let camera = {angle: 0.5, dist: 680, height: 60, pitch: -0.55, panX: 0, panY: 0};
         let viewZoom = 1.2;   // Slightly zoomed in by default so more space between nodes, easier hover
         const VIEW_ZOOM_MIN = 0.25;
-        const VIEW_ZOOM_MIN_WIDE = 0.1;  // 48h, 7d, 30d, 365d: zoom out further before time filter menu
+        const VIEW_ZOOM_MIN_WIDE = 0.1;  // week, 30d, 365d: zoom out further before time filter menu
         const VIEW_ZOOM_MIN_ALL = 0.05;  // When "All" filter: allow zoom out much further
         const VIEW_ZOOM_MAX = 5;
-        const WIDE_TIME_FILTERS = ['7d', '30d', '365d'];
+        const WIDE_TIME_FILTERS = ['week', '30d', '365d'];
         function getViewZoomMin() {
             if (currentTimeFilter === 'all') return VIEW_ZOOM_MIN_ALL;
             if (currentTimeFilter && currentTimeFilter.startsWith(DAY_FILTER_PREFIX)) return VIEW_ZOOM_MIN;
@@ -1059,33 +1100,47 @@ function resolvePath(path) {
 
                 // When a temporal node is selected, hide everyone except that node + nodes connected to it (direct + same-date)
                 if (selected !== null && (nodes[selected].type || '').toLowerCase() === 'temporal') {
-                    temporalFocusNodeIds = new Set([selected]);
-                    edges.forEach(e => {
-                        if (e.from === selected) temporalFocusNodeIds.add(e.to);
-                        if (e.to === selected) temporalFocusNodeIds.add(e.from);
-                    });
                     const temporalDate = (nodes[selected].created || nodes[selected].attributes?.created || nodes[selected].attributes?.date || '').toString().trim();
-                    if (temporalDate) {
-                        nodes.forEach((n, i) => {
-                            const nodeDate = (n.created || n.attributes?.created || n.attributes?.date || '').toString().trim();
-                            if (!nodeDate) return;
-                            const sameDate = nodeDate.startsWith(temporalDate) || temporalDate.startsWith(nodeDate);
-                            const isLearningOrArchive = ((n.type || n.category || '').toLowerCase() === 'learning') || ((n.type || n.category || '').toLowerCase() === 'openclaw-skill') || ((n.type || n.category || '').toLowerCase() === 'archive') || ((n.type || n.category || '').toLowerCase() === 'file');
-                            if (sameDate && isLearningOrArchive) temporalFocusNodeIds.add(i);
+                    const cacheKey = selected + '\0' + temporalDate;
+                    if (cacheKey !== temporalFocusCacheKey) {
+                        temporalFocusCacheKey = cacheKey;
+                        temporalFocusNodeIds = new Set([selected]);
+                        edges.forEach(e => {
+                            if (e.from === selected) temporalFocusNodeIds.add(e.to);
+                            if (e.to === selected) temporalFocusNodeIds.add(e.from);
                         });
+                        if (temporalDate) {
+                            nodes.forEach((n, i) => {
+                                const nodeDate = (n.created || n.attributes?.created || n.attributes?.date || '').toString().trim();
+                                if (!nodeDate) return;
+                                const sameDate = nodeDate.startsWith(temporalDate) || temporalDate.startsWith(nodeDate);
+                                const isLearningOrArchive = ((n.type || n.category || '').toLowerCase() === 'learning') || ((n.type || n.category || '').toLowerCase() === 'openclaw-skill') || ((n.type || n.category || '').toLowerCase() === 'archive') || ((n.type || n.category || '').toLowerCase() === 'file');
+                                if (sameDate && isLearningOrArchive) temporalFocusNodeIds.add(i);
+                            });
+                        }
                     }
                 } else {
+                    temporalFocusCacheKey = null;
                     temporalFocusNodeIds = null;
                 }
 
                 ctx.fillStyle = '#0a1128';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // For Last Week / 48h / etc.: compute once per frame the set of indices passing the time filter (strict + connected)
+                // For wide time filters (week / month / year): compute once per frame the set of indices passing the time filter (strict + connected)
                 ensureTimeFilterPassingCache();
 
-                // Helper to check if node passes current filter (index-aware to avoid O(nodes²) findIndex in hot loops)
-                const passesFilter = (nodeIndex) => nodePassesFilterByIndex(nodeIndex);
+                // Bitmask: each index is checked once per frame (edges + draws hit this many times).
+                // When the graph was pre-sliced in rebuildDisplayGraphFromFull, every node passes.
+                const filterPass = new Uint8Array(nodes.length);
+                if (displayGraphFromFilter) {
+                    filterPass.fill(1);
+                } else {
+                    for (let i = 0; i < nodes.length; i++) {
+                        filterPass[i] = nodePassesFilterByIndex(i) ? 1 : 0;
+                    }
+                }
+                const passesFilter = (nodeIndex) => filterPass[nodeIndex] === 1;
 
                 // Main view: default = 2D map (same as minimap, larger); toggle to 3D to rotate and explore
                 if (use3DView) {
@@ -1093,7 +1148,7 @@ function resolvePath(path) {
                 } else {
                     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
                     for (let i = 0; i < nodes.length; i++) {
-                        if (!nodePassesFilterByIndex(i)) continue;
+                        if (!filterPass[i]) continue;
                         const n = nodes[i];
                         if (n.x < minX) minX = n.x;
                         if (n.x > maxX) maxX = n.x;
@@ -1107,7 +1162,7 @@ function resolvePath(path) {
                         const sinA = Math.sin(camera.angle);
                         let rMinX = Infinity, rMaxX = -Infinity, rMinZ = Infinity, rMaxZ = -Infinity;
                         for (let i = 0; i < nodes.length; i++) {
-                            if (!nodePassesFilterByIndex(i)) continue;
+                            if (!filterPass[i]) continue;
                             const n = nodes[i];
                             const dx = n.x - centerX, dz = n.z - centerZ;
                             const rx = centerX + dx * cosA - dz * sinA;
@@ -1138,12 +1193,12 @@ function resolvePath(path) {
                 }
 
                 // Build sorted and screen positions: when filter is narrow, project/sort only visible nodes to save CPU
-                const filterIsNarrow = currentTimeFilter !== 'all' || currentCategoryFilter !== 'all';
+                const filterIsNarrow = !displayGraphFromFilter && (currentTimeFilter !== 'all' || currentCategoryFilter !== 'all');
                 let sorted;
                 if (filterIsNarrow) {
                     const visibleIndices = [];
                     for (let i = 0; i < nodes.length; i++) {
-                        if (nodePassesFilterByIndex(i)) visibleIndices.push(i);
+                        if (filterPass[i]) visibleIndices.push(i);
                     }
                     sorted = visibleIndices.map(idx => {
                         const n = nodes[idx];
@@ -1157,7 +1212,7 @@ function resolvePath(path) {
                     }).sort((a, b) => a.proj.z - b.proj.z);
                 }
                 const screenPos = {};
-                const nodeSize3D = (use3DView ? 0.2 : 1) * (currentTimeFilter === '48h' ? 2 : 1);  // 5x smaller in 3D; 2x larger in 48h view
+                const nodeSize3D = (use3DView ? 0.2 : 1) * (currentTimeFilter === 'week' || (currentTimeFilter && currentTimeFilter.startsWith('day:')) ? 2 : 1);  // 5x smaller in 3D; 2x larger in week / day: views (literal prefix: render may run before DAY_FILTER_PREFIX init)
                 sorted.forEach(s => { screenPos[s.idx] = { x: s.proj.x, y: s.proj.y, scale: s.proj.scale }; });
 
                 // When a node is selected (or a temporal node is hovered), it and its connections stay bright
@@ -1208,6 +1263,17 @@ function resolvePath(path) {
                     // When a temporal node is selected, only draw edges in its chain (canvas-only hide)
                     if (temporalFocusNodeIds !== null && (!temporalFocusNodeIds.has(e.from) || !temporalFocusNodeIds.has(e.to))) return;
 
+                    const fromType = (nodes[e.from]?.type || '').toLowerCase();
+                    const toType = (nodes[e.to]?.type || '').toLowerCase();
+                    const isTemporalLearningEdge =
+                        (fromType === 'temporal' && isLearningLike(toType)) ||
+                        (toType === 'temporal' && isLearningLike(fromType));
+                    // Selection focus: skip drawing the huge dimmed "hairball" (edges between two non-highlighted nodes).
+                    if (selected !== null && activeNodeIds !== null && backdropFocus > 0.08) {
+                        const touchesSelection = activeNodeIds.has(e.from) || activeNodeIds.has(e.to);
+                        if (!touchesSelection && !isTemporalLearningEdge) return;
+                    }
+
                     const isConnected = activeNodeIds !== null && (activeNodeIds.has(e.from) || activeNodeIds.has(e.to));
                     const p1 = screenPos[e.from];
                     const p2 = screenPos[e.to];
@@ -1215,11 +1281,6 @@ function resolvePath(path) {
                     const midY = (p1.y + p2.y) / 2;
                     const edgeInSpotlight = !spotlightActive || distToMouse(midX, midY) <= SPOTLIGHT_RADIUS;
                     const edgeSpotlightDim = edgeInSpotlight ? 1 : SPOTLIGHT_DIM_ALPHA;
-                    const fromType = (nodes[e.from]?.type || '').toLowerCase();
-                    const toType = (nodes[e.to]?.type || '').toLowerCase();
-                    const isTemporalLearningEdge =
-                        (fromType === 'temporal' && isLearningLike(toType)) ||
-                        (toType === 'temporal' && isLearningLike(fromType));
                     
                     if (isConnected) {
                         // Highlight: connected to selected node — bright white line
@@ -1320,15 +1381,6 @@ function resolvePath(path) {
                     }
                 });
                 
-                // Pre-calculate connected nodes for label sizing
-                const connectedToSelected = new Set();
-                if (selected !== null) {
-                    edges.forEach(e => {
-                        if (e.from === selected) connectedToSelected.add(e.to);
-                        if (e.to === selected) connectedToSelected.add(e.from);
-                    });
-                }
-                
                 // Draw labels with progressive zoom-based visibility (multiple tiers)
                 // On "All" filter: only show label for the selected node to reduce clutter.
                 // On focused time filters (Today / Yesterday / This week): show labels only for:
@@ -1340,21 +1392,23 @@ function resolvePath(path) {
                                         viewZoom < 1.2 ? 10 :         // Medium+ when close
                                         6;                            // All when very close
                 const isFocusedTimeFilter = currentTimeFilter !== 'all';
-                nodes.forEach((n, idx) => {
+                const drawLabelForIndex = (idx) => {
+                    const n = nodes[idx];
                     if (!passesFilter(idx)) return;
                     if (temporalFocusNodeIds !== null && !temporalFocusNodeIds.has(idx)) return;
                     const isHovered = hovered === idx;
+                    const isNeighborOfSelected = selected !== null && idx !== selected && activeNodeIds !== null && activeNodeIds.has(idx);
                     
                     // When both filters are "all": only show label for the selected node, nodes connected to it,
                     // or the node currently hovered so exploration still feels responsive.
-                    if (!isHovered && currentTimeFilter === 'all' && currentCategoryFilter === 'all' && selected !== idx && !connectedToSelected.has(idx)) return;
+                    if (!isHovered && currentTimeFilter === 'all' && currentCategoryFilter === 'all' && selected !== idx && !isNeighborOfSelected) return;
                     
                     // Focus mode: hide labels for unconnected nodes
-                    const isConnected = activeNodeIds !== null && activeNodeIds.has(n.id);
+                    const isConnected = activeNodeIds !== null && activeNodeIds.has(idx);
                     if (activeNodeIds !== null && !isConnected) return; // Skip label
                     
                     const isSelected = (selected === idx);
-                    const isConnectedToSelected = connectedToSelected.has(idx);
+                    const isConnectedToSelected = isNeighborOfSelected;
                     const nodeType = (n.type || '').toLowerCase();
                     const isTemporal = nodeType === 'temporal';
                     const isFileNode = nodeType === 'file';
@@ -1435,7 +1489,21 @@ function resolvePath(path) {
                     ctx.shadowBlur = 0;
                     ctx.lineWidth = 1;
                     ctx.globalAlpha = 1;
-                });
+                };
+                if (selected !== null && activeNodeIds !== null) {
+                    const labelIndices = new Set(activeNodeIds);
+                    if (hovered !== null) labelIndices.add(hovered);
+                    if (isFocusedTimeFilter) {
+                        for (let li = 0; li < nodes.length; li++) {
+                            if (!filterPass[li]) continue;
+                            if ((nodes[li].type || '').toLowerCase() !== 'temporal') continue;
+                            labelIndices.add(li);
+                        }
+                    }
+                    for (const idx of labelIndices) drawLabelForIndex(idx);
+                } else {
+                    nodes.forEach((n, idx) => drawLabelForIndex(idx));
+                }
                 
                 // Selection highlight ring
                 if (selected !== null) {
@@ -1485,8 +1553,15 @@ function resolvePath(path) {
                     ctx.restore();
                 }
 
-                const visibleNodeCount = nodes.filter((_, i) => passesFilter(i)).length;
-                const visibleEdgeCount = edges.filter(e => passesFilter(e.from) && passesFilter(e.to)).length;
+                let visibleNodeCount = 0;
+                for (let vi = 0; vi < nodes.length; vi++) {
+                    if (filterPass[vi]) visibleNodeCount++;
+                }
+                let visibleEdgeCount = 0;
+                for (let ei = 0; ei < edges.length; ei++) {
+                    const ed = edges[ei];
+                    if (filterPass[ed.from] && filterPass[ed.to]) visibleEdgeCount++;
+                }
                 updateNodeCount(visibleNodeCount, visibleEdgeCount);
                 const statusText = selected !== null ? '🧠 ' + nodes[selected].name : visibleNodeCount + ' neurons · ' + visibleEdgeCount + ' synapses';
                 if (lastStatusText !== statusText) {
@@ -1537,12 +1612,9 @@ function resolvePath(path) {
         // Filter bar functionality (desktop + drawer stay in sync)
         // Granular time windows (reliable, easy to explore)
         const TIME_WINDOWS = [
+            { id: 'week', label: 'This week' },
             { id: '30m', label: 'Last 30 min', ms: 30 * 60 * 1000 },
             { id: '1h', label: 'Last hour', ms: 60 * 60 * 1000 },
-            { id: '12h', label: 'Last 12h', ms: 12 * 60 * 60 * 1000 },
-            { id: '24h', label: 'Last 24h', ms: 24 * 60 * 60 * 1000 },
-            { id: '48h', label: 'Last 48h', ms: 48 * 60 * 60 * 1000 },
-            { id: '7d', label: 'Last week', ms: 7 * 24 * 60 * 60 * 1000 },
             { id: '30d', label: 'Last month', ms: 30 * 24 * 60 * 60 * 1000 },
             { id: '365d', label: 'Last year', ms: 365 * 24 * 60 * 60 * 1000 }
         ];
@@ -1554,6 +1626,8 @@ function resolvePath(path) {
             if (time && time.startsWith(DAY_FILTER_PREFIX)) {
                 const dateStr = time.slice(DAY_FILTER_PREFIX.length);
                 if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                    if (dateStr === getYesterdayLocal()) return 'Yesterday';
+                    if (dateStr === getTodayLocal()) return 'Today';
                     const d = new Date(dateStr + 'T12:00:00');
                     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
                 }
@@ -1570,17 +1644,27 @@ function resolvePath(path) {
             const t = new Date(s).getTime();
             return Number.isFinite(t) ? t : null;
         }
-        const defaultTime = '48h';
+        /** Default landing when no `time` query param: single calendar day = today (local). */
+        function getDefaultTimeFilter() {
+            return DAY_FILTER_PREFIX + getTodayLocal();
+        }
         const defaultCategory = 'all';
         function getFilterFromUrl() {
             const params = new URLSearchParams(window.location.search);
-            const time = params.get('time');
+            let time = params.get('time');
+            if (time === 'today') time = DAY_FILTER_PREFIX + getTodayLocal();
+            if (time === 'yesterday' || time === '24h') time = DAY_FILTER_PREFIX + getYesterdayLocal();
+            if (time === '12h' || time === '48h' || time === '7d') time = 'week';
             const category = params.get('category');
             const legacy = params.get('filter');
-            let t = TIME_VALS.includes(time) ? time : (time && time.startsWith(DAY_FILTER_PREFIX) ? time : defaultTime);
+            let t = TIME_VALS.includes(time) ? time : (time && time.startsWith(DAY_FILTER_PREFIX) ? time : getDefaultTimeFilter());
             let c = (category && category !== '') ? category : defaultCategory;
-            if (legacy && !time && !category) {
+            if (legacy && !params.get('time') && !category) {
                 if (TIME_VALS.includes(legacy)) { t = legacy; }
+                else if (legacy === 'today') { t = DAY_FILTER_PREFIX + getTodayLocal(); }
+                else if (legacy === 'yesterday') { t = DAY_FILTER_PREFIX + getYesterdayLocal(); }
+                else if (legacy === '24h') { t = DAY_FILTER_PREFIX + getYesterdayLocal(); }
+                else if (legacy === '12h' || legacy === '48h' || legacy === '7d') { t = 'week'; }
                 else if (legacy.startsWith(DAY_FILTER_PREFIX)) { t = legacy; }
                 else { c = legacy; }
             }
@@ -1590,19 +1674,58 @@ function resolvePath(path) {
             const url = new URL(window.location.href);
             url.searchParams.set('time', time);
             url.searchParams.set('category', category);
-            if (time === defaultTime) url.searchParams.delete('time');
+            if (time === getDefaultTimeFilter()) url.searchParams.delete('time');
             if (category === defaultCategory) url.searchParams.delete('category');
             url.searchParams.delete('filter');
             window.history.replaceState(null, '', url.toString());
         }
         let { time: currentTimeFilter, category: currentCategoryFilter } = getFilterFromUrl();
+        if (!new URLSearchParams(window.location.search).has('time')) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('time', currentTimeFilter);
+            window.history.replaceState(null, '', url.toString());
+        }
         let currentNodeSearchQuery = '';
         if (currentTimeFilter !== 'all') viewZoom = 2.05;
-        // Cache for wide time filters (7d, 48h, etc.): set of node indices that pass time filter (strict + connected). Avoids O(nodes × edges) per frame.
+        // Cache for wide time filters (week / month / year): set of node indices that pass time filter (strict + connected). Avoids O(nodes × edges) per frame.
         let timeFilterPassingIndicesCache = null;
         let timeFilterPassingIndicesCacheKey = null;
-        // Strict pass: only by date. Used for "connected to" expansion in week view.
+
+        /** Undirected adjacency for O(V+E) BFS instead of O(V*E) full edge scans per step. */
+        function buildUndirectedAdjacency(nodeCount, edgeList) {
+            const adj = new Array(nodeCount);
+            for (let i = 0; i < nodeCount; i++) adj[i] = [];
+            for (let ei = 0; ei < edgeList.length; ei++) {
+                const e = edgeList[ei];
+                const a = e.from;
+                const b = e.to;
+                if (a >= 0 && a < nodeCount && b >= 0 && b < nodeCount) {
+                    adj[a].push(b);
+                    adj[b].push(a);
+                }
+            }
+            return adj;
+        }
+
+        // One snapshot per render frame (time) + filter: avoids O(nodes) calls to getThisWeekRange/getTodayLocal/Date.now per frame.
+        let strictTimeSnap = null;
+        function ensureStrictTimeSnapForFrame() {
+            if (strictTimeSnap && strictTimeSnap.filterKey === currentTimeFilter && strictTimeSnap.frame === time) return;
+            const f = currentTimeFilter;
+            const now = Date.now();
+            strictTimeSnap = { frame: time, filterKey: f, now };
+            if (f === 'week') {
+                strictTimeSnap.weekRange = getThisWeekRange();
+                strictTimeSnap.weekStartMs = getStartOfWeekMondayLocalMs();
+                strictTimeSnap.weekEndMs = getEndOfWeekSundayLocalMs();
+            } else {
+                const w = TIME_WINDOWS.find(x => x.id === f);
+                if (w && w.ms != null) strictTimeSnap.rollingCutoff = now - w.ms;
+            }
+        }
+        // Strict pass: day:YYYY-MM-DD by calendar date on node; week/rolling by time snap. (Today/Yesterday presets use day: URLs.)
         function nodePassesTimeFilterStrict(n) {
+            if (displayGraphFromFilter) return true;
             if (currentTimeFilter === 'all') return true;
             if (currentTimeFilter && currentTimeFilter.startsWith(DAY_FILTER_PREFIX)) {
                 const filterDate = currentTimeFilter.slice(DAY_FILTER_PREFIX.length).trim();
@@ -1611,25 +1734,39 @@ function resolvePath(path) {
                 const nodeDateOnly = nodeDate.slice(0, 10);
                 return nodeDateOnly === filterDate || nodeDate.startsWith(filterDate);
             }
-            const window = TIME_WINDOWS.find(w => w.id === currentTimeFilter);
-            if (!window) return false;
+            ensureStrictTimeSnapForFrame();
+            const snap = strictTimeSnap;
+            const rawCreated = (n.created || (n.attributes && (n.attributes.created || n.attributes.date)) || '').toString().trim();
+            const nodeDateOnly = rawCreated.slice(0, 10);
+            if (currentTimeFilter === 'week') {
+                const wr = snap.weekRange;
+                if (/^\d{4}-\d{2}-\d{2}$/.test(nodeDateOnly)) {
+                    return nodeDateOnly >= wr.start && nodeDateOnly <= wr.end;
+                }
+                const ts = getNodeCreatedTimestamp(n);
+                if (ts == null) return false;
+                return ts >= snap.weekStartMs && ts <= snap.weekEndMs;
+            }
+            if (snap.rollingCutoff == null) return false;
             const ts = getNodeCreatedTimestamp(n);
             if (ts == null) return false;
-            return ts >= Date.now() - window.ms;
+            return ts >= snap.rollingCutoff;
         }
         // Week (and other wide) views: also show learnings/archives connected to a node that passes the time window.
         function nodePassesTimeFilter(n) {
+            if (displayGraphFromFilter) return true;
             if (nodePassesTimeFilterStrict(n)) return true;
             if (currentTimeFilter === 'all' || !currentTimeFilter) return false;
             if (currentTimeFilter.startsWith(DAY_FILTER_PREFIX)) return false;
             if (WIDE_TIME_FILTERS.indexOf(currentTimeFilter) < 0) return false;
-            const idx = nodes.findIndex(x => x && x.idKey === n.idKey);
-            if (idx < 0) return false;
+            const idx = n.id;
+            if (typeof idx !== 'number' || idx < 0 || idx >= nodes.length || nodes[idx] !== n) return false;
             return nodePassesTimeFilterByIndex(idx);
         }
         // Index-aware version for hot loops: avoids O(nodes) findIndex when caller already has idx.
-        // When in wide time filter (7d, 48h, etc.), use cached set of passing indices so we don't do O(edges) per node per frame.
+        // When in wide time filter (week / month / year), use cached set of passing indices so we don't do O(edges) per node per frame.
         function nodePassesTimeFilterByIndex(idx) {
+            if (displayGraphFromFilter) return true;
             if (nodePassesTimeFilterStrict(nodes[idx])) return true;
             if (currentTimeFilter === 'all' || !currentTimeFilter) return false;
             if (currentTimeFilter.startsWith(DAY_FILTER_PREFIX)) return false;
@@ -1643,20 +1780,23 @@ function resolvePath(path) {
             return false;
         }
         function ensureTimeFilterPassingCache() {
+            if (displayGraphFromFilter) return;
             if (currentTimeFilter === 'all' || currentTimeFilter.startsWith(DAY_FILTER_PREFIX) || WIDE_TIME_FILTERS.indexOf(currentTimeFilter) < 0) return;
             if (timeFilterPassingIndicesCacheKey === currentTimeFilter && timeFilterPassingIndicesCache) return;
             const strictPassing = new Set();
             for (let i = 0; i < nodes.length; i++) {
                 if (nodePassesTimeFilterStrict(nodes[i])) strictPassing.add(i);
             }
+            const adj = buildUndirectedAdjacency(nodes.length, edges);
             const passing = new Set(strictPassing);
-            const queue = [...strictPassing];
-            while (queue.length) {
-                const idx = queue.shift();
-                for (let i = 0; i < edges.length; i++) {
-                    const e = edges[i];
-                    const other = e.from === idx ? e.to : e.to === idx ? e.from : -1;
-                    if (other >= 0 && !passing.has(other)) {
+            const queue = Array.from(strictPassing);
+            let qh = 0;
+            while (qh < queue.length) {
+                const idx = queue[qh++];
+                const nb = adj[idx];
+                for (let k = 0; k < nb.length; k++) {
+                    const other = nb[k];
+                    if (!passing.has(other)) {
                         passing.add(other);
                         queue.push(other);
                     }
@@ -1668,8 +1808,28 @@ function resolvePath(path) {
         // Jump to node order: Temporal first, then Learnings, then Archive (and File), then rest
         const filterCategoryOrder = CONFIG.filterCategoryOrder || ['temporal', 'learning', 'archive', 'file', 'self', 'foundation', 'value', 'capability', 'project', 'infrastructure', 'person'];
         const filterCategoryLabels = CONFIG.filterCategoryLabels || { temporal: 'Temporal', learning: 'Learnings', archive: 'Archive', file: 'File', self: 'Self', foundation: 'Foundation', value: 'Values', capability: 'Capabilities', project: 'Projects', infrastructure: 'Infrastructure', person: 'People' };
+        let categoryTypesCacheKey = '';
+        let categoryTypesCacheList = null;
         function getAvailableCategoryTypes() {
-            const timeFiltered = nodes.filter(n => nodePassesTimeFilter(n));
+            if (!graphFullNodes.length) return [];
+            const cacheKey = currentTimeFilter + '|' + graphStructureVersion;
+            if (categoryTypesCacheKey === cacheKey && categoryTypesCacheList) return categoryTypesCacheList;
+            const prevN = nodes;
+            const prevE = edges;
+            const prevDisplay = displayGraphFromFilter;
+            nodes = graphFullNodes;
+            edges = graphFullEdges;
+            displayGraphFromFilter = false;
+            timeFilterPassingIndicesCacheKey = null;
+            timeFilterPassingIndicesCache = null;
+            ensureTimeFilterPassingCache();
+            const timeFiltered = [];
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodePassesTimeFilterByIndex(i)) timeFiltered.push(nodes[i]);
+            }
+            nodes = prevN;
+            edges = prevE;
+            displayGraphFromFilter = prevDisplay;
             const types = new Set();
             let hasMemoryRef = false;
             timeFiltered.forEach(n => {
@@ -1685,13 +1845,15 @@ function resolvePath(path) {
             const rest = [...types].filter(cat => !order.includes(cat)).sort();
             const list = ordered.concat(rest);
             if (hasMemoryRef) list.push('memorylinks');
+            categoryTypesCacheKey = cacheKey;
+            categoryTypesCacheList = list;
             return list;
         }
         function populateCategoryFilterRow() {
             const row = document.getElementById('filter-row-category');
             if (!row) return;
             const available = getAvailableCategoryTypes();
-            if (available.indexOf(currentCategoryFilter) === -1) currentCategoryFilter = 'all';
+            if (graphFullNodes.length && available.indexOf(currentCategoryFilter) === -1) currentCategoryFilter = 'all';
             row.innerHTML = '';
             const allBtn = document.createElement('button');
             allBtn.type = 'button';
@@ -1710,9 +1872,25 @@ function resolvePath(path) {
                 row.appendChild(btn);
             });
         }
+
+        let filterListRafId = 0;
+        function schedulePopulateFilterList() {
+            if (filterListRafId) return;
+            const run = () => {
+                filterListRafId = 0;
+                populateFilterList();
+            };
+            if (typeof requestAnimationFrame !== 'undefined') {
+                filterListRafId = requestAnimationFrame(run);
+            } else {
+                filterListRafId = setTimeout(run, 0);
+            }
+        }
+
         function setActiveTimeFilter(time, opts) {
             currentTimeFilter = time;
             timeFilterPassingIndicesCacheKey = null;
+            strictTimeSnap = null;
             // Keep current zoom and pan so user stays in the same view; only the filtered nodes change.
             if (opts && opts.zoomDefault != null) {
                 camera.panX = 0;
@@ -1725,17 +1903,14 @@ function resolvePath(path) {
             });
             setFilterInUrl(currentTimeFilter, currentCategoryFilter);
             if (timeFilterLabelEl) timeFilterLabelEl.textContent = getTimeFilterDisplayName(currentTimeFilter);
-            if (selected !== null && nodes[selected] && !nodePassesFilter(nodes[selected])) {
-                selected = null;
-                showNodeDetails(null);
-                showNodeDetailsInDrawer(null);
-                window.location.hash = '';
-            }
-            const count = nodes.filter(n => nodePassesFilter(n)).length;
-            const edgeCount = edges.filter(e => nodePassesFilter(nodes[e.from]) && nodePassesFilter(nodes[e.to])).length;
-            console.log('Time: ' + getTimeFilterDisplayName(time) + ', Category: ' + currentCategoryFilter + ' — ' + count + ' neurons, ' + edgeCount + ' synapses');
             populateCategoryFilterRow();
-            populateFilterList();
+            const selKey = selected !== null && nodes[selected] ? nodes[selected].idKey : null;
+            rebuildDisplayGraphFromFull();
+            resyncSelectionByIdKey(selKey);
+            const count = nodes.length;
+            const edgeCount = edges.length;
+            console.log('Time: ' + getTimeFilterDisplayName(time) + ', Category: ' + currentCategoryFilter + ' — ' + count + ' neurons, ' + edgeCount + ' synapses');
+            schedulePopulateFilterList();
         }
         function setActiveCategoryFilter(category) {
             currentCategoryFilter = category;
@@ -1743,18 +1918,16 @@ function resolvePath(path) {
                 b.classList.toggle('active', b.dataset.filterCategory === currentCategoryFilter);
             });
             setFilterInUrl(currentTimeFilter, currentCategoryFilter);
-            if (selected !== null && nodes[selected] && !nodePassesFilter(nodes[selected])) {
-                selected = null;
-                showNodeDetails(null);
-                showNodeDetailsInDrawer(null);
-                window.location.hash = '';
-            }
-            const count = nodes.filter(n => nodePassesFilter(n)).length;
-            const edgeCount = edges.filter(e => nodePassesFilter(nodes[e.from]) && nodePassesFilter(nodes[e.to])).length;
+            const selKey = selected !== null && nodes[selected] ? nodes[selected].idKey : null;
+            rebuildDisplayGraphFromFull();
+            resyncSelectionByIdKey(selKey);
+            const count = nodes.length;
+            const edgeCount = edges.length;
             console.log('Time: ' + currentTimeFilter + ', Category: ' + category + ' — ' + count + ' neurons, ' + edgeCount + ' synapses');
-            populateFilterList();
+            schedulePopulateFilterList();
         }
         function nodePassesFilter(n) {
+            if (displayGraphFromFilter) return true;
             const timePass = nodePassesTimeFilter(n);
             if (!timePass) return false;
             if (currentCategoryFilter === 'all') return true;
@@ -1774,6 +1947,7 @@ function resolvePath(path) {
         }
         // Index-aware version for hot loops: avoids findIndex inside nodePassesTimeFilter.
         function nodePassesFilterByIndex(idx) {
+            if (displayGraphFromFilter) return true;
             const n = nodes[idx];
             const timePass = nodePassesTimeFilterByIndex(idx);
             if (!timePass) return false;
@@ -1789,6 +1963,65 @@ function resolvePath(path) {
                 return nodeType === 'archive' || nodeType === 'file';
             }
             return nodeType === filterType;
+        }
+
+        /** Build `nodes`/`edges` from `graphFull*` using current time + category filters (runs on filter or data load, not each frame). */
+        function rebuildDisplayGraphFromFull() {
+            if (!graphFullNodes.length) {
+                nodes = [];
+                edges = [];
+                displayGraphFromFilter = false;
+                return;
+            }
+            if (currentTimeFilter === 'all' && currentCategoryFilter === 'all') {
+                nodes = graphFullNodes;
+                edges = graphFullEdges;
+                displayGraphFromFilter = false;
+                return;
+            }
+            nodes = graphFullNodes;
+            edges = graphFullEdges;
+            displayGraphFromFilter = false;
+            timeFilterPassingIndicesCacheKey = null;
+            timeFilterPassingIndicesCache = null;
+            temporalFocusCacheKey = null;
+            temporalFocusNodeIds = null;
+            ensureTimeFilterPassingCache();
+            const keep = [];
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodePassesFilterByIndex(i)) keep.push(i);
+            }
+            const oldToNew = new Map();
+            const newNodes = keep.map((oldIdx, j) => {
+                oldToNew.set(oldIdx, j);
+                const src = graphFullNodes[oldIdx];
+                return Object.assign({}, src, { id: j });
+            });
+            const newEdges = [];
+            for (let ei = 0; ei < graphFullEdges.length; ei++) {
+                const e = graphFullEdges[ei];
+                const from = oldToNew.get(e.from);
+                const to = oldToNew.get(e.to);
+                if (from !== undefined && to !== undefined) {
+                    newEdges.push({ from, to, weight: e.weight });
+                }
+            }
+            nodes = newNodes;
+            edges = newEdges;
+            displayGraphFromFilter = true;
+        }
+
+        function resyncSelectionByIdKey(selKey) {
+            if (!selKey) return;
+            const ni = nodes.findIndex(n => n.idKey === selKey);
+            if (ni >= 0) {
+                selected = ni;
+                return;
+            }
+            selected = null;
+            showNodeDetails(null);
+            showNodeDetailsInDrawer(null);
+            window.location.hash = '';
         }
         // Time filters live in the zoom panel (next to minimap), not in the side menu
         populateCategoryFilterRow();
@@ -1810,7 +2043,7 @@ function resolvePath(path) {
                 b.classList.toggle('active', b.dataset.filterTime === currentTimeFilter);
             });
             populateCategoryFilterRow();
-            populateFilterList();
+            schedulePopulateFilterList();
         }
 
         // Collapsible filter bar
@@ -2548,7 +2781,7 @@ function resolvePath(path) {
             if (clickedNode !== null) {
                 selected = clickedNode;
                 const node = nodes[selected];
-                // When clicking a temporal node, switch to 24h (day) view for that node's date
+                // When clicking a temporal node, switch to day view for that node's date
                 const nodeType = (node.type || node.category || '').toLowerCase();
                 if (nodeType === 'temporal') {
                     const dateStr = (node.created || node.attributes?.created || node.attributes?.date || '').toString().trim().slice(0, 10);
@@ -3503,6 +3736,28 @@ function resolvePath(path) {
             let timeFilterPopoverEl = null;
             function openTimeFilterPopover() {
                 if (timeFilterPopoverEl) {
+                    const tDay = DAY_FILTER_PREFIX + getTodayLocal();
+                    const tOpt = timeFilterPopoverEl.querySelector('[data-today-option="true"]');
+                    if (tOpt) {
+                        tOpt.setAttribute('data-filter-time', tDay);
+                        tOpt.onclick = (e) => {
+                            e.stopPropagation();
+                            setActiveTimeFilter(tDay);
+                            closeTimeFilterPopover();
+                            cameraFocus.active = false;
+                        };
+                    }
+                    const yDay = DAY_FILTER_PREFIX + getYesterdayLocal();
+                    const yOpt = timeFilterPopoverEl.querySelector('[data-yesterday-option="true"]');
+                    if (yOpt) {
+                        yOpt.setAttribute('data-filter-time', yDay);
+                        yOpt.onclick = (e) => {
+                            e.stopPropagation();
+                            setActiveTimeFilter(yDay);
+                            closeTimeFilterPopover();
+                            cameraFocus.active = false;
+                        };
+                    }
                     timeFilterPopoverEl.querySelectorAll('.neural-graph-time-filter-option').forEach(opt => {
                         opt.classList.toggle('active', opt.getAttribute('data-filter-time') === currentTimeFilter);
                     });
@@ -3525,6 +3780,26 @@ function resolvePath(path) {
                 allOpt.textContent = 'All';
                 allOpt.addEventListener('click', (e) => { e.stopPropagation(); setActiveTimeFilter('all'); closeTimeFilterPopover(); cameraFocus.active = false; });
                 pop.appendChild(allOpt);
+                const tDay = DAY_FILTER_PREFIX + getTodayLocal();
+                const tOpt = document.createElement('button');
+                tOpt.type = 'button';
+                tOpt.className = 'neural-graph-time-filter-option' + (currentTimeFilter === tDay ? ' active' : '');
+                tOpt.setAttribute('role', 'option');
+                tOpt.setAttribute('data-filter-time', tDay);
+                tOpt.setAttribute('data-today-option', 'true');
+                tOpt.textContent = 'Today';
+                tOpt.addEventListener('click', (e) => { e.stopPropagation(); setActiveTimeFilter(tDay); closeTimeFilterPopover(); cameraFocus.active = false; });
+                pop.appendChild(tOpt);
+                const yDay = DAY_FILTER_PREFIX + getYesterdayLocal();
+                const yOpt = document.createElement('button');
+                yOpt.type = 'button';
+                yOpt.className = 'neural-graph-time-filter-option' + (currentTimeFilter === yDay ? ' active' : '');
+                yOpt.setAttribute('role', 'option');
+                yOpt.setAttribute('data-filter-time', yDay);
+                yOpt.setAttribute('data-yesterday-option', 'true');
+                yOpt.textContent = 'Yesterday';
+                yOpt.addEventListener('click', (e) => { e.stopPropagation(); setActiveTimeFilter(yDay); closeTimeFilterPopover(); cameraFocus.active = false; });
+                pop.appendChild(yOpt);
                 TIME_WINDOWS.forEach(w => {
                     const opt = document.createElement('button');
                     opt.type = 'button';
@@ -3647,7 +3922,7 @@ function resolvePath(path) {
                     if (e.to === selected) activeNodeIds.add(e.from);
                 });
             }
-            const size3D = (use3DView ? 0.2 : 1) * (currentTimeFilter === '48h' ? 2 : 1);
+            const size3D = (use3DView ? 0.2 : 1) * (currentTimeFilter === 'week' || (currentTimeFilter && currentTimeFilter.startsWith('day:')) ? 2 : 1);
             const hitScreenPos = {};
             for (let idx = 0; idx < nodes.length; idx++) {
                 const p = project(nodes[idx].x, nodes[idx].y, nodes[idx].z);
@@ -3845,7 +4120,10 @@ function resolvePath(path) {
         });
 
         window.walk = () => {
-            const eligible = nodes.map((n, idx) => idx).filter(idx => nodePassesFilter(nodes[idx]));
+            const eligible = [];
+            for (let idx = 0; idx < nodes.length; idx++) {
+                if (nodePassesFilterByIndex(idx)) eligible.push(idx);
+            }
             if (eligible.length === 0) {
                 selected = null;
                 showNodeDetails(null);
@@ -3874,12 +4152,17 @@ function resolvePath(path) {
         /** Load memory by source: 'latest' | { commit } | { hash (master hash) }. Updates the graph. */
         window.loadMemory = loadMemory;
         /** Total loaded graph size (not filtered). For per-brain count display. */
-        window.getGraphCounts = function() { return { nodes: nodes.length, edges: edges.length }; };
+        window.getGraphCounts = function() {
+            return {
+                nodes: graphFullNodes.length || nodes.length,
+                edges: graphFullEdges.length || edges.length
+            };
+        };
 
         function updateDrawerStats() {
             const countEl = document.getElementById('drawer-neurons-synapses');
             const label = (CONFIG.dataBasePath === 'PAUL-memories') ? 'Paul' : 'JARVIS';
-            if (countEl) countEl.textContent = label + ': ' + nodes.length + ' neurons · ' + edges.length + ' synapses';
+            if (countEl) countEl.textContent = label + ': ' + graphFullNodes.length + ' neurons · ' + graphFullEdges.length + ' synapses';
         }
 
         const liveUrl = CONFIG.liveUrl || 'https://paulvisciano.github.io/memory/';
@@ -3888,8 +4171,8 @@ function resolvePath(path) {
             return h === 'localhost' || h === '127.0.0.1';
         }
         function getSharePayload() {
-            const n = nodes.length;
-            const s = edges.length;
+            const n = graphFullNodes.length || nodes.length;
+            const s = graphFullEdges.length || edges.length;
             const currentUrl = window.location.href;
             const url = isLocalhost() ? liveUrl : currentUrl;
             const title = CONFIG.shareTitle || "Neural Mind";
@@ -4084,10 +4367,10 @@ function resolvePath(path) {
         let synapseIdSet = new Set();
 
         setInterval(() => {
-            // Build "already seen" from current state so we only count real deltas (and so we're correct after initial load)
-            nodeIdSet = new Set(nodes.map(n => String(n.idKey)));
-            synapseIdSet = new Set(edges.map(e => (nodes[e.from]?.idKey != null && nodes[e.to]?.idKey != null)
-                ? String(nodes[e.from].idKey) + '-' + String(nodes[e.to].idKey)
+            // Build "already seen" from full graph so deltas are correct even when the view is filtered.
+            nodeIdSet = new Set(graphFullNodes.map(n => String(n.idKey)));
+            synapseIdSet = new Set(graphFullEdges.map(e => (graphFullNodes[e.from]?.idKey != null && graphFullNodes[e.to]?.idKey != null)
+                ? String(graphFullNodes[e.from].idKey) + '-' + String(graphFullNodes[e.to].idKey)
                 : String(e.from) + '-' + String(e.to)));
 
             Promise.all([
@@ -4116,7 +4399,7 @@ function resolvePath(path) {
                         const isYesterday = createdStr === yesterdayLocal;
                         const isThisWeek = createdStr && weekRange && createdStr >= weekRange.start && createdStr <= weekRange.end;
                         const mapped = {
-                            id: nodes.length,
+                            id: graphFullNodes.length,
                             idKey: nodeKey,
                             name: node.label ?? node.name,
                             type: node.category ?? node.type,
@@ -4137,20 +4420,21 @@ function resolvePath(path) {
                             _isNew: true,
                             _fadeStartTime: Date.now()
                         };
-                        nodes.push(mapped);
+                        graphFullNodes.push(mapped);
                         addedNodes++;
                     }
                 });
 
                 // Find new synapses (normalize sid to string for consistent comparison)
                 newSynapses.forEach(synapse => {
-                    const sid = String(synapse.id || (synapse.source + '-' + synapse.target));
+                    // Must match mapRawToGraph / synapseIdSet above: endpoints only (synapse.id is a distinct label and breaks dedup).
+                    const sid = String(synapse.source) + '-' + String(synapse.target);
                     if (!synapseIdSet.has(sid)) {
-                        const fromIdx = nodes.findIndex(n => String(n.idKey) === String(synapse.source));
-                        const toIdx = nodes.findIndex(n => String(n.idKey) === String(synapse.target));
+                        const fromIdx = graphFullNodes.findIndex(n => String(n.idKey) === String(synapse.source));
+                        const toIdx = graphFullNodes.findIndex(n => String(n.idKey) === String(synapse.target));
                         if (fromIdx >= 0 && toIdx >= 0) {
                             synapseIdSet.add(sid);
-                            edges.push({
+                            graphFullEdges.push({
                                 from: fromIdx,
                                 to: toIdx,
                                 weight: Math.round((synapse.weight || 1) * 10)
@@ -4161,9 +4445,16 @@ function resolvePath(path) {
                 });
 
                 if (addedNodes > 0 || addedSynapses > 0) {
-                    console.log(`🧠 +${addedNodes} neurons, +${addedSynapses} synapses (total: ${nodes.length} / ${edges.length})`);
+                    graphStructureVersion++;
+                    const selKey = selected !== null && nodes[selected] ? nodes[selected].idKey : null;
+                    timeFilterPassingIndicesCacheKey = null;
+                    timeFilterPassingIndicesCache = null;
+                    populateCategoryFilterRow();
+                    rebuildDisplayGraphFromFull();
+                    resyncSelectionByIdKey(selKey);
+
+                    console.log(`🧠 +${addedNodes} neurons, +${addedSynapses} synapses (total loaded: ${graphFullNodes.length} / ${graphFullEdges.length}; visible: ${nodes.length} / ${edges.length})`);
                     
-                    // Update counts
                     const statusMsg = `${nodes.length} neurons · ${edges.length} synapses`;
                     if (statusEl) statusEl.textContent = statusMsg;
                     if (countEl) countEl.textContent = nodes.length;
