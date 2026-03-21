@@ -590,7 +590,6 @@ function resolvePath(path) {
                 if (catForSize === 'learning') size *= 0.5;  // 2x smaller learning nodes
                 if (catForSize === 'openclaw-skill') size *= 2; // 2x larger than other nodes
                 size *= 2;  // 2x larger nodes overall (on top of NODE_SIZE_SCALE)
-                const glow = size * 2.5;
                 const isMemoryRef = n.attributes?.type === 'memory-reference';
                 const archiveSubtypeColors = CONFIG.archiveSubtypeColors || {
                     // Media subtypes get strongly separated hues so they're easy to scan:
@@ -628,6 +627,15 @@ function resolvePath(path) {
                     if (videoExts.includes(ext)) return 'video';
                     return 'document';
                 }
+                const isImageMedia =
+                    (n.category || n.type || '').toLowerCase() === 'image' ||
+                    (archiveSubtypeFromRaw(n) === 'image' &&
+                        ((n.category || n.type || '').toLowerCase() === 'archive' ||
+                            (n.category || n.type || '').toLowerCase() === 'file'));
+                if (isImageMedia) {
+                    size *= 14;
+                }
+                const glow = size * 2.5;
                 let color;
                 if (isMemoryRef) {
                     color = memoryRefColor;
@@ -652,6 +660,7 @@ function resolvePath(path) {
                     size,
                     glow,
                     color,
+                    isImageMedia,
                     freq: Number.isFinite(freq) ? freq : 10,
                     desc: n.attributes?.description || n.description || '',
                     created,
@@ -1348,6 +1357,7 @@ function resolvePath(path) {
                     const spotlightDim = inSpotlight ? 1 : SPOTLIGHT_DIM_ALPHA;
 
                     const r = n.size * p.scale * nodeSize3D;
+                    const isImageMedia = n.isImageMedia === true;
                     let glow = n.glow * p.scale * nodeSize3D;
                     if (n.isMemoryRef) {
                         const pulse = 1 + 0.15 * Math.sin(time * 0.08);
@@ -1363,11 +1373,18 @@ function resolvePath(path) {
                         ctx.globalAlpha = spotlightDim;
                     }
 
-                    // Core neuron ONLY - no glows, no halos
+                    // Core neuron: image files = larger circle + cyan ring; others = dot
                     ctx.fillStyle = n.color;
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, r, 0, 6.28);
                     ctx.fill();
+                    if (isImageMedia) {
+                        ctx.strokeStyle = 'rgba(34, 211, 238, 0.92)';
+                        ctx.lineWidth = Math.max(1.2, r * 0.1);
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, r, 0, 6.28);
+                        ctx.stroke();
+                    }
 
                     // Temporal nodes: highlight ring so they're easy to spot
                     const isTemporalNode = (n.type || '').toLowerCase() === 'temporal';
@@ -1510,12 +1527,13 @@ function resolvePath(path) {
                     const n = nodes[selected];
                     const p = screenPos[selected];
                     const r = (n.size * (p.scale ?? 1)) * nodeSize3D;
+                    const outer = r + 8;
                     
                     ctx.strokeStyle = '#ffff00';
                     ctx.lineWidth = 3;
                     ctx.globalAlpha = 0.9;
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, r + 8, 0, 6.28);
+                    ctx.arc(p.x, p.y, outer, 0, 6.28);
                     ctx.stroke();
                     
                     // Pulsing outer ring
@@ -1523,7 +1541,7 @@ function resolvePath(path) {
                     ctx.strokeStyle = `rgba(255, 255, 0, ${pulse * 0.6})`;
                     ctx.lineWidth = 1.75;
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, r + 14, 0, 6.28);
+                    ctx.arc(p.x, p.y, outer + 6, 0, 6.28);
                     ctx.stroke();
                     ctx.globalAlpha = 1;
                 }
@@ -1533,16 +1551,17 @@ function resolvePath(path) {
                     const n = nodes[hovered];
                     const p = screenPos[hovered];
                     const r = (n.size * (p.scale ?? 1)) * nodeSize3D;
+                    const outerR = r + 2;
                     ctx.save();
                     ctx.globalAlpha = 1;
                     // Bright cyan outline ring
                     ctx.strokeStyle = 'rgba(56, 189, 248, 0.95)';
                     ctx.lineWidth = 3;
                     ctx.beginPath();
-                    ctx.arc(p.x, p.y, r + 2, 0, 6.28);
+                    ctx.arc(p.x, p.y, outerR, 0, 6.28);
                     ctx.stroke();
                     // Soft outer glow
-                    const outer = r + 12;
+                    const outer = outerR + 10;
                     const grad = ctx.createRadialGradient(p.x, p.y, r, p.x, p.y, outer);
                     grad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
                     grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
@@ -3679,11 +3698,20 @@ function resolvePath(path) {
                 const node = nodes[entry.idx];
                 const isSelected = selected === entry.idx;
                 const baseColor = node.color || (categoryColors[node.type] || '#38bdf8');
+                const isImg = node.isImageMedia === true;
+                const mr = isImg ? (isSelected ? 4.2 : 3.2) : (isSelected ? 3.3 : 2.1);
                 minimapCtx.beginPath();
-                minimapCtx.arc(entry.x, entry.y, isSelected ? 3.3 : 2.1, 0, Math.PI * 2);
+                minimapCtx.arc(entry.x, entry.y, mr, 0, Math.PI * 2);
                 minimapCtx.fillStyle = isSelected ? '#ffffff' : baseColor;
                 minimapCtx.globalAlpha = isSelected ? 1 : 0.95;
                 minimapCtx.fill();
+                if (isImg && !isSelected) {
+                    minimapCtx.beginPath();
+                    minimapCtx.arc(entry.x, entry.y, mr, 0, Math.PI * 2);
+                    minimapCtx.strokeStyle = 'rgba(34, 211, 238, 0.85)';
+                    minimapCtx.lineWidth = 0.9;
+                    minimapCtx.stroke();
+                }
                 minimapCtx.globalAlpha = 1;
             }
         }
@@ -4398,6 +4426,12 @@ function resolvePath(path) {
                         const isToday = createdStr === todayLocal;
                         const isYesterday = createdStr === yesterdayLocal;
                         const isThisWeek = createdStr && weekRange && createdStr >= weekRange.start && createdStr <= weekRange.end;
+                        const attrs = node.attributes || {};
+                        const pathForKind = attrs.filePath || attrs.rawContentPath || attrs.file_url || attrs.path || node.label || '';
+                        const catL = (node.category || node.type || '').toLowerCase();
+                        const isImageMedia =
+                            catL === 'image' ||
+                            ((catL === 'archive' || catL === 'file') && detectFileType(pathForKind) === 'image');
                         const mapped = {
                             id: graphFullNodes.length,
                             idKey: nodeKey,
@@ -4410,6 +4444,8 @@ function resolvePath(path) {
                             size: Number(node.size) || 6,
                             glow: Number(node.glow) || 12,
                             color: node.color || categoryColors[node.category] || '#00ffff',
+                            attributes: attrs,
+                            isImageMedia,
                             freq: Number(node.frequency) || 10,
                             desc: (node.attributes && node.attributes.description) || node.description || '',
                             created: createdStr,
