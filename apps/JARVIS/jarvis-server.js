@@ -529,20 +529,12 @@ function handleRequest(req, res) {
             const responseTimestamp = new Date().toISOString();
             console.log(`[${responseTimestamp}] 🤖 My response: ${responseText}`);
             
-            // Post to gateway chat (current channel - webchat)
+            // Post to Jarvis agent session (OpenClaw)
             try {
-                execSync(`openclaw message send --message "${responseText.replace(/"/g, '\\"')}"`, { stdio: 'pipe' });
-                console.log(`[${responseTimestamp}] ✅ Posted to gateway chat`);
-            } catch (msgErr) {
-                console.error(`[${responseTimestamp}] ⚠️ Gateway post failed: ${msgErr.message}`);
-            }
-            
-            // Send to current session (webchat)
-            try {
-                execSync(`openclaw message send --channel webchat --message "${responseText.replace(/"/g, '\\"')}"`, { stdio: 'pipe' });
-                console.log(`[${responseTimestamp}] ✅ Sent to webchat`);
-            } catch (webchatErr) {
-                console.error(`[${responseTimestamp}] ⚠️ Webchat send failed: ${webchatErr.message}`);
+                execSync(`openclaw sessions send --sessionKey "agent:jarvis:main" --message "${responseText.replace(/"/g, '\\"')}"`, { stdio: 'pipe' });
+                console.log(`[${responseTimestamp}] ✅ Posted to Jarvis agent session`);
+            } catch (sessionErr) {
+                console.error(`[${responseTimestamp}] ⚠️ Session send failed: ${sessionErr.message}`);
             }
             
             res.writeHead(200, { 'Content-Type': 'application/json' });
