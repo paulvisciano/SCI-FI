@@ -339,13 +339,16 @@ function handleRequest(req, res) {
         return;
     }
 
-    // Serve neurograph static files
-    if (req.method === 'GET' && req.url.startsWith('/neuro-graph/')) {
+    // Serve neurograph static files (supports /neural-graph, /neural-graph/, /neuro-graph, /neuro-graph/)
+    if (req.method === 'GET' && (req.url.startsWith('/neural-graph') || req.url.startsWith('/neuro-graph'))) {
         // Strip query string and decode URL so filenames with spaces and unicode work
         const urlWithoutQuery = req.url.split('?')[0];
-        const rawPath = urlWithoutQuery.replace('/neuro-graph/', '');
+        // Support both /neural-graph and /neuro-graph prefixes (with or without trailing slash)
+        let rawPath = urlWithoutQuery.replace('/neural-graph', '').replace('/neuro-graph', '');
+        // Remove leading slash if present
+        rawPath = rawPath.replace(/^\//, '');
         const neuroPath = decodeURIComponent(rawPath);
-        const filePath = path.join(CONFIG.neurographDir, neuroPath === '/' || neuroPath === '' ? 'index.html' : neuroPath);
+        const filePath = path.join(CONFIG.neurographDir, neuroPath === '' ? 'index.html' : neuroPath);
         
         if (fs.existsSync(filePath) && !filePath.includes('..')) {
             const ext = path.extname(filePath).toLowerCase();
@@ -380,6 +383,36 @@ function handleRequest(req, res) {
             });
             return;
         }
+    }
+
+    // NeuroGraph data API (decoupled from frontend paths, works from any cwd)
+    // MUST be before generic static file handler
+    if (req.url.startsWith('/api/neurograph/nodes.json')) {
+        const nodesPath = path.join(process.env.HOME, 'JARVIS', 'RAW', 'memories', 'nodes.json');
+        fs.readFile(nodesPath, (err, data) => {
+            if (err) {
+                res.writeHead(500);
+                res.end(JSON.stringify({error: 'Failed to load nodes.json'}));
+                return;
+            }
+            res.writeHead(200, {'Content-Type': 'application/json'});
+            res.end(data);
+        });
+        return;
+    }
+    
+    if (req.url.startsWith('/api/neurograph/synapses.json')) {
+        const synapsesPath = path.join(process.env.HOME, 'JARVIS', 'RAW', 'memories', 'synapses.json');
+        fs.readFile(synapsesPath, (err, data) => {
+            if (err) {
+                res.writeHead(500);
+                res.end(JSON.stringify({error: 'Failed to load synapses.json'}));
+                return;
+            }
+            res.writeHead(200, {'Content-Type': 'application/json'});
+            res.end(data);
+        });
+        return;
     }
 
     // Serve static files (index.html, CSS, JS, video)

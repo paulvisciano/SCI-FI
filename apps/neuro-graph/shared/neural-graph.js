@@ -735,6 +735,9 @@ function resolvePath(path) {
             currentTimelineView = viewState;
             setTimelineActive(viewState);
             populateFilterList();
+            // Brain / graph reload: indices must stay in range or render() throws before updateMinimap().
+            if (selected !== null && (selected >= nodes.length || !nodes[selected])) selected = null;
+            if (hovered !== null && (hovered >= nodes.length || !nodes[hovered])) hovered = null;
             render();
             showNodeDetails(null);
             updateDrawerStats();
@@ -752,10 +755,13 @@ function resolvePath(path) {
             try {
                 let rawNodes, rawSynapses;
                 if (isLatest) {
-                    const base = dataDir();
+                    // Use server API endpoints (decoupled from filesystem paths)
+                    // Dev mode: point to JARVIS server when running standalone (ports 8080, 8081, etc.)
+                    const isDev = window.location.port && ['8080','8081','8082'].includes(window.location.port);
+                    const apiBase = isDev ? 'http://localhost:18787' : '';
                     const [nodesRes, synapsesRes] = await Promise.all([
-                        fetch(base + '/nodes.json?t=' + Date.now()),
-                        fetch(base + '/synapses.json?t=' + Date.now())
+                        fetch(apiBase + '/api/neurograph/nodes.json?t=' + Date.now()),
+                        fetch(apiBase + '/api/neurograph/synapses.json?t=' + Date.now())
                     ]);
                     if (!nodesRes.ok || !synapsesRes.ok) throw new Error('Fetch failed');
                     rawNodes = await nodesRes.json();
@@ -1100,7 +1106,7 @@ function resolvePath(path) {
                 time++;
 
                 // Smooth backdrop focus: ease between "no selection" and "focused selection"
-                const temporalHover = hovered !== null && (nodes[hovered].type || '').toLowerCase() === 'temporal';
+                const temporalHover = hovered !== null && nodes[hovered] && (nodes[hovered].type || '').toLowerCase() === 'temporal';
                 const targetBackdropFocus = (selected !== null || temporalHover) ? 1 : 0;
                 const focusLerp = 0.08; // higher = faster response
                 backdropFocus += (targetBackdropFocus - backdropFocus) * focusLerp;
@@ -1108,7 +1114,7 @@ function resolvePath(path) {
                 if (backdropFocus > 0.999) backdropFocus = 1;
 
                 // When a temporal node is selected, hide everyone except that node + nodes connected to it (direct + same-date)
-                if (selected !== null && (nodes[selected].type || '').toLowerCase() === 'temporal') {
+                if (selected !== null && nodes[selected] && (nodes[selected].type || '').toLowerCase() === 'temporal') {
                     const temporalDate = (nodes[selected].created || nodes[selected].attributes?.created || nodes[selected].attributes?.date || '').toString().trim();
                     const cacheKey = selected + '\0' + temporalDate;
                     if (cacheKey !== temporalFocusCacheKey) {
@@ -1226,13 +1232,13 @@ function resolvePath(path) {
 
                 // When a node is selected (or a temporal node is hovered), it and its connections stay bright
                 let activeNodeIds = null;
-                if (selected !== null) {
+                if (selected !== null && nodes[selected]) {
                     activeNodeIds = new Set([selected]);
                     edges.forEach(e => {
                         if (e.from === selected) activeNodeIds.add(e.to);
                         if (e.to === selected) activeNodeIds.add(e.from);
                     });
-                } else if (hovered !== null && (nodes[hovered].type || '').toLowerCase() === 'temporal') {
+                } else if (hovered !== null && nodes[hovered] && (nodes[hovered].type || '').toLowerCase() === 'temporal') {
                     // Highlight temporal node + all nodes connected by edges (transitive closure)
                     // + all learnings/archives linked by same date (orbit that temporal node in layout)
                     activeNodeIds = new Set();
@@ -1334,9 +1340,6 @@ function resolvePath(path) {
                         }
                     }
                 });
-
-                // Update minimap after main graph render so it always reflects latest layout + filter
-                updateMinimap();
 
                 // Draw neurons
                 const dimAlpha = 0.22;
@@ -1523,7 +1526,7 @@ function resolvePath(path) {
                 }
                 
                 // Selection highlight ring
-                if (selected !== null) {
+                if (selected !== null && nodes[selected]) {
                     const n = nodes[selected];
                     const p = screenPos[selected];
                     const r = (n.size * (p.scale ?? 1)) * nodeSize3D;
@@ -1582,11 +1585,14 @@ function resolvePath(path) {
                     if (filterPass[ed.from] && filterPass[ed.to]) visibleEdgeCount++;
                 }
                 updateNodeCount(visibleNodeCount, visibleEdgeCount);
-                const statusText = selected !== null ? '🧠 ' + nodes[selected].name : visibleNodeCount + ' neurons · ' + visibleEdgeCount + ' synapses';
+                const statusText = selected !== null && nodes[selected] ? '🧠 ' + nodes[selected].name : visibleNodeCount + ' neurons · ' + visibleEdgeCount + ' synapses';
                 if (lastStatusText !== statusText) {
                     lastStatusText = statusText;
                     if (statusEl) statusEl.textContent = statusText;
                 }
+
+                // Minimap last so it always matches this frame (layout + filters + selection); avoids stale view after brain switch if render threw earlier.
+                updateMinimap();
 
                 // Smooth view switch: fade out → swap mode → fade in
                 if (viewTransitionState !== null) {
