@@ -549,33 +549,56 @@ function handleRequest(req, res) {
                 console.log('📝 User message:', userMessage);
             }
             
-            // Run openclaw agent with the user's actual message (handles inbox processing + response)
+            // Run openclaw agent asynchronously (non-blocking)
             const timestamp = new Date().toISOString();
-            console.log(`[${timestamp}] 🤖 Running openclaw agent...`);
-            const agentOutput = execSync(`openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' });
+            const agentStart = Date.now();
+            console.log(`[${timestamp}] ⏱️ Agent START`);
             
-            // Extract response text (strip logs, get actual reply)
-            const responseText = agentOutput.split('\n').filter(line => 
-                !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10
-            ).join('\n').trim();
-            
-            const responseTimestamp = new Date().toISOString();
-            console.log(`[${responseTimestamp}] 🤖 My response: ${responseText}`);
-            
-            // Post to Jarvis agent session (OpenClaw)
-            try {
-                execSync(`openclaw sessions send --sessionKey "agent:jarvis:main" --message "${responseText.replace(/"/g, '\\"')}"`, { stdio: 'pipe' });
-                console.log(`[${responseTimestamp}] ✅ Posted to Jarvis agent session`);
-            } catch (sessionErr) {
-                console.error(`[${responseTimestamp}] ⚠️ Session send failed: ${sessionErr.message}`);
-            }
-            
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-                status: 'processed', 
-                userMessage: userMessage,
-                myResponse: responseText || 'Message processed'
-            }));
+            exec(`openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' },
+                (agentErr, agentOutput) => {
+                    const agentDuration = Date.now() - agentStart;
+                    const agentTimestamp = new Date().toISOString();
+                    
+                    if (agentErr) {
+                        console.error(`[${agentTimestamp}] ❌ Agent failed:`, agentErr.message);
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ status: 'error', message: agentErr.message }));
+                        return;
+                    }
+                    
+                    console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
+                    
+                    // Extract response text (strip logs, get actual reply)
+                    const responseText = agentOutput.split('\n').filter(line => 
+                        !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10
+                    ).join('\n').trim();
+                    
+                    console.log(`[${agentTimestamp}] 🤖 My response: ${responseText}`);
+                    
+                    // Post to Jarvis agent session (OpenClaw)
+                    try {
+                        exec(`openclaw sessions send --sessionKey "agent:jarvis:main" --message "${responseText.replace(/"/g, '\\"')}"`, { encoding: 'utf8' },
+                            (sessionErr) => {
+                                if (sessionErr) {
+                                    console.error(`[${agentTimestamp}] ⚠️ Session send failed:`, sessionErr.message);
+                                } else {
+                                    console.log(`[${agentTimestamp}] ✅ Posted to Jarvis agent session`);
+                                }
+                            }
+                        );
+                    } catch (sessionErr) {
+                        console.error(`[${agentTimestamp}] ⚠️ Session send failed:`, sessionErr.message);
+                    }
+                    
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ 
+                        status: 'processed', 
+                        userMessage: userMessage,
+                        myResponse: responseText || 'Message processed'
+                    }));
+                }
+            );
+            return; // Exit early - response sent in callback
         } catch (error) {
             console.error('❌ Processing failed:', error.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -855,25 +878,36 @@ function handleTranscript(filepath, transcript, extension) {
     const userMessage = transcript.trim();
     console.log('🤖 User message:', userMessage);
 
-    let responseText = '';
-    try {
-        const agentOutput = execSync(
-            `openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`,
-            { encoding: 'utf8' }
-        );
-        console.log('✅ Sent user message to main agent');
-        responseText = agentOutput.split('\n')
-            .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
-            .join('\n').trim();
-        if (responsePath && responseText) {
-            fs.writeFileSync(responsePath, responseText);
+    // Run openclaw agent asynchronously (non-blocking)
+    const agentStart = Date.now();
+    console.log(`[${new Date().toISOString()}] ⏱️ Agent START (handleTranscript)`);
+    
+    exec(`openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' },
+        (agentErr, agentOutput) => {
+            const agentDuration = Date.now() - agentStart;
+            const agentTimestamp = new Date().toISOString();
+            
+            if (agentErr) {
+                console.error(`[${agentTimestamp}] ❌ Agent failed:`, agentErr.message);
+                return;
+            }
+            
+            console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
+            console.log(`[${agentTimestamp}] ✅ Sent user message to main agent`);
+            
+            let responseText = agentOutput.split('\n')
+                .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
+                .join('\n').trim();
+            
+            if (responsePath && responseText) {
+                fs.writeFileSync(responsePath, responseText);
+            }
+            
+            // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
+            const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
+            pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
         }
-    } catch (agentErr) {
-        console.error('❌ Failed to send message to agent:', agentErr.message);
-    }
-    // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
-    const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
-    pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
+    );
 }
 
 function archiveRecording(filepath, extension, transcript) {
