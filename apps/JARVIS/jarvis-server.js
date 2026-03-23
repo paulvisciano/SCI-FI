@@ -554,7 +554,7 @@ function handleRequest(req, res) {
             const agentStart = Date.now();
             console.log(`[${timestamp}] ⏱️ Agent START`);
             
-            exec(`openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' },
+            exec(`openclaw agent --agent jarvis --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' },
                 (agentErr, agentOutput) => {
                     const agentDuration = Date.now() - agentStart;
                     const agentTimestamp = new Date().toISOString();
@@ -882,7 +882,7 @@ function handleTranscript(filepath, transcript, extension) {
     const agentStart = Date.now();
     console.log(`[${new Date().toISOString()}] ⏱️ Agent START (handleTranscript)`);
     
-    exec(`openclaw agent --agent main --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' },
+    exec(`openclaw agent --agent jarvis --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' },
         (agentErr, agentOutput) => {
             const agentDuration = Date.now() - agentStart;
             const agentTimestamp = new Date().toISOString();
@@ -893,7 +893,7 @@ function handleTranscript(filepath, transcript, extension) {
             }
             
             console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
-            console.log(`[${agentTimestamp}] ✅ Sent user message to main agent`);
+            console.log(`[${agentTimestamp}] ✅ Sent user message to jarvis agent`);
             
             let responseText = agentOutput.split('\n')
                 .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
