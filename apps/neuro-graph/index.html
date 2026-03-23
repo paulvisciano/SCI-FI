@@ -147,18 +147,26 @@
             }
             setActiveBrain(currentBrain);
             buttons.forEach(function(btn) {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', async function() {
                     var path = this.getAttribute('data-brain');
                     if (!path || path === currentBrain) return;
-                    localStorage.setItem(BRAIN_KEY, path);
+                    try { localStorage.setItem(BRAIN_KEY, path); } catch (_) {}
                     setActiveBrain(path);
-                    if (window.loadMemory) window.loadMemory('latest');
+                    try {
+                        if (window.reloadLatestMemory) {
+                            await window.reloadLatestMemory();
+                        } else if (window.loadMemory) {
+                            await window.loadMemory('latest');
+                        }
+                    } catch (err) {
+                        console.error('Brain switch failed:', err);
+                    }
                 });
             });
         });
     })();
     </script>
-    <script src="./shared/neural-graph.js?v=2026-03-22-api-v5"></script>
+    <script src="./shared/neural-graph.js?v=2026-03-23-brain-data-switch"></script>
     <script>
         // Drawer stats (date, count, hash) are updated by neural-graph.js from graph data and memory-version dataset.
     </script>

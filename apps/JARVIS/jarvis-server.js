@@ -387,8 +387,22 @@ function handleRequest(req, res) {
 
     // NeuroGraph data API (decoupled from frontend paths, works from any cwd)
     // MUST be before generic static file handler
+    function resolveNeurographBrainDir(reqUrl) {
+        const base = process.env.HOME || '';
+        const defaultDir = path.join(base, 'JARVIS', 'RAW', 'memories');
+        try {
+            const parsed = new URL(reqUrl, 'http://localhost');
+            const brain = (parsed.searchParams.get('brain') || '').replace(/^\/+|\/+$/g, '');
+            if (brain === 'RAW/memories') return path.join(base, 'RAW', 'memories');
+            if (brain === 'JARVIS/RAW/memories') return defaultDir;
+            return defaultDir;
+        } catch (_) {
+            return defaultDir;
+        }
+    }
     if (req.url.startsWith('/api/neurograph/nodes.json')) {
-        const nodesPath = path.join(process.env.HOME, 'JARVIS', 'RAW', 'memories', 'nodes.json');
+        const brainDir = resolveNeurographBrainDir(req.url);
+        const nodesPath = path.join(brainDir, 'nodes.json');
         fs.readFile(nodesPath, (err, data) => {
             if (err) {
                 res.writeHead(500);
@@ -402,7 +416,8 @@ function handleRequest(req, res) {
     }
     
     if (req.url.startsWith('/api/neurograph/synapses.json')) {
-        const synapsesPath = path.join(process.env.HOME, 'JARVIS', 'RAW', 'memories', 'synapses.json');
+        const brainDir = resolveNeurographBrainDir(req.url);
+        const synapsesPath = path.join(brainDir, 'synapses.json');
         fs.readFile(synapsesPath, (err, data) => {
             if (err) {
                 res.writeHead(500);

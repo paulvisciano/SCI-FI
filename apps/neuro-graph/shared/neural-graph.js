@@ -759,9 +759,10 @@ function resolvePath(path) {
                     // Dev mode: point to JARVIS server when running standalone (ports 8080, 8081, etc.)
                     const isDev = window.location.port && ['8080','8081','8082'].includes(window.location.port);
                     const apiBase = isDev ? 'http://localhost:18787' : '';
+                    const brainPath = encodeURIComponent(dataDir());
                     const [nodesRes, synapsesRes] = await Promise.all([
-                        fetch(apiBase + '/api/neurograph/nodes.json?t=' + Date.now()),
-                        fetch(apiBase + '/api/neurograph/synapses.json?t=' + Date.now())
+                        fetch(apiBase + '/api/neurograph/nodes.json?brain=' + brainPath + '&t=' + Date.now()),
+                        fetch(apiBase + '/api/neurograph/synapses.json?brain=' + brainPath + '&t=' + Date.now())
                     ]);
                     if (!nodesRes.ok || !synapsesRes.ok) throw new Error('Fetch failed');
                     rawNodes = await nodesRes.json();
@@ -4185,6 +4186,15 @@ function resolvePath(path) {
 
         /** Load memory by source: 'latest' | { commit } | { hash (master hash) }. Updates the graph. */
         window.loadMemory = loadMemory;
+        /** Reload latest memory and force a fresh frame + minimap redraw. */
+        window.reloadLatestMemory = async function() {
+            const ok = await loadMemory('latest');
+            if (ok) {
+                render();
+                updateMinimap();
+            }
+            return ok;
+        };
         /** Total loaded graph size (not filtered). For per-brain count display. */
         window.getGraphCounts = function() {
             return {
