@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.27';
+const CLIENT_VERSION = '2.9.28';
 const CLIENT_BUILD_DATE = '2026-03-24';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -258,7 +258,9 @@ async function sendToServer() {
         const result = await response.json();
 
         if (result.ok) {
-            status.textContent = '✅ Uploaded! Processing...';
+            // Clear old transcript immediately to prevent flash of previous content
+            transcriptText.textContent = '';
+            status.textContent = 'Processing...';
             transcript.classList.add('visible');
 
             const today = new Date().toISOString().split('T')[0];
@@ -267,7 +269,8 @@ async function sendToServer() {
             document.getElementById('transcript-path').textContent = archivePath;
             document.getElementById('transcript-path').title = `Full path: /Users/paulvisciano/RAW/archive/${today}/audio/`;
 
-            transcriptText.innerHTML = '<span style="color: #00ff88;">✅ ' + result.message + '</span>';
+            // Set "Transcribing..." status immediately (don't wait for poll to start)
+            transcriptText.innerHTML = '<span style="color: #ffd700;">⏳ Transcribing...</span>';
 
             pollForTranscript(result.filename);
         } else {
