@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.24';
-const CLIENT_BUILD_DATE = '2026-03-19';
+const CLIENT_VERSION = '2.9.25';
+const CLIENT_BUILD_DATE = '2026-03-24';
 
 // Fade server status after 3 seconds, reappear on hover
 let fadeTimer;

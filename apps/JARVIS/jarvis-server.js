@@ -22,8 +22,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '2.9.5';
-const BUILD_DATE = '2026-03-18';
+const VERSION = '2.9.6';
+const BUILD_DATE = '2026-03-24';
 
 const CONFIG = {
     port: process.env.VOICE_PORT || 18787,
@@ -922,8 +922,8 @@ function handleTranscript(filepath, transcript, extension) {
     console.log('📝 Transcript:', transcript.trim());
     currentTranscription.transcriptPath = transcriptPath;
     
-    // Archive IMMEDIATELY - no timeout (server restarts lose files)
-    const responsePath = archiveRecording(filepath, extension, transcript);
+    // DO NOT archive yet - wait until AFTER agent responds so UI can poll successfully
+    // Archive will happen in the agent callback below
 
     // Extract user message from transcript and send it to the main agent
     const userMessage = transcript.trim();
@@ -940,6 +940,8 @@ function handleTranscript(filepath, transcript, extension) {
             
             if (agentErr) {
                 console.error(`[${agentTimestamp}] ❌ Agent failed:`, agentErr.message);
+                // Still archive on error so we don't leave files in live/
+                archiveRecording(filepath, extension, transcript);
                 return;
             }
             
@@ -949,6 +951,9 @@ function handleTranscript(filepath, transcript, extension) {
             let responseText = agentOutput.split('\n')
                 .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
                 .join('\n').trim();
+            
+            // Archive AFTER agent completes - transcript is now available in liveDir for UI polling
+            const responsePath = archiveRecording(filepath, extension, transcript);
             
             if (responsePath && responseText) {
                 fs.writeFileSync(responsePath, responseText);
@@ -1003,7 +1008,7 @@ function logStartup() {
     console.log(`║  Version: ${VERSION} (${BUILD_DATE})                            ║`);
     console.log(`║  Upload URL: ${baseUrl}/upload${HTTPS_ENABLED ? '                 ' : '                  '}║`);
     console.log('║                                                           ║');
-    console.log('║  Flow: Record → Upload → Transcribe → Archive            ║');
+    console.log('║  Flow: Record → Upload → Transcribe → Respond → Archive  ║');
     console.log('╚═══════════════════════════════════════════════════════════╝\n');
     console.log('Config:');
     console.log('  port:', CONFIG.port);
