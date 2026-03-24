@@ -506,6 +506,11 @@ function handleRequest(req, res) {
                 cacheHeaders['Expires'] = '0';
             }
             
+            // Add ETag and Last-Modified for cache validation
+            const stats = fs.statSync(filePath);
+            cacheHeaders['ETag'] = `"${stats.ino}-${stats.size}-${stats.mtimeMs}"`;
+            cacheHeaders['Last-Modified'] = stats.mtime.toUTCString();
+            
             // Device fingerprinting on root path (index.html)
             if (urlPath === '/') {
                 const userAgent = req.headers['user-agent'] || 'Unknown';
