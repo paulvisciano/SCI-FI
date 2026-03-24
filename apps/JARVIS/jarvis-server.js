@@ -650,8 +650,14 @@ function handleRequest(req, res) {
             if (recordingBase) {
                 const wavBase = recordingBase + '.wav';
                 const txtName = wavBase + '.txt';
-                const hasWav = fs.existsSync(path.join(CONFIG.liveDir, wavBase));
-                const hasTxt = fs.existsSync(path.join(CONFIG.liveDir, txtName));
+                
+                // Check both liveDir and archiveDir (files are archived immediately after transcription)
+                const today = new Date().toISOString().split('T')[0];
+                const archiveDir = path.join(CONFIG.archiveBase, today, 'audio');
+                
+                const hasWavLive = fs.existsSync(path.join(CONFIG.liveDir, wavBase));
+                const hasTxtLive = fs.existsSync(path.join(CONFIG.liveDir, txtName));
+                
                 if (lastError && (lastError.file || '').startsWith(recordingBase)) {
                     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
                     res.end(JSON.stringify({
@@ -663,14 +669,44 @@ function handleRequest(req, res) {
                     }));
                     return;
                 }
-                if (hasTxt) {
+                if (hasTxtLive) {
                     const transcriptPath = path.join(CONFIG.liveDir, txtName);
                     const transcript = fs.readFileSync(transcriptPath, 'utf8').trim();
                     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
                     res.end(JSON.stringify({ status: 'processing', transcript, message: 'Agent thinking...', file: fileParam }));
                     return;
                 }
-                if (hasWav) {
+                
+                // File not in liveDir - check archive for most recent transcript (upload filename doesn't match archive filename)
+                if (fs.existsSync(archiveDir)) {
+                    const archiveFiles = fs.readdirSync(archiveDir)
+                        .filter(f => f.endsWith('.wav.txt'))
+                        .map(f => {
+                            const fullPath = path.join(archiveDir, f);
+                            return { name: f, mtimeMs: fs.statSync(fullPath).mtimeMs, path: fullPath };
+                        })
+                        .sort((a, b) => b.mtimeMs - a.mtimeMs);
+                    
+                    if (archiveFiles.length > 0) {
+                        const latestArchived = archiveFiles[0];
+                        const transcript = fs.readFileSync(latestArchived.path, 'utf8').trim();
+                        const responsePath = latestArchived.path.replace('.wav.txt', '.response.txt');
+                        let jarvisResponse = null;
+                        if (fs.existsSync(responsePath)) {
+                            jarvisResponse = fs.readFileSync(responsePath, 'utf8').trim();
+                        }
+                        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+                        res.end(JSON.stringify({ 
+                            status: jarvisResponse ? 'done' : 'processing', 
+                            transcript, 
+                            jarvisResponse,
+                            file: latestArchived.name 
+                        }));
+                        return;
+                    }
+                }
+                
+                if (hasWavLive) {
                     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
                     res.end(JSON.stringify({ status: 'transcribing', message: 'Transcription in progress...', file: fileParam }));
                     return;
