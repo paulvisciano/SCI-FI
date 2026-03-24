@@ -117,18 +117,6 @@
             pointer-events: auto;
         }
         
-        .network-dot-tooltip h4 {
-            margin: 0 0 6px 0;
-            font-size: 11px;
-            color: #00d9ff;
-            text-transform: uppercase;
-        }
-        
-        .network-dot-tooltip p {
-            margin: 3px 0;
-            color: #aabbcc;
-        }
-        
         .network-dot-tooltip input {
             width: 100%;
             box-sizing: border-box;
@@ -160,18 +148,6 @@
         
         .network-dot-tooltip button:hover {
             background: rgba(0, 217, 255, 0.3);
-        }
-        
-        .network-dot-tooltip h4 {
-            margin: 0 0 6px 0;
-            font-size: 11px;
-            color: #00d9ff;
-            text-transform: uppercase;
-        }
-        
-        .network-dot-tooltip p {
-            margin: 3px 0;
-            color: #aabbcc;
         }
         
         .network-dot-tooltip .qr-btn {
@@ -239,6 +215,11 @@
         }
         .qr-close:hover {
             background: #00d9ff33;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         /* Removed duplicate .container - using first definition at line 23 */
@@ -402,13 +383,6 @@
         /* Minimal engaged state - no filters, no slowdowns */
         .jarvis-orb.engaged {
             /* Empty - pure video, no effects */
-        }
-        
-        /* Recording state - subtle red glow (minimal, performance-safe) */
-        .jarvis-orb.recording {
-            border-color: rgba(255, 68, 68, 0.4);
-            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
-            animation: orb-record-pulse 3s ease-in-out infinite;
         }
 
         /* Version badge - static, no effects */
@@ -630,7 +604,7 @@
         <!-- Title with client version inline (top right) -->
         <div class="title-container" style="display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-bottom: 8px;">
             <h1 class="futuristic-title" style="margin: 0; font-size: 3.1em;">J.A.R.V.I.S</h1>
-            <span id="client-version-inline" style="font-size: 0.75em; color: #64ffda; opacity: 0.7;">v2.9.10</span>
+            <span id="client-version-inline" style="font-size: 0.75em; color: #64ffda; opacity: 0.7;">v2.9.25</span>
         </div>
         
         <!-- Server status under title (all server info) -->

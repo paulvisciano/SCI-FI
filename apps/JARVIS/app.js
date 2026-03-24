@@ -12,38 +12,38 @@ function setupServerStatusFade() {
     
     if (!serverStatus || !titleContainer) return;
     
-    console.log('[UI v2.9.11] Setting up fade-on-hover...');
+    const DEBUG = false; // Set to true for development logging
     
     // Fade out after 3 seconds
     fadeTimer = setTimeout(() => {
         serverStatus.classList.add('faded');
-        console.log('[UI v2.9.11] Server status faded out');
+        if (DEBUG) console.log('[UI] Server status faded out');
     }, 3000);
     
     // Fade in on hover over title container or status
     titleContainer.addEventListener('mouseenter', () => {
         serverStatus.classList.remove('faded');
         clearTimeout(fadeTimer);
-        console.log('[UI v2.9.11] Server status faded in (title hover)');
+        if (DEBUG) console.log('[UI] Server status faded in (title hover)');
     });
     
     titleContainer.addEventListener('mouseleave', () => {
         fadeTimer = setTimeout(() => {
             serverStatus.classList.add('faded');
-            console.log('[UI v2.9.11] Server status faded out (title leave)');
+            if (DEBUG) console.log('[UI] Server status faded out (title leave)');
         }, 2000);
     });
     
     serverStatus.addEventListener('mouseenter', () => {
         serverStatus.classList.remove('faded');
         clearTimeout(fadeTimer);
-        console.log('[UI v2.9.11] Server status faded in (status hover)');
+        if (DEBUG) console.log('[UI] Server status faded in (status hover)');
     });
     
     serverStatus.addEventListener('mouseleave', () => {
         fadeTimer = setTimeout(() => {
             serverStatus.classList.add('faded');
-            console.log('[UI v2.9.11] Server status faded out (status leave)');
+            if (DEBUG) console.log('[UI] Server status faded out (status leave)');
         }, 2000);
     });
 }
@@ -169,7 +169,7 @@ jarvisOrb.addEventListener('click', async (e) => {
     } else {
         await stopRecording();
     }
-    console.log('[Orb click] Recording toggled');
+    if (DEBUG) console.log('[Orb click] Recording toggled');
 });
 
 // Double-click also toggles recording (for users who prefer it)
@@ -180,7 +180,7 @@ jarvisOrb.addEventListener('dblclick', async (e) => {
     } else {
         await stopRecording();
     }
-    console.log('[Orb dblclick] Recording toggled');
+    if (DEBUG) console.log('[Orb dblclick] Recording toggled');
 });
 
 async function startRecording() {
@@ -313,9 +313,12 @@ function formatResponseText(text) {
         .replace(/\n/g, '<br>');
 }
 
+// Polling configuration constants
+const POLL_INTERVAL_MS = 1000;
+const MAX_POLL_ATTEMPTS = 180; // 3 min - whisper + agent can be slow
+
 async function pollForTranscript(uploadFilename) {
     let attempts = 0;
-    const maxAttempts = 180; // 3 min - whisper + agent can be slow
     let agentWaitStart = null;
     let thinkingTimer = null;
     const fileParam = uploadFilename ? '?file=' + encodeURIComponent(uploadFilename) : '';
@@ -427,14 +430,14 @@ async function pollForTranscript(uploadFilename) {
             }
         }
 
-        if (attempts >= maxAttempts) {
+        if (attempts >= MAX_POLL_ATTEMPTS) {
             clearInterval(pollInterval);
             clearThinkingTimer();
             transcript.classList.remove('pulsate');
             transcriptText.innerHTML = '<span style="color: #ff8800;">⏱️ Timeout - no transcript received</span>';
             status.textContent = 'Timeout';
         }
-    }, 1000);
+    }, POLL_INTERVAL_MS);
 }
 
 // Keyboard shortcut (Space to record)
@@ -517,8 +520,12 @@ function updateOrbVersion() {
 
 updateOrbVersion();
 
+// Server status check interval with cleanup on page unload
+const serverStatusInterval = setInterval(checkServerStatus, 5000);
+window.addEventListener('beforeunload', () => {
+    clearInterval(serverStatusInterval);
+});
 checkServerStatus();
-setInterval(checkServerStatus, 5000);
 
 // === Network Dots Integration (with Device Identity) ===
 (function() {
@@ -539,7 +546,7 @@ setInterval(checkServerStatus, 5000);
                 data.devices.forEach(d => {
                     deviceRegistry[d.mac.toUpperCase()] = d;
                 });
-                console.log('[DeviceIdentity] Loaded', data.devices.length, 'devices from registry');
+                if (DEBUG) console.log('[DeviceIdentity] Loaded', data.devices.length, 'devices from registry');
             }
         } catch (err) {
             console.warn('[DeviceIdentity] Registry fetch failed:', err);
@@ -655,9 +662,6 @@ setInterval(checkServerStatus, 5000);
             });
         });
     }
-    
-    // Make showQRCode globally accessible for onclick
-    window.showQRCode = showQRCode;
 
     // Register unknown device
     window.registerDevice = async function(idx, mac) {
@@ -701,6 +705,7 @@ setInterval(checkServerStatus, 5000);
                 <div class="qr-content">
                     <h3>📱 Scan QR Code</h3>
                     <p class="qr-status">Generating...</p>
+                    <div class="qr-spinner" style="display:none; width:40px; height:40px; border:4px solid #00d9ff33; border-top:4px solid #00d9ff; border-radius:50%; animation: spin 1s linear infinite; margin:1rem auto;"></div>
                     <img class="qr-image" src="" alt="QR Code" style="display:none; width:200px; height:200px; margin:1rem auto; border:2px solid #00d9ff; border-radius:8px;" />
                     <p class="qr-url" style="font-family:monospace; color:#00d9ff; margin-top:0.5rem;"></p>
                     <button class="qr-close" onclick="document.getElementById('qr-modal').style.display='none'">Close</button>
@@ -712,6 +717,7 @@ setInterval(checkServerStatus, 5000);
         modal.style.display = 'block';
         modal.querySelector('.qr-status').textContent = 'Generating...';
         modal.querySelector('.qr-image').style.display = 'none';
+        modal.querySelector('.qr-spinner').style.display = 'block';
         
         console.log('[QR] Fetching QR code for', ip);
 
@@ -729,6 +735,7 @@ setInterval(checkServerStatus, 5000);
                     return;
                 }
                 modal.querySelector('.qr-status').textContent = `Scan to connect`;
+                modal.querySelector('.qr-spinner').style.display = 'none';
                 modal.querySelector('.qr-image').src = data.qr;
                 modal.querySelector('.qr-image').style.display = 'block';
                 modal.querySelector('.qr-url').textContent = data.url;
@@ -740,7 +747,16 @@ setInterval(checkServerStatus, 5000);
             });
     }
 
-    window.addEventListener('resize', renderDots);
+    // Make showQRCode globally accessible for onclick
+    window.showQRCode = showQRCode;
+
+    // Debounced resize handler (100ms delay to prevent excessive re-renders)
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(renderDots, 100);
+    });
+    
     loadDevices();
     setInterval(loadDevices, 30000);
 })();

@@ -14,7 +14,7 @@ const QRCode = require('qrcode');
 const deviceRegistry = require('./device-registry');
 
 // === HTTPS Configuration ===
-const HTTPS_ENABLED = true;
+const HTTPS_ENABLED = process.env.VOICE_HTTPS_ENABLED !== 'false';
 const HTTPS_OPTIONS = {
     key: fs.readFileSync(path.join(__dirname, 'assets', 'https-key.pem')),
     cert: fs.readFileSync(path.join(__dirname, 'assets', 'https-cert.pem'))
@@ -24,6 +24,15 @@ const HTTPS_OPTIONS = {
 // === Configuration (Portable - No Hardcoded Paths) ===
 const VERSION = '2.9.6';
 const BUILD_DATE = '2026-03-24';
+
+// Date formatting utility for consistent date handling
+function formatDateForFilename(date = new Date()) {
+    return date.toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + date.toTimeString().split(' ')[0].replace(/:/g, '');
+}
+
+function formatDateForArchive(date = new Date()) {
+    return date.toISOString().split('T')[0];
+}
 
 const CONFIG = {
     port: process.env.VOICE_PORT || 18787,
@@ -185,9 +194,20 @@ function parseMultipart(buffer, contentType) {
 
 // === Request Handler (used by both HTTP and HTTPS) ===
 function handleRequest(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    // Restrict CORS to known origins (configurable via env var)
+    const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : ['http://localhost:*', 'https://localhost:*'];
+    const origin = req.headers.origin;
+    if (!origin || allowedOrigins.some(o => origin.includes(o.replace('*', '')))) {
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Standardized error response helper
+    const sendError = (code, message, details = null) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: message, code, details }));
+    };
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
@@ -251,13 +271,40 @@ function handleRequest(req, res) {
           const data = JSON.parse(body);
           const { mac, name, owner } = data;
           
+          // Validate MAC address format (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
+          const macRegex = /^([0-9A-Fa-f]{2}[:|-]?){5}([0-9A-Fa-f]{2})$/;
           if (!mac) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'MAC address required' }));
             return;
           }
+          if (!macRegex.test(mac)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid MAC address format. Use XX:XX:XX:XX:XX:XX' }));
+            return;
+          }
           
-          const device = deviceRegistry.updateDevice(mac, { name, owner: owner || 'unknown' });
+          // Validate name length and sanitize
+          if (!name || name.trim().length === 0) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Device name required' }));
+            return;
+          }
+          if (name.length > 50) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Device name must be 50 characters or less' }));
+            return;
+          }
+          
+          // Validate owner length
+          const sanitizedOwner = (owner || 'unknown').trim().toLowerCase();
+          if (sanitizedOwner.length > 20) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Owner must be 20 characters or less' }));
+            return;
+          }
+          
+          const device = deviceRegistry.updateDevice(mac, { name: name.trim(), owner: sanitizedOwner });
           if (device) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, device }));
@@ -321,6 +368,8 @@ function handleRequest(req, res) {
             const timestamp = Date.now();
             const filename = `recording-${timestamp}${extension}`;
             const filepath = path.join(CONFIG.liveDir, filename);
+            
+            // Note: timestamp uses Date.now() for uniqueness, not formatDateForFilename
 
             fs.writeFileSync(filepath, audioData);
             console.log('📥 Received:', filename, `(${audioData.length} bytes)`, '→ live/');
@@ -850,6 +899,7 @@ const pendingResponses = new Map();
 function processRecording(filepath, extension) {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] 🎤 Transcribing: ${path.basename(filepath)}`);
+    activeTranscriptions++;
     currentTranscription = { status: 'transcribing', file: path.basename(filepath) };
     lastError = null; // Clear previous error
 
@@ -864,8 +914,8 @@ function processRecording(filepath, extension) {
     // Convert WebM to WAV for whisper.cpp reliability
     if (extension === '.webm') {
         const wavPath = filepath.replace('.webm', '.wav');
-        const ffmpegPath = '/opt/homebrew/bin/ffmpeg';
-        exec(`ffmpeg -i "${filepath}" -ar 16000 -ac 1 "${wavPath}" -y 2>&1`, 
+        const ffmpegPath = process.env.FMPEG_PATH || 'ffmpeg'; // Configurable via env var
+        exec(`${ffmpegPath} -i "${filepath}" -ar 16000 -ac 1 "${wavPath}" -y 2>&1`, 
             (convError, stdout, stderr) => {
                 if (convError) {
                     const errMsg = '❌ FFmpeg conversion failed: ' + convError.message;
@@ -904,6 +954,7 @@ function transcribeWithWhisper(audioPath, modelPath, extension) {
                 } else {
                     console.error(`[${timestamp}] ❌ No transcript created`);
                     currentTranscription = { status: 'error', error: 'Transcription failed' };
+                    activeTranscriptions--;
                 }
             }, 500);
         }
@@ -942,6 +993,7 @@ function handleTranscript(filepath, transcript, extension) {
                 console.error(`[${agentTimestamp}] ❌ Agent failed:`, agentErr.message);
                 // Still archive on error so we don't leave files in live/
                 archiveRecording(filepath, extension, transcript);
+                activeTranscriptions--;
                 return;
             }
             
@@ -962,18 +1014,19 @@ function handleTranscript(filepath, transcript, extension) {
             // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
             const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
             pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
+            activeTranscriptions--;
         }
     );
 }
 
 function archiveRecording(filepath, extension, transcript) {
-    const datePart = new Date().toISOString().split('T')[0];
+    const datePart = formatDateForArchive();
     const archiveDir = path.join(CONFIG.archiveBase, datePart, 'audio');
     if (!fs.existsSync(archiveDir)) {
         fs.mkdirSync(archiveDir, { recursive: true });
     }
     
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + new Date().toTimeString().split(' ')[0].replace(/:/g, '');
+    const timestamp = formatDateForFilename();
     const archivedName = `convo-jarvis-${timestamp}${extension}`;
     const responsePath = path.join(archiveDir, archivedName.replace('.wav', '.response.txt'));
 
@@ -1072,13 +1125,41 @@ function archiveLeftovers() {
     console.log('✅ Leftover archive complete\n');
 }
 
-// Graceful shutdown
+// Track active transcriptions for graceful shutdown
+let activeTranscriptions = 0;
+
+// Graceful shutdown - wait for active transcriptions to complete
 process.on('SIGINT', () => {
     console.log('\n🛑 Shutting down...');
-    server.close(() => {
-        console.log('✓ Server stopped');
-        process.exit(0);
-    });
+    
+    if (activeTranscriptions > 0) {
+        console.log(`⏳ Waiting for ${activeTranscriptions} active transcription(s) to complete...`);
+        // Wait up to 30 seconds for active transcriptions
+        const shutdownInterval = setInterval(() => {
+            if (activeTranscriptions === 0) {
+                clearInterval(shutdownInterval);
+                server.close(() => {
+                    console.log('✓ Server stopped');
+                    process.exit(0);
+                });
+            }
+        }, 500);
+        
+        // Force exit after 30 seconds
+        setTimeout(() => {
+            clearInterval(shutdownInterval);
+            console.log('⚠️ Forced shutdown after timeout');
+            server.close(() => {
+                console.log('✓ Server stopped');
+                process.exit(0);
+            });
+        }, 30000);
+    } else {
+        server.close(() => {
+            console.log('✓ Server stopped');
+            process.exit(0);
+        });
+    }
 });
 
 // Run leftover archive on startup

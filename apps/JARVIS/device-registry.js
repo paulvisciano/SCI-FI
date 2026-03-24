@@ -4,8 +4,9 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execSync } = require('child_process');
 
-const REGISTRY_DIR = path.join(process.env.HOME, 'JARVIS', 'registry');
+const REGISTRY_DIR = process.env.DEVICE_REGISTRY_DIR || path.join(process.env.HOME, 'JARVIS', 'registry');
 const REGISTRY_PATH = path.join(REGISTRY_DIR, 'devices.json');
 
 // Initialize registry directory and file if doesn't exist
