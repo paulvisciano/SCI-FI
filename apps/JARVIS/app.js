@@ -631,16 +631,11 @@ setInterval(checkServerStatus, 5000);
                     <span class="qr-btn" onclick="showQRCode('${device.ip}')">📱 Show QR</span>
                 `;
             } else {
-                // Unknown device - show registration prompt
+                // Unknown device - show device info only (no registration fields)
                 tooltip.innerHTML = `
                     <h4>${displayName}</h4>
                     <p>MAC: ${device.mac.toUpperCase()}</p>
                     <p>Type: ${device.deviceType}</p>
-                    <div style="margin-top:8px; border-top:1px solid #00d9ff33; padding-top:8px;">
-                        <input type="text" id="reg-name-${idx}" placeholder="Device name..." style="width:100%; margin-bottom:4px; background:#0a1128; border:1px solid #00d9ff; color:#00ffff; padding:4px; font-size:10px;" />
-                        <input type="text" id="reg-owner-${idx}" placeholder="Owner (paul/eric)" style="width:100%; margin-bottom:4px; background:#0a1128; border:1px solid #00d9ff; color:#00ffff; padding:4px; font-size:10px;" />
-                        <button class="qr-btn" onclick="registerDevice(${idx}, '${device.mac.toUpperCase()}')" style="width:100%;">Register</button>
-                    </div>
                     <span class="qr-btn" onclick="showQRCode('${device.ip}')">📱 Show QR</span>
                 `;
             }
