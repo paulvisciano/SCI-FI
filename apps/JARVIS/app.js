@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.26';
+const CLIENT_VERSION = '2.9.27';
 const CLIENT_BUILD_DATE = '2026-03-24';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -323,6 +323,10 @@ async function pollForTranscript(uploadFilename) {
     let thinkingTimer = null;
     const fileParam = uploadFilename ? '?file=' + encodeURIComponent(uploadFilename) : '';
 
+    // Clear transcript at start of new polling session (fix race condition: old transcript from previous recording was kept)
+    transcriptText.innerHTML = '<span style="color: #ffd700;">⏳ Transcribing...</span>';
+    status.textContent = 'Processing...';
+
     const clearThinkingTimer = () => {
         if (thinkingTimer) {
             clearInterval(thinkingTimer);
@@ -342,13 +346,8 @@ async function pollForTranscript(uploadFilename) {
                 if (data.status === 'transcribing') {
                     clearThinkingTimer();
                     transcript.classList.remove('pulsate');
-                    // Don't overwrite the user's message with "Transcribing..." (race: server can return transcribing after moving file to archive)
-                    const alreadyHaveTranscript = transcriptText.textContent.trim().length > 0
-                        && !transcriptText.innerHTML.includes('Transcribing')
-                        && !transcriptText.innerHTML.includes('Processing');
-                    if (!alreadyHaveTranscript) {
-                        transcriptText.innerHTML = '<span style="color: #ffd700;">⏳ Transcribing...</span>';
-                    }
+                    // Keep "Transcribing..." visible while server is transcribing
+                    transcriptText.innerHTML = '<span style="color: #ffd700;">⏳ Transcribing...</span>';
                     status.textContent = 'Processing...';
                 } else if (data.status === 'processing' && data.transcript) {
                     transcriptText.textContent = data.transcript;
