@@ -171,8 +171,11 @@
         // Drawer stats (date, count, hash) are updated by neural-graph.js from graph data and memory-version dataset.
     </script>
     <!-- Deployment verification: 2026-02-22 15:31:58 UTC -->
-    <div id="memory-version" style="position: fixed; bottom: 10px; left: 10px; font-size: 8px; color: #00ff00; opacity: 0.3; pointer-events: none; z-index: 1;">
-        v:2026-02-22-15:31:58
+    <!-- Memory version updated dynamically by neural-graph.js from git commit -->
+    <div id="memory-version" style="position: fixed; bottom: 10px; left: 10px; font-size: 8px; color: #00ff00; opacity: 0.3; pointer-events: none; z-index: 1;"
+         data-commit-hash=""
+         data-commit-date="">
+        <span id="memory-version-text">Loading...</span>
     </div>
 </body>
 </html>

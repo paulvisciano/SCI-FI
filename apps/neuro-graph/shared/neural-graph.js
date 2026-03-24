@@ -96,6 +96,32 @@ function resolvePath(path) {
 }
         (function() {
         const CONFIG = window.NEURAL_GRAPH_CONFIG || {};
+        
+        // Centralized configuration constants
+        Object.assign(CONFIG, {
+          ZOOM_SPEED: 0.015,
+          MINIMAP_WIDTH: 260,
+          MINIMAP_ZOOM_GAP: 10,
+          MOBILE_BREAKPOINT: 768,
+          PANEL_WIDTH: 240,
+          FILE_DRAWER_WIDTH: 380,
+          VIEW_TRANSITION_DURATION: 240,
+          SEARCH_DEBOUNCE_MS: 300,
+          CATEGORY_COLORS: {
+            person: '#fbbf24',
+            learning: '#10b981',
+            archive: '#00ffff',
+            file: '#00ffff',
+            temporal: '#3b82f6',
+            location: '#f472b6',
+            decision: '#a78bfa',
+            skill: '#fbbf24',
+            jarvis: '#00ffff',
+            inbox: '#94a3b8',
+          },
+          DRAWER_LEVELS: [10, 30, 70], // vh visible
+        });
+        
         function dataDir() { const p = CONFIG.dataBasePath || './data'; return p.replace(/\/$/, ''); }
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', {alpha: true});
@@ -105,8 +131,8 @@ function resolvePath(path) {
         const countEl = document.getElementById('count');
         const synapseCountEl = document.getElementById('synapseCount');
 
-        const PANEL_WIDTH = 240;
-        const FILE_DRAWER_WIDTH = 380;
+        const PANEL_WIDTH = CONFIG.PANEL_WIDTH;
+        const FILE_DRAWER_WIDTH = CONFIG.FILE_DRAWER_WIDTH;
         let panelOpen = false;
         let fileDrawerOpen = false;
         let zoomControlsEl = null;
@@ -2053,12 +2079,17 @@ function resolvePath(path) {
         populateCategoryFilterRow();
 
         const nodeSearchInputs = [document.getElementById('node-search-input')].filter(Boolean);
+        let searchTimeout;
         if (nodeSearchInputs.length > 0) {
             nodeSearchInputs.forEach(input => {
                 input.value = currentNodeSearchQuery;
                 input.addEventListener('input', () => {
-                    currentNodeSearchQuery = (input.value || '').trim().toLowerCase();
-                    populateFilterList();
+                    // Debounce search input by 300ms
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        currentNodeSearchQuery = (input.value || '').trim().toLowerCase();
+                        populateFilterList();
+                    }, 300);
                 });
             });
             populateFilterList();
@@ -2976,11 +3007,21 @@ function resolvePath(path) {
         window.addEventListener('hashchange', handleHashNavigation);
 
         // On load: hash selects node by id (e.g. #paul), no hash = random node
-        loadGraphData().then(() => {
-            if (window.location.hash) handleHashNavigation();
-            if (typeof window.onNeuroGraphLoaded === 'function') window.onNeuroGraphLoaded();
-            // No random node selection on load — popover only appears when user clicks a node
-        });
+        loadGraphData()
+            .then(() => {
+                if (window.location.hash) handleHashNavigation();
+                if (typeof window.onNeuroGraphLoaded === 'function') window.onNeuroGraphLoaded();
+                // No random node selection on load — popover only appears when user clicks a node
+            })
+            .catch(err => {
+                const statusEl = document.getElementById('status');
+                if (statusEl) {
+                    statusEl.textContent = 'Error loading graph: ' + err.message;
+                    statusEl.style.color = '#ff6b6b';
+                    statusEl.style.fontWeight = 'bold';
+                }
+                console.error('Failed to load graph data:', err);
+            });
 
         window.clearSelection = () => {
             selected = null;
@@ -3001,15 +3042,21 @@ function resolvePath(path) {
                 // Parse characters array from the JS file
                 const match = text.match(/const characters = \[([\s\S]*?)\];/);
                 if (match) {
-                  eval('characterProfiles = ' + '[' + match[1] + ']');
-                  // Build lookup by id
-                  const profiles = {};
-                  if (Array.isArray(characterProfiles)) {
-                    characterProfiles.forEach(char => {
-                      profiles[char.id] = char;
-                    });
+                  try {
+                    // Use JSON.parse instead of eval for security
+                    const parsed = JSON.parse('[' + match[1] + ']');
+                    characterProfiles = parsed;
+                    // Build lookup by id
+                    const profiles = {};
+                    if (Array.isArray(characterProfiles)) {
+                      characterProfiles.forEach(char => {
+                        profiles[char.id] = char;
+                      });
+                    }
+                    characterProfiles = profiles;
+                  } catch (parseErr) {
+                    console.warn('Failed to parse character profiles:', parseErr);
                   }
-                  characterProfiles = profiles;
                 }
             } catch (e) {
                 console.warn('Could not load character profiles:', e);
@@ -3122,9 +3169,8 @@ function resolvePath(path) {
                 </div>`;
         }
 
-        const MOBILE_BREAKPOINT = 768;
         function showNodeDetails(node, opts) {
-            if (window.innerWidth <= MOBILE_BREAKPOINT) {
+            if (window.innerWidth <= CONFIG.MOBILE_BREAKPOINT) {
                 // Mobile: never use inline popover; route everything through drawer/modal.
                 if (!node) {
                     showNodeDetailsModal(null);
@@ -3251,6 +3297,13 @@ function resolvePath(path) {
                 document.removeEventListener('keydown', memoryLinkEscapeHandler);
                 memoryLinkEscapeHandler = null;
             }
+            // Additional cleanup: remove any inline styles or event listeners
+            if (memoryLinkSidebarEl) {
+                memoryLinkSidebarEl.querySelectorAll('*').forEach(el => {
+                    const clone = el.cloneNode(false);
+                    el.parentNode.replaceChild(clone, el);
+                });
+            }
         }
 
         // Mobile drawer management
@@ -3347,6 +3400,8 @@ function resolvePath(path) {
                     heading.style.color = color;
                     heading.className = 'filter-category';
                     listElement.appendChild(heading);
+                    // Use DocumentFragment for efficient DOM insertion
+                    const fragment = document.createDocumentFragment();
                     items.forEach(({ node, idx }) => {
                         const btn = document.createElement('button');
                         btn.type = 'button';
@@ -3357,8 +3412,9 @@ function resolvePath(path) {
                             selectNodeByIndex(idx);
                             if (window.innerWidth <= 768) setDrawerOpen(false);
                         });
-                        listElement.appendChild(btn);
+                        fragment.appendChild(btn);
                     });
+                    listElement.appendChild(fragment);
                 });
             }
             if (listEl) {
@@ -3415,7 +3471,6 @@ function resolvePath(path) {
 
         canvas.addEventListener('wheel', e => {
             e.preventDefault();
-            const zoomSpeed = 0.015;  // Higher = more sensitive pinch/scroll zoom
 
             // If the pointer is currently over the minimap, interpret the zoom as
             // "zoom into/out of the region under the minimap cursor" instead of
@@ -3444,14 +3499,14 @@ function resolvePath(path) {
                             }
                         }
                         if (bestIdx !== null) {
-                            const factor = 1 - e.deltaY * zoomSpeed;
+                            const factor = 1 - e.deltaY * CONFIG.ZOOM_SPEED;
                             const proposedZoom = viewZoom * factor;
                             const targetZoom = Math.max(getViewZoomMin(), Math.min(VIEW_ZOOM_MAX, proposedZoom));
                             selected = bestIdx;
                             const node = nodes[bestIdx];
                             focusOnNode(node, { targetZoom });
                             showNodeDetails(node);
-                            if (window.innerWidth <= 768) showNodeDetailsInDrawer(node);
+                            if (window.innerWidth <= CONFIG.MOBILE_BREAKPOINT) showNodeDetailsInDrawer(node);
                         }
                     }
                     return;
@@ -3459,7 +3514,7 @@ function resolvePath(path) {
             }
 
             // Zoom toward cursor; at max zoom out, open time filter menu instead
-            const factor = 1 - e.deltaY * zoomSpeed;
+            const factor = 1 - e.deltaY * CONFIG.ZOOM_SPEED;
             if (factor < 1 && viewZoom * factor <= getViewZoomMin() && openTimeFilterPopoverRef) {
                 openTimeFilterPopoverRef();
                 return;
@@ -3471,18 +3526,15 @@ function resolvePath(path) {
             cameraFocus.active = false;
         });
 
-        const MINIMAP_WIDTH = 260;
-        const MINIMAP_HEIGHT = 188;
-        const MINIMAP_ZOOM_GAP = 10;
         function positionZoomControls() {
             if (!zoomControlsEl) return;
             const pad = 16;
-            const isDesktop = window.innerWidth > 768;
+            const isDesktop = window.innerWidth > CONFIG.MOBILE_BREAKPOINT;
             // Right side: zoom buttons sit just to the left of the minimap
             const rightOffset = pad +
-                (panelOpen ? PANEL_WIDTH : 0) +
-                (fileDrawerOpen ? FILE_DRAWER_WIDTH : 0);
-            zoomControlsEl.style.right = (rightOffset + MINIMAP_WIDTH + MINIMAP_ZOOM_GAP) + 'px';
+                (panelOpen ? CONFIG.PANEL_WIDTH : 0) +
+                (fileDrawerOpen ? CONFIG.FILE_DRAWER_WIDTH : 0);
+            zoomControlsEl.style.right = (rightOffset + CONFIG.MINIMAP_WIDTH + CONFIG.MINIMAP_ZOOM_GAP) + 'px';
             zoomControlsEl.style.left = 'auto';
             zoomControlsEl.style.bottom = pad + 'px';
             zoomControlsEl.style.zIndex = isDesktop ? '15' : '26';
@@ -3490,11 +3542,11 @@ function resolvePath(path) {
         function positionMinimap() {
             if (!minimapEl) return;
             const pad = 16;
-            const isDesktop = window.innerWidth > 768;
+            const isDesktop = window.innerWidth > CONFIG.MOBILE_BREAKPOINT;
             // Right side: minimap flush right, zoom to its left
             const rightOffset = pad +
-                (panelOpen ? PANEL_WIDTH : 0) +
-                (fileDrawerOpen ? FILE_DRAWER_WIDTH : 0);
+                (panelOpen ? CONFIG.PANEL_WIDTH : 0) +
+                (fileDrawerOpen ? CONFIG.FILE_DRAWER_WIDTH : 0);
             minimapEl.style.right = rightOffset + 'px';
             minimapEl.style.left = 'auto';
             minimapEl.style.bottom = pad + 'px';
@@ -3582,13 +3634,12 @@ function resolvePath(path) {
                 const node = nodes[bestIdx];
                 focusOnNode(node);
                 showNodeDetails(node);
-                if (window.innerWidth <= 768) showNodeDetailsInDrawer(node);
+                if (window.innerWidth <= CONFIG.MOBILE_BREAKPOINT) showNodeDetailsInDrawer(node);
             });
 
-            const zoomSpeed = 0.015;
             wrap.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                viewZoom *= 1 - e.deltaY * zoomSpeed;
+                viewZoom *= 1 - e.deltaY * CONFIG.ZOOM_SPEED;
                 viewZoom = Math.max(getViewZoomMin(), Math.min(VIEW_ZOOM_MAX, viewZoom));
                 updateZoomLabel();
                 cameraFocus.active = false;
