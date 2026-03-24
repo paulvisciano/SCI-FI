@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '2.9.29';
+const CLIENT_VERSION = '2.9.30';
 const CLIENT_BUILD_DATE = '2026-03-24';
 
 // Fade server status after 3 seconds, reappear on hover
@@ -228,6 +228,9 @@ async function startRecording() {
 async function stopRecording() {
     mediaRecorder.stop();
     isRecording = false;
+
+    // Clear transcript immediately to prevent flash of old content
+    transcriptText.textContent = '';
 
     // Remove recording state
     jarvisOrb.classList.remove('recording');
