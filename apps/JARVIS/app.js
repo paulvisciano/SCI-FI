@@ -189,17 +189,36 @@ async function startRecording() {
 
         const options = { mimeType: 'audio/webm;codecs=opus' };
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            console.log('audio/webm;codecs=opus not supported, trying audio/webm');
             options.mimeType = 'audio/webm';
         }
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            console.log('audio/webm not supported, trying audio/ogg;codecs=opus');
+            options.mimeType = 'audio/ogg;codecs=opus';
+        }
+        console.log('MediaRecorder mimeType:', options.mimeType);
+        console.log('Is type supported:', MediaRecorder.isTypeSupported(options.mimeType));
 
         mediaRecorder = new MediaRecorder(stream, options);
         audioChunks = [];
 
         mediaRecorder.ondataavailable = (event) => {
-            audioChunks.push(event.data);
+            console.log('ondataavailable, chunk size:', event.data.size);
+            if (event.data && event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
         };
 
-        mediaRecorder.onstop = sendToServer;
+        mediaRecorder.onerror = (error) => {
+            console.error('MediaRecorder error:', error);
+            status.textContent = '❌ Recording error';
+        };
+
+        mediaRecorder.onstop = () => {
+            console.log('MediaRecorder onstop triggered');
+            console.log('audioChunks length before onstop:', audioChunks.length);
+            sendToServer();
+        };
 
         mediaRecorder.start(2000);
         isRecording = true;
@@ -226,8 +245,10 @@ async function startRecording() {
 }
 
 async function stopRecording() {
+    console.log('stopRecording: calling mediaRecorder.stop()');
     mediaRecorder.stop();
     isRecording = false;
+    console.log('stopRecording: mediaRecorder stopped, isRecording = false');
 
     // Clear transcript immediately to prevent flash of old content
     transcriptText.textContent = '';
@@ -252,17 +273,34 @@ async function stopRecording() {
 }
 
 async function sendToServer() {
+    console.log('sendToServer: audioChunks length =', audioChunks.length);
     const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    console.log('sendToServer: audioBlob size =', audioBlob.size, 'type =', audioBlob.type);
+    
+    if (audioBlob.size === 0) {
+        console.error('sendToServer: audioBlob is empty!');
+        status.textContent = '❌ Empty recording - try again';
+        return;
+    }
+
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
 
     try {
+        console.log('Uploading to:', `${API_BASE}/upload`);
         const response = await fetch(`${API_BASE}/upload`, {
             method: 'POST',
             body: formData
         });
 
+        console.log('Upload response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+        }
+
         const result = await response.json();
+        console.log('Upload result:', result);
 
         if (result.ok) {
             // Clear old transcript immediately to prevent flash of previous content
@@ -285,6 +323,7 @@ async function sendToServer() {
             transcriptText.innerHTML = `<span style="color: #ff4444;">❌ Upload failed: ${result.message || 'Unknown error'}</span>`;
         }
     } catch (err) {
+        console.error('Upload error:', err);
         const downloadUrl = URL.createObjectURL(audioBlob);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + new Date().toTimeString().split(' ')[0].replace(/:/g, '');
         const filename = `recording-${timestamp}-OFFLINE.webm`;
