@@ -121,6 +121,9 @@ function resolvePath(path) {
           },
           DRAWER_LEVELS: [10, 30, 70], // vh visible
         });
+
+        // Client version constant
+        const NEUROGRAPH_VERSION = 'v1.0.0';
         
         function dataDir() { const p = CONFIG.dataBasePath || './data'; return p.replace(/\/$/, ''); }
         const canvas = document.getElementById('canvas');
