@@ -172,8 +172,8 @@
     <script>
         // Drawer stats (date, count, hash) are updated by neural-graph.js from graph data and memory-version dataset.
         // Update version display dynamically from NEUROGRAPH_VERSION constant
-        if (window.NEUROGRAPH_VERSION) {
-            document.getElementById('neurograph-version').textContent = window.NEUROGRAPH_VERSION;
+        if (window.NEURAL_GRAPH_CONFIG && window.NEURAL_GRAPH_CONFIG.NEUROGRAPH_VERSION) {
+            document.getElementById('neurograph-version').textContent = window.NEURAL_GRAPH_CONFIG.NEUROGRAPH_VERSION;
         }
     </script>
     <!-- Deployment verification: 2026-02-22 15:31:58 UTC -->
