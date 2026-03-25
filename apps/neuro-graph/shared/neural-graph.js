@@ -101,6 +101,7 @@ function resolvePath(path) {
         Object.assign(CONFIG, {
           ZOOM_SPEED: 0.015,
           MINIMAP_WIDTH: 260,
+          MINIMAP_HEIGHT: 188,
           MINIMAP_ZOOM_GAP: 10,
           MOBILE_BREAKPOINT: 768,
           PANEL_WIDTH: 240,
