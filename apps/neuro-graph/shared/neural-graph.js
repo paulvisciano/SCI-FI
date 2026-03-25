@@ -3560,10 +3560,8 @@ function resolvePath(path) {
             wrap.id = 'neural-graph-minimap';
             wrap.className = 'neural-graph-minimap';
             const mini = document.createElement('canvas');
-            console.log('NeuroGraph ensureMinimap: MINIMAP_WIDTH=', CONFIG.MINIMAP_WIDTH, 'MINIMAP_HEIGHT=', CONFIG.MINIMAP_HEIGHT);
             mini.width = CONFIG.MINIMAP_WIDTH;
             mini.height = CONFIG.MINIMAP_HEIGHT;
-            console.log('NeuroGraph ensureMinimap: canvas size set to', mini.width, 'x', mini.height);
             wrap.appendChild(mini);
             minimapEl = wrap;
             minimapCanvasEl = mini;
@@ -3591,7 +3589,6 @@ function resolvePath(path) {
             `;
             document.head.appendChild(style);
             document.body.appendChild(wrap);
-            console.log('NeuroGraph ensureMinimap: minimapEl appended to body, canvas size =', minimapCanvasEl.width, 'x', minimapCanvasEl.height);
             positionMinimap();
 
             function findNearestMinimapNode(localX, localY) {
@@ -3682,20 +3679,12 @@ function resolvePath(path) {
             return minimapEl;
         }
         function updateMinimap() {
-            console.log('NeuroGraph updateMinimap called');
-            if (!nodes || !nodes.length) {
-                console.log('NeuroGraph updateMinimap: no nodes, returning early');
-                return;
-            }
+            if (!nodes || !nodes.length) return;
             ensureMinimap();
-            if (!minimapCanvasEl || !minimapCtx) {
-                console.log('NeuroGraph updateMinimap: no canvas or ctx, returning early');
-                return;
-            }
+            if (!minimapCanvasEl || !minimapCtx) return;
 
             const w = minimapCanvasEl.width;
             const h = minimapCanvasEl.height;
-            console.log('NeuroGraph updateMinimap: canvas size =', w, 'x', h);
 
             // Compute bounds from world-space X/Z so minimap is a stable top-down view
             let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -3728,7 +3717,6 @@ function resolvePath(path) {
             minimapCtx.clearRect(0, 0, w, h);
 
             // Soft background grid
-            console.log('NeuroGraph updateMinimap: drawing background, fillStyle=rgba(15,23,42,0.96),.fillRect(0,0,', w, ',', h, ')');
             minimapCtx.fillStyle = 'rgba(15,23,42,0.96)';
             minimapCtx.fillRect(0, 0, w, h);
             minimapCtx.strokeStyle = 'rgba(55,65,81,0.35)';
