@@ -812,8 +812,10 @@ checkServerStatus();
     async function refreshVitals() {
         try {
             const response = await fetch(`${API_BASE}/api/vitals`);
+            console.log('Vitals API response:', response.status, response.ok);
             if (!response.ok) throw new Error(`Vitals API error: ${response.status}`);
             const vitals = await response.json();
+            console.log('Vitals API data:', vitals);
             
             // Update OpenClaw Gateway vitals
             const gatewayStatusEl = document.getElementById('vital-gateway-status');
@@ -866,11 +868,52 @@ checkServerStatus();
             // Update last updated timestamp
             const lastUpdatedEl = document.getElementById('vitals-last-updated');
             lastUpdatedEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            
+            // Clear error states
+            const gatewayStatusEl = document.getElementById('vital-gateway-status');
+            const gatewayPidEl = document.getElementById('vital-gateway-pid');
+            const gatewayMemEl = document.getElementById('vital-gateway-mem');
+            const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
+            const sysMemEl = document.getElementById('vital-system-mem');
+            const sysCpuEl = document.getElementById('vital-system-cpu');
+            
+            // Only update elements if we have valid data
+            if (vitals.openclawGateway && vitals.openclawGateway.pid) {
+                gatewayPidEl.textContent = vitals.openclawGateway.pid;
+            } else {
+                gatewayPidEl.textContent = 'N/A';
+            }
+            
+            if (vitals.openclawGateway && vitals.openclawGateway.memoryMB !== 0) {
+                gatewayMemEl.textContent = `${vitals.openclawGateway.memoryMB} MB`;
+            } else {
+                gatewayMemEl.textContent = 'N/A';
+            }
+            
+            if (vitals.openclawGateway && vitals.openclawGateway.uptime) {
+                const uptimeMin = Math.round(vitals.openclawGateway.uptime / 60000);
+                gatewayUptimeEl.textContent = `${uptimeMin} min`;
+            } else {
+                gatewayUptimeEl.textContent = 'N/A';
+            }
         } catch (err) {
             console.error('Failed to refresh vitals:', err);
+            
+            // Clear all elements on error
             const gatewayStatusEl = document.getElementById('vital-gateway-status');
+            const gatewayPidEl = document.getElementById('vital-gateway-pid');
+            const gatewayMemEl = document.getElementById('vital-gateway-mem');
+            const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
+            const sysMemEl = document.getElementById('vital-system-mem');
+            const sysCpuEl = document.getElementById('vital-system-cpu');
+            
             gatewayStatusEl.textContent = 'Error';
             gatewayStatusEl.style.color = '#ff4444';
+            gatewayPidEl.textContent = 'N/A';
+            gatewayMemEl.textContent = 'N/A';
+            gatewayUptimeEl.textContent = 'N/A';
+            sysMemEl.textContent = 'N/A';
+            sysCpuEl.textContent = 'N/A';
         }
     }
     
