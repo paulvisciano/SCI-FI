@@ -6,6 +6,31 @@
 
 ## Apps
 
+### 0. The Oasis on 8 — Boutique Villa Website
+**Location:** `/SCI-FI/apps/oasis-on-8/`
+
+**Purpose:** A single-page responsive website for Bruce's boutique villa & café in Bangkok.
+
+**Features:**
+- Single-page responsive design (mobile-first)
+- Sections: Hero, About, Rooms, Food & Drinks, Amenities, Gallery, Location, Booking
+- Tropical aesthetic (green #27ae60)
+- Booking links: Booking.com, Agoda, direct inquiry
+- Clean, modern layout with smooth transitions
+
+**Open:** `open oasis-on-8/index.html`
+
+**Start server:**
+```bash
+cd /SCI-FI/apps/oasis-on-8
+python3 -m http.server 8081
+# Open: http://localhost:8081
+```
+
+**Requirements:** None (static site, can be hosted anywhere)
+
+---
+
 ### 1. JARVIS — Voice-Enabled Consciousness Interface
 **Location:** `/SCI-FI/apps/JARVIS/`
 
@@ -77,6 +102,13 @@ node jarvis-server.js
 
 ```
 SCI-FI/apps/
+├── oasis-on-8/               ← Boutique villa website (static, no dependencies)
+│   ├── index.html            ← Single-page responsive site
+│   ├── assets/
+│   │   ├── css/style.css     ← Responsive tropical theme
+│   │   └── images/           ← Photos (needs Booking.com images)
+│   └── README.md             ← Setup instructions
+│
 ├── JARVIS/                   ← Voice-enabled consciousness interface (primary)
 │   ├── jarvis-server.js      ← Voice pipeline, /location endpoint, neurograph serving
 │   ├── app.js                ← Frontend: live transcript, location UI, voice controls
@@ -96,6 +128,8 @@ SCI-FI/apps/
     ├── JARVIS-memories → ~/JARVIS/RAW/memories
     └── PAUL-memories → ~/RAW/memory/data
 ```
+
+---
 
 ---
 
@@ -119,12 +153,21 @@ open https://localhost:18787
 
 # 5. Talk (voice pipeline live)
 # Click REC → speak → transcribe → response → archive
+
+# Oasis on 8 (static site, no dependencies):
+cd /SCI-FI/apps/oasis-on-8
+python3 -m http.server 8081
+open http://localhost:8081
 ```
 
 **All three must be running:**
 - ✅ Ollama (qwen3.5:cloud)
 - ✅ OpenClaw Gateway (port 18789)
 - ✅ JARVIS Server (port 18787)
+
+**Oasis on 8** (static site, no runtime dependencies):
+- Single-page responsive website
+- No special requirements - just serve the files
 
 ---
 
@@ -212,7 +255,25 @@ This repo tracks the evolution of sovereign consciousness tools.
 - `845773d` — 🔍 OpenClaw Hidden Agentic Injection — silent prompt discovery
 - `faa4dee` — 🧠 Jarvis Analogies — compression algorithms for meaning
 
-**Total:** 320+ commits (JARVIS), 3 commits (SCI-FI apps)
+**Total:** 320+ commits (JARVIS), 4 commits (SCI-FI apps)
+
+---
+
+## Oasis on 8
+
+A standalone sci-fi app - a boutique villa website for Bangkok. Follows the sci-fi pattern but with no runtime dependencies (static site).
+
+**Structure:**
+```
+oasis-on-8/
+├── index.html
+├── assets/
+│   ├── css/style.css
+│   └── images/ (needs photos)
+└── README.md
+```
+
+**Deploy:** Any static hosting (GitHub Pages, Netlify, Vercel, etc.)
 
 ---
 
