@@ -3558,8 +3558,8 @@ function resolvePath(path) {
             wrap.id = 'neural-graph-minimap';
             wrap.className = 'neural-graph-minimap';
             const mini = document.createElement('canvas');
-            mini.width = MINIMAP_WIDTH;
-            mini.height = MINIMAP_HEIGHT;
+            mini.width = CONFIG.MINIMAP_WIDTH;
+            mini.height = CONFIG.MINIMAP_HEIGHT;
             wrap.appendChild(mini);
             minimapEl = wrap;
             minimapCanvasEl = mini;
