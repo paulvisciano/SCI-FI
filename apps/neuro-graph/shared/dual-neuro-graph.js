@@ -13,6 +13,92 @@
 (function() {
     'use strict';
     
+    // Path resolution functions (extracted from neural-graph.js)
+    const BASE_URL = (function() {
+        if (typeof window !== 'undefined' && window.location) {
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'file:///Users/paulvisciano/JARVIS';
+            }
+            return 'https://raw.githubusercontent.com/paulvisciano/JARVIS/main';
+        }
+        return 'file:///Users/paulvisciano/JARVIS';
+    })();
+
+    const APP_BASE_PATH = (function() {
+        if (typeof window === 'undefined' || !window.location || !window.location.pathname) return '';
+        const p = window.location.pathname || '';
+        if (p.startsWith('/neuro-graph')) return '/neuro-graph';
+        return '';
+    })();
+
+    function resolvePath(path) {
+        if (!path || typeof path !== 'string') return path;
+        let resolved = path;
+
+        // Handle BASE_URL placeholders first
+        if (resolved.includes('{BASE_URL}')) {
+            resolved = resolved.replace('{BASE_URL}', BASE_URL);
+        }
+
+        // Rewrite absolute /JARVIS/ filesystem paths into website-served URLs
+        const rewriteJarvis = function(p) {
+            const prefixes = [
+                'file:///Users/paulvisciano/JARVIS/',
+                '/Users/paulvisciano/JARVIS/',
+                '/JARVIS/',
+                'JARVIS/'
+            ];
+            for (let i = 0; i < prefixes.length; i++) {
+                const pre = prefixes[i];
+                if (p.startsWith(pre)) {
+                    const rest = p.slice(pre.length);
+                    return APP_BASE_PATH + '/JARVIS/' + rest;
+                }
+            }
+            return null;
+        };
+
+        const jarvisUrl = rewriteJarvis(resolved);
+        if (jarvisUrl) return jarvisUrl;
+
+        // Rewrite RAW archive + learnings into website-served URLs
+        const rewriteRawArchive = function(p) {
+            const targetBase = APP_BASE_PATH + '/RAW/archive/';
+            const prefixes = [
+                '/Users/paulvisciano/RAW/archive/',
+                '/RAW/archive/',
+                '~/RAW/archive/',
+                'RAW/archive/',
+                'archive/'
+            ];
+            for (let i = 0; i < prefixes.length; i++) {
+                const pre = prefixes[i];
+                if (p.startsWith(pre)) return targetBase + p.slice(pre.length);
+            }
+            return null;
+        };
+
+        const rewriteRawLearnings = function(p) {
+            const targetBase = APP_BASE_PATH + '/JARVIS/RAW/learnings/';
+            const prefix = 'RAW/learnings/';
+            if (p.startsWith(prefix)) return targetBase + p.slice(prefix.length);
+            return null;
+        };
+
+        const archiveUrl = rewriteRawArchive(resolved);
+        if (archiveUrl) return archiveUrl;
+
+        const learningsUrl = rewriteRawLearnings(resolved);
+        if (learningsUrl) return learningsUrl;
+
+        // Absolute paths: use as-is
+        if (resolved.startsWith('/')) {
+            return resolved;
+        }
+
+        return resolved;
+    }
+    
     // Configuration for both graphs
     const JARVIS_CONFIG = {
         dataBasePath: 'JARVIS/RAW/memories',
@@ -100,8 +186,10 @@
             
             try {
                 // Fetch nodes.json and synapses.json
-                const nodesUrl = `${this.config.dataBasePath}/nodes.json`;
-                const synapsesUrl = `${this.config.dataBasePath}/synapses.json`;
+                const nodesUrl = resolvePath(`${this.config.dataBasePath}/nodes.json`);
+                const synapsesUrl = resolvePath(`${this.config.dataBasePath}/synapses.json`);
+                
+                console.log(`[${this.config.label}] Loading from: ${nodesUrl}, ${synapsesUrl}`);
                 
                 const [nodesRes, synapsesRes] = await Promise.all([
                     fetch(nodesUrl).then(r => r.json()),
