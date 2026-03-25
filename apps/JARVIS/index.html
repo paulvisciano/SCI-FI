@@ -715,13 +715,13 @@
         <div class="recording-hint" id="recording-hint" style="font-size: 0.7em; opacity: 0.6; color: #00ffff; margin-bottom: 12px;">Press Space to record</div>
     </div>
     
-    <!-- System Vitals Panel -->
-    <div id="vitals-panel" class="collapsible-panel" style="margin: 20px auto; width: min(640px, calc(100vw - 40px));">
-        <button type="button" class="collapsible-trigger" id="vitals-toggle" aria-expanded="false" aria-controls="vitals-body" data-accordion-body="vitals-body">
-            <span>🧠 System Vitals</span>
-            <span id="vitals-chevron">▼</span>
-        </button>
-        <div id="vitals-body" class="accordion-body accordion-body-vitals" role="region" aria-label="System Vitals" style="display: none;">
+    <!-- Futuristic Vitals Overlay - click server status to reveal -->
+    <div id="vitals-overlay" class="vitals-overlay" role="dialog" aria-modal="true" aria-label="System Vitals">
+        <div class="vitals-content">
+            <div class="vitals-header-overlay">
+                <span>🧠 System Vitals</span>
+                <button type="button" class="close-btn" id="vitals-close" aria-label="Close vitals">✕</button>
+            </div>
             <div class="vitals-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 16px;">
                 <!-- OpenClaw Gateway Status -->
                 <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
@@ -757,10 +757,6 @@
                         <div class="vital-row" style="margin-top: 4px;">
                             <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Models:</span>
                             <span id="vital-ollama-models" class="vital-value" style="color: #ffffff; font-weight: 600;">0</span>
-                        </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Errors (10m):</span>
-                            <span id="vital-ollama-errors" class="vital-value" style="color: #ff4444; font-weight: 600;">0</span>
                         </div>
                     </div>
                 </div>
