@@ -807,4 +807,100 @@ checkServerStatus();
     
     loadDevices();
     setInterval(loadDevices, 30000);
+
+    // System Vitals auto-refresh (every 30 seconds)
+    async function refreshVitals() {
+        try {
+            const response = await fetch(`${API_BASE}/api/vitals`);
+            if (!response.ok) throw new Error(`Vitals API error: ${response.status}`);
+            const vitals = await response.json();
+            
+            // Update OpenClaw Gateway vitals
+            const gatewayStatusEl = document.getElementById('vital-gateway-status');
+            const gatewayPidEl = document.getElementById('vital-gateway-pid');
+            const gatewayMemEl = document.getElementById('vital-gateway-mem');
+            const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
+            
+            if (vitals.openclawGateway) {
+                gatewayStatusEl.textContent = vitals.openclawGateway.status;
+                gatewayStatusEl.style.color = vitals.openclawGateway.status === 'Running' ? '#00ff88' : '#ff4444';
+                gatewayPidEl.textContent = vitals.openclawGateway.pid || 'N/A';
+                gatewayMemEl.textContent = vitals.openclawGateway.memoryMB ? `${vitals.openclawGateway.memoryMB} MB` : 'N/A';
+                if (vitals.openclawGateway.uptime) {
+                    const uptimeMin = Math.round(vitals.openclawGateway.uptime / 60000);
+                    gatewayUptimeEl.textContent = `${uptimeMin} min`;
+                } else {
+                    gatewayUptimeEl.textContent = 'N/A';
+                }
+            }
+            
+            // Update Ollama vitals
+            const ollamaStatusEl = document.getElementById('vital-ollama-status');
+            const ollamaModelsEl = document.getElementById('vital-ollama-models');
+            const ollamaErrorsEl = document.getElementById('vital-ollama-errors');
+            
+            if (vitals.ollama) {
+                ollamaStatusEl.textContent = vitals.ollama.status;
+                ollamaStatusEl.style.color = vitals.ollama.status === 'Connected' ? '#00ff88' : '#ff4444';
+                ollamaModelsEl.textContent = vitals.ollama.models || 0;
+                ollamaErrorsEl.textContent = vitals.ollama.recentErrors || 0;
+            }
+            
+            // Update system vitals
+            const sysMemEl = document.getElementById('vital-system-mem');
+            const sysCpuEl = document.getElementById('vital-system-cpu');
+            
+            if (vitals.system) {
+                if (vitals.system.memory) {
+                    sysMemEl.textContent = vitals.system.memory.usedGB !== 0 
+                        ? `${vitals.system.memory.usedGB} / ${vitals.system.memory.totalGB} GB (${vitals.system.memory.usedPercent}%)`
+                        : 'N/A';
+                }
+                if (vitals.system.cpu) {
+                    sysCpuEl.textContent = vitals.system.cpu.usagePercent !== 0 
+                        ? `${vitals.system.cpu.usagePercent}%`
+                        : 'N/A';
+                }
+            }
+            
+            // Update last updated timestamp
+            const lastUpdatedEl = document.getElementById('vitals-last-updated');
+            lastUpdatedEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        } catch (err) {
+            console.error('Failed to refresh vitals:', err);
+            const gatewayStatusEl = document.getElementById('vital-gateway-status');
+            gatewayStatusEl.textContent = 'Error';
+            gatewayStatusEl.style.color = '#ff4444';
+        }
+    }
+    
+    // Initial vitals refresh and set interval
+    refreshVitals();
+    setInterval(refreshVitals, 30000);
+    
+    // Make refreshVitals globally accessible for onclick
+    window.refreshVitals = refreshVitals;
+
+    // Collapsible accordion handler for vitals panel
+    const vitalsToggle = document.getElementById('vitals-toggle');
+    if (vitalsToggle) {
+        vitalsToggle.addEventListener('click', () => {
+            const body = document.getElementById('vitals-body');
+            const chevron = document.getElementById('vitals-chevron');
+            const isExpanded = body.style.display === 'block' || body.style.display === '';
+            
+            if (isExpanded) {
+                body.style.display = 'none';
+                vitalsToggle.setAttribute('aria-expanded', 'false');
+                if (chevron) chevron.textContent = '▼';
+            } else {
+                body.style.display = 'block';
+                vitalsToggle.setAttribute('aria-expanded', 'true');
+                if (chevron) chevron.textContent = '▲';
+                // Refresh vitals when expanding
+                refreshVitals();
+            }
+        });
+    }
+    
 })();

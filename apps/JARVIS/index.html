@@ -33,6 +33,83 @@
             padding: 20px;
         }
 
+        /* System Vitals Panel */
+        .collapsible-panel {
+            margin: 20px auto;
+            width: min(640px, calc(100vw - 40px));
+            max-width: 100%;
+        }
+
+        .collapsible-trigger {
+            width: 100%;
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,255,255,0.3);
+            border-radius: 8px;
+            color: #00ffff;
+            font-size: 1em;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .collapsible-trigger:hover {
+            background: rgba(0,255,255,0.1);
+            border-color: rgba(0,255,255,0.5);
+        }
+
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .vitals-card {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(0,255,255,0.2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .vitals-header {
+            color: #00ffff;
+            font-weight: 600;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .vitals-content {
+            margin-top: 8px;
+        }
+
+        .vital-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .vital-label {
+            color: #94a3b8;
+            font-size: 0.7em;
+        }
+
+        .vital-value {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .vitals-footer {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.7em;
+            color: #00ffff;
+            opacity: 0.6;
+        }
+
         /* Network Device Dots (Background) */
         #network-dots-container {
             position: absolute;
@@ -636,6 +713,77 @@
         
         <!-- Recording hint under status -->
         <div class="recording-hint" id="recording-hint" style="font-size: 0.7em; opacity: 0.6; color: #00ffff; margin-bottom: 12px;">Press Space to record</div>
+    </div>
+    
+    <!-- System Vitals Panel -->
+    <div id="vitals-panel" class="collapsible-panel" style="margin: 20px auto; width: min(640px, calc(100vw - 40px));">
+        <button type="button" class="collapsible-trigger" id="vitals-toggle" aria-expanded="false" aria-controls="vitals-body" data-accordion-body="vitals-body">
+            <span>🧠 System Vitals</span>
+            <span id="vitals-chevron">▼</span>
+        </button>
+        <div id="vitals-body" class="accordion-body accordion-body-vitals" role="region" aria-label="System Vitals" style="display: none;">
+            <div class="vitals-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 16px;">
+                <!-- OpenClaw Gateway Status -->
+                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
+                    <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">OpenClaw Gateway</div>
+                    <div class="vitals-content" style="margin-top: 8px;">
+                        <div class="vital-row">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Status:</span>
+                            <span id="vital-gateway-status" class="vital-value" style="color: #00ff88; font-weight: 600;">Loading...</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">PID:</span>
+                            <span id="vital-gateway-pid" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Memory:</span>
+                            <span id="vital-gateway-mem" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Uptime:</span>
+                            <span id="vital-gateway-uptime" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ollama Health -->
+                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
+                    <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Ollama Health</div>
+                    <div class="vitals-content" style="margin-top: 8px;">
+                        <div class="vital-row">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Status:</span>
+                            <span id="vital-ollama-status" class="vital-value" style="color: #00ff88; font-weight: 600;">Loading...</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Models:</span>
+                            <span id="vital-ollama-models" class="vital-value" style="color: #ffffff; font-weight: 600;">0</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Errors (10m):</span>
+                            <span id="vital-ollama-errors" class="vital-value" style="color: #ff4444; font-weight: 600;">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Resources -->
+                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
+                    <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">System Resources</div>
+                    <div class="vitals-content" style="margin-top: 8px;">
+                        <div class="vital-row">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Memory:</span>
+                            <span id="vital-system-mem" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">CPU:</span>
+                            <span id="vital-system-cpu" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="vitals-footer" style="text-align: center; margin-top: 12px; font-size: 0.7em; color: #00ffff; opacity: 0.6;">
+                <span id="vitals-last-updated">Last updated: —</span> | <span style="cursor: pointer;" onclick="refreshVitals()">↺ Refresh</span>
+            </div>
+        </div>
     </div>
     
     <!-- Transcript panel OUTSIDE container (bottom of page, doesn't affect centering) -->
