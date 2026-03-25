@@ -15,6 +15,58 @@
 (function() {
     'use strict';
     
+    // Path resolution (copied from neural-graph.js - handles filesystem → URL conversion)
+    const BASE_URL = (function() {
+        if (typeof window !== 'undefined' && window.location) {
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'file:///Users/paulvisciano/JARVIS';
+            }
+            return 'https://raw.githubusercontent.com/paulvisciano/JARVIS/main';
+        }
+        return 'file:///Users/paulvisciano/JARVIS';
+    })();
+    
+    const APP_BASE_PATH = (function() {
+        if (typeof window === 'undefined' || !window.location || !window.location.pathname) return '';
+        const p = window.location.pathname || '';
+        if (p.startsWith('/neuro-graph')) return '/neuro-graph';
+        return '';
+    })();
+    
+    function resolvePath(path) {
+        if (!path || typeof path !== 'string') return path;
+        let resolved = path;
+        if (resolved.includes('{BASE_URL}')) {
+            resolved = resolved.replace('{BASE_URL}', BASE_URL);
+        }
+        const rewriteJarvis = function(p) {
+            const prefixes = ['file:///Users/paulvisciano/JARVIS/', '/Users/paulvisciano/JARVIS/', '/JARVIS/', 'JARVIS/'];
+            for (let i = 0; i < prefixes.length; i++) {
+                const pre = prefixes[i];
+                if (p.startsWith(pre)) {
+                    const rest = p.slice(pre.length);
+                    return APP_BASE_PATH + '/JARVIS/' + rest;
+                }
+            }
+            return null;
+        };
+        const jarvisUrl = rewriteJarvis(resolved);
+        if (jarvisUrl) return jarvisUrl;
+        const rewriteRawArchive = function(p) {
+            const targetBase = APP_BASE_PATH + '/RAW/archive/';
+            const prefixes = ['/Users/paulvisciano/RAW/archive/', '/RAW/archive/', '~/RAW/archive/', 'RAW/archive/', 'archive/'];
+            for (let i = 0; i < prefixes.length; i++) {
+                const pre = prefixes[i];
+                if (p.startsWith(pre)) return targetBase + p.slice(pre.length);
+            }
+            return null;
+        };
+        const archiveUrl = rewriteRawArchive(resolved);
+        if (archiveUrl) return archiveUrl;
+        if (resolved.startsWith('/')) return resolved;
+        return resolved;
+    }
+    
     /**
      * GraphViewer Class
      * Encapsulates graph loading, filtering, and rendering
@@ -85,8 +137,11 @@
             console.log(`[${this.label}] Loading graph from ${this.dataPath}...`);
             
             try {
-                const nodesUrl = `${this.dataPath}/nodes.json`;
-                const edgesUrl = `${this.dataPath}/synapses.json`;
+                // Use resolvePath to convert filesystem paths to URLs
+                const nodesUrl = resolvePath(`${this.dataPath}/nodes.json`);
+                const edgesUrl = resolvePath(`${this.dataPath}/synapses.json`);
+                
+                console.log(`[${this.label}] Fetching: ${nodesUrl}, ${edgesUrl}`);
                 
                 const [nodesRes, edgesRes] = await Promise.all([
                     fetch(nodesUrl).then(r => {

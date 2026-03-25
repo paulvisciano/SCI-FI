@@ -442,6 +442,8 @@
      */
     async function initDualGraphs() {
         console.log('Initializing dual neuro graphs...');
+        console.log('JARVIS config path:', JARVIS_CONFIG.dataBasePath);
+        console.log('User config path:', USER_CONFIG.dataBasePath);
         
         window.jarvisGraph = new NeuroGraph(JARVIS_CONFIG);
         window.userGraph = new NeuroGraph(USER_CONFIG);
