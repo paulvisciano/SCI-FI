@@ -881,7 +881,7 @@ checkServerStatus();
     // Make refreshVitals globally accessible for onclick
     window.refreshVitals = refreshVitals;
 
-    // Collapsible accordion handler for vitals panel
+    // Collapsible accordion handler for vitals panel (legacy - now replaced by overlay)
     const vitalsToggle = document.getElementById('vitals-toggle');
     if (vitalsToggle) {
         vitalsToggle.addEventListener('click', () => {
@@ -902,5 +902,37 @@ checkServerStatus();
             }
         });
     }
+
+    // Overlay vitals handler - click server status to reveal overlay
+    const serverStatus = document.getElementById('server-status');
+    const vitalsOverlay = document.getElementById('vitals-overlay');
+    const vitalsClose = document.getElementById('vitals-close');
+
+    if (serverStatus) {
+        serverStatus.addEventListener('click', () => {
+            vitalsOverlay.classList.add('active');
+            refreshVitals(); // Refresh when opening
+        });
+    }
+
+    if (vitalsOverlay) {
+        // Close button handler
+        if (vitalsClose) {
+            vitalsClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                vitalsOverlay.classList.remove('active');
+            });
+        }
+
+        // Click outside to close
+        vitalsOverlay.addEventListener('click', (e) => {
+            if (e.target === vitalsOverlay) {
+                vitalsOverlay.classList.remove('active');
+            }
+        });
+    }
+
+    // Make refreshVitals globally accessible for onclick
+    window.refreshVitals = refreshVitals;
     
 })();

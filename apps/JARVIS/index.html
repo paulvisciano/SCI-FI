@@ -33,31 +33,77 @@
             padding: 20px;
         }
 
-        /* System Vitals Panel */
-        .collapsible-panel {
-            margin: 20px auto;
-            width: min(640px, calc(100vw - 40px));
-            max-width: 100%;
+        /* Futuristic Vitals Overlay */
+        .vitals-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.95);
+            width: min(720px, calc(100vw - 40px));
+            max-height: 80vh;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .collapsible-trigger {
-            width: 100%;
-            padding: 12px 20px;
-            background: rgba(0,0,0,0.4);
-            border: 1px solid rgba(0,255,255,0.3);
-            border-radius: 8px;
-            color: #00ffff;
-            font-size: 1em;
-            cursor: pointer;
+        .vitals-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate(-50%, -50%) scale(1);
+            box-shadow: 0 0 60px rgba(0, 255, 255, 0.15), 0 0 120px rgba(0, 255, 255, 0.08);
+        }
+
+        .vitals-content {
+            background: rgba(10, 17, 40, 0.96);
+            border: 1px solid rgba(0, 255, 255, 0.35);
+            border-radius: 12px;
+            backdrop-filter: blur(15px) saturate(1.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 255, 255, 0.1);
+            overflow: hidden;
+            animation: vitalsFloat 6s ease-in-out infinite;
+        }
+
+        @keyframes vitalsFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        .vitals-header-overlay {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .vitals-header-overlay span {
+            color: #00ffff;
+            font-weight: 600;
+            font-size: 1em;
+            letter-spacing: 1px;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #00ffff;
+            font-size: 1.1em;
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: all 0.2s ease;
         }
 
-        .collapsible-trigger:hover {
-            background: rgba(0,255,255,0.1);
-            border-color: rgba(0,255,255,0.5);
+        .close-btn:hover {
+            background: rgba(255, 87, 87, 0.2);
+            color: #ff5757;
+            transform: rotate(90deg);
         }
 
         .vitals-grid {
@@ -692,7 +738,7 @@
         </div>
         
         <!-- Server status under title (all server info) -->
-        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; margin-bottom: 20px;">
+        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; margin-bottom: 20px; cursor: pointer; transition: all 0.2s ease; border: 1px solid rgba(0,255,255,0.2); padding: 8px 16px; border-radius: 6px; width: min(640px, calc(100vw - 40px));" title="Click to view system vitals">
             <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px;"></span>
             <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
         </div>
@@ -716,7 +762,7 @@
     </div>
     
     <!-- Futuristic Vitals Overlay - click server status to reveal -->
-    <div id="vitals-overlay" class="vitals-overlay" role="dialog" aria-modal="true" aria-label="System Vitals">
+    <div id="vitals-overlay" class="vitals-overlay" role="dialog" aria-modal="true" aria-label="System Vitals" onclick="event.stopPropagation()">
         <div class="vitals-content">
             <div class="vitals-header-overlay">
                 <span>🧠 System Vitals</span>
