@@ -232,6 +232,10 @@ async function stopRecording() {
     // Clear transcript immediately to prevent flash of old content
     transcriptText.textContent = '';
 
+    // Clear response area to prevent flash of old response
+    responseText.innerHTML = '';
+    jarvisResponse.style.display = 'none';
+
     // Remove recording state
     jarvisOrb.classList.remove('recording');
     
