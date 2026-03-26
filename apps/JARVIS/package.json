@@ -12,5 +12,8 @@
   "type": "commonjs",
   "dependencies": {
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "eslint": "^10.1.0"
   }
 }

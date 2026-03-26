@@ -76,6 +76,35 @@ function findWhisperCli() {
     return 'whisper-cli'; // Fallback to PATH
 }
 
+// Whisper.cpp health check - verify executable exists and is runnable
+function checkWhisperHealth() {
+    const whisperPath = CONFIG.whisperCli;
+    
+    if (!fs.existsSync(whisperPath)) {
+        console.error(`❌ Whisper CLI not found: ${whisperPath}`);
+        console.error('Set VOICE_WHISPER_CLI environment variable to point to the correct location');
+        return false;
+    }
+    
+    // Try to run whisper-cli with --help to verify it's executable
+    try {
+        const { spawnSync } = require('child_process');
+        const result = spawnSync(whisperPath, ['--help'], { timeout: 5000 });
+        
+        if (result.error) {
+            console.error(`❌ Whisper CLI is not executable: ${whisperPath}`);
+            console.error(`Error: ${result.error.message}`);
+            return false;
+        }
+        
+        console.log(`✅ Whisper CLI verified: ${whisperPath}`);
+        return true;
+    } catch (err) {
+        console.error(`❌ Whisper CLI check failed: ${err.message}`);
+        return false;
+    }
+}
+
 // Ensure directories exist
 [CONFIG.inboxDir, CONFIG.liveDir, CONFIG.modelDir, CONFIG.archiveBase].forEach(dir => {
     if (!fs.existsSync(dir)) {
@@ -1194,6 +1223,14 @@ function logStartup() {
     console.log('  whisperModel:', CONFIG.whisperModel);
     console.log('  whisperCli:', CONFIG.whisperCli);
     console.log('  neurographDir:', CONFIG.neurographDir);
+    
+    // Whisper.cpp health check
+    console.log('');
+    const whisperHealthy = checkWhisperHealth();
+    if (!whisperHealthy) {
+        console.error('\n⚠️ Whisper CLI check failed - transcription will likely fail');
+        console.error('Please ensure whisper-cli is installed and accessible.');
+    }
     console.log('');
     console.log('Paths / URLs:');
     console.log('  JARVIS UI:    ', baseUrl + '/');
