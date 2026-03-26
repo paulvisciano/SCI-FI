@@ -583,7 +583,17 @@ const serverStatusInterval = setInterval(checkServerStatus, 5000);
 window.addEventListener('beforeunload', () => {
     clearInterval(serverStatusInterval);
 });
-checkServerStatus();
+
+// Wait for DOM to be ready before first check
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('[UI] DOMContentLoaded - calling checkServerStatus');
+        checkServerStatus();
+    });
+} else {
+    console.log('[UI] DOM already ready - calling checkServerStatus');
+    checkServerStatus();
+}
 
 // === Network Dots Integration (with Device Identity) ===
 (function() {
@@ -879,13 +889,8 @@ checkServerStatus();
             const lastUpdatedEl = document.getElementById('vitals-last-updated');
             lastUpdatedEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
             
-            // Clear error states
-            const gatewayStatusEl = document.getElementById('vital-gateway-status');
-            const gatewayPidEl = document.getElementById('vital-gateway-pid');
-            const gatewayMemEl = document.getElementById('vital-gateway-mem');
-            const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
-            const sysMemEl = document.getElementById('vital-system-mem');
-            const sysCpuEl = document.getElementById('vital-system-cpu');
+            // Clear error states (use already-declared variables)
+            // gatewayStatusEl, gatewayPidEl, etc. already declared above
             
             // Only update elements if we have valid data
             if (vitals.openclawGateway && vitals.openclawGateway.pid) {
@@ -909,19 +914,14 @@ checkServerStatus();
         } catch (err) {
             console.error('Failed to refresh vitals:', err);
             
-            // Clear all elements on error
-            const gatewayStatusEl = document.getElementById('vital-gateway-status');
-            const gatewayPidEl = document.getElementById('vital-gateway-pid');
-            const gatewayMemEl = document.getElementById('vital-gateway-mem');
-            const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
-            const sysMemEl = document.getElementById('vital-system-mem');
-            const sysCpuEl = document.getElementById('vital-system-cpu');
-            
-            gatewayStatusEl.textContent = 'Error';
-            gatewayStatusEl.style.color = '#ff4444';
-            gatewayPidEl.textContent = 'N/A';
-            gatewayMemEl.textContent = 'N/A';
-            gatewayUptimeEl.textContent = 'N/A';
+            // Clear all elements on error (use already-declared variables)
+            if (typeof gatewayStatusEl !== 'undefined') {
+                gatewayStatusEl.textContent = 'Error';
+                gatewayStatusEl.style.color = '#ff4444';
+            }
+            if (typeof gatewayPidEl !== 'undefined') gatewayPidEl.textContent = 'N/A';
+            if (typeof gatewayMemEl !== 'undefined') gatewayMemEl.textContent = 'N/A';
+            if (typeof gatewayUptimeEl !== 'undefined') gatewayUptimeEl.textContent = 'N/A';
             sysMemEl.textContent = 'N/A';
             sysCpuEl.textContent = 'N/A';
         }
