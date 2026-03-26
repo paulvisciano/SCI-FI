@@ -213,12 +213,29 @@
         
         /* Collapsed state */
         .info-panel.collapsed {
-            max-height: auto;
-            overflow: visible;
+            max-height: 50px;
+            overflow: hidden;
         }
         
         .info-panel.collapsed .collapsible-body {
             display: none;
+        }
+        
+        /* Collapsible body hidden state */
+        .collapsible-body.closed {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+        }
+        
+        .info-panel:not(.collapsed) {
+            max-height: 500px;
+        }
+        
+        .collapsible-body.open {
+            max-height: 400px;
+            opacity: 1;
         }
         
         /* Toggle button */
@@ -329,20 +346,16 @@
                             <button class="filter-btn" data-range="month">This Month</button>
                             <button class="filter-btn" data-range="all">All Time</button>
                         </div>
+                        <input type="search" class="search-input" id="jarvis-search" placeholder="Search JARVIS nodes..." style="margin-top: 8px;">
+                        <div class="stats-row" style="margin-top: 8px;">
+                            <span class="stat-item">Nodes: <span class="stat-value" id="jarvis-node-count">0</span></span>
+                            <span class="stat-item">Synapses: <span class="stat-value" id="jarvis-synapse-count">0</span></span>
+                        </div>
+                        <div class="panel-buttons" style="margin-top: 8px;">
+                            <button class="filter-btn" onclick="jarvisGraph.clearSelection()">✕ Clear</button>
+                            <button class="filter-btn" onclick="jarvisGraph.randomPulse()">⚡ Pulse</button>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="filter-section" style="margin-top: 8px;">
-                    <input type="search" class="search-input" id="jarvis-search" placeholder="Search JARVIS nodes...">
-                    <div class="stats-row">
-                        <span class="stat-item">Nodes: <span class="stat-value" id="jarvis-node-count">0</span></span>
-                        <span class="stat-item">Synapses: <span class="stat-value" id="jarvis-synapse-count">0</span></span>
-                    </div>
-                </div>
-                
-                <div class="panel-buttons" style="margin-top: 8px;">
-                    <button class="filter-btn" onclick="jarvisGraph.clearSelection()">✕ Clear</button>
-                    <button class="filter-btn" onclick="jarvisGraph.randomPulse()">⚡ Pulse</button>
                 </div>
             </div>
             
@@ -376,20 +389,16 @@
                             <button class="filter-btn" data-range="month">This Month</button>
                             <button class="filter-btn" data-range="all">All Time</button>
                         </div>
+                        <input type="search" class="search-input" id="user-search" placeholder="Search user nodes..." style="margin-top: 8px;">
+                        <div class="stats-row" style="margin-top: 8px;">
+                            <span class="stat-item">Nodes: <span class="stat-value" id="user-node-count">0</span></span>
+                            <span class="stat-item">Synapses: <span class="stat-value" id="user-synapse-count">0</span></span>
+                        </div>
+                        <div class="panel-buttons" style="margin-top: 8px;">
+                            <button class="filter-btn" onclick="userGraph.clearSelection()">✕ Clear</button>
+                            <button class="filter-btn" onclick="userGraph.randomPulse()">⚡ Pulse</button>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="filter-section" style="margin-top: 8px;">
-                    <input type="search" class="search-input" id="user-search" placeholder="Search user nodes...">
-                    <div class="stats-row">
-                        <span class="stat-item">Nodes: <span class="stat-value" id="user-node-count">0</span></span>
-                        <span class="stat-item">Synapses: <span class="stat-value" id="user-synapse-count">0</span></span>
-                    </div>
-                </div>
-                
-                <div class="panel-buttons" style="margin-top: 8px;">
-                    <button class="filter-btn" onclick="userGraph.clearSelection()">✕ Clear</button>
-                    <button class="filter-btn" onclick="userGraph.randomPulse()">⚡ Pulse</button>
                 </div>
             </div>
             

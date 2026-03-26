@@ -67,9 +67,21 @@
             return;
         }
         
+        // Collapse panels by default so graph is visible
+        const jarvisInfo = document.getElementById('jarvis-info');
+        const userInfo = document.getElementById('user-info');
+        if (jarvisInfo) jarvisInfo.classList.add('collapsed');
+        if (userInfo) userInfo.classList.add('collapsed');
+        
         // Setup interactions
         jarvisGraph.setupInteractions();
         userGraph.setupInteractions();
+        
+        // Collapse filter sections by default
+        const jarvisFilters = document.getElementById('jarvis-filters-body');
+        const userFilters = document.getElementById('user-filters-body');
+        if (jarvisFilters) jarvisFilters.classList.add('closed');
+        if (userFilters) userFilters.classList.add('closed');
         
         // Load data
         await jarvisGraph.load();
@@ -214,6 +226,7 @@
      * Setup panel toggles
      */
     function setupPanelToggles() {
+        // Main panel toggles (show/hide entire info panel)
         const jarvisToggle = document.getElementById('jarvis-toggle');
         const jarvisInfo = document.getElementById('jarvis-info');
         if (jarvisToggle && jarvisInfo) {
@@ -238,6 +251,34 @@
                 } else {
                     userInfo.classList.add('collapsed');
                     userToggle.textContent = '›';
+                }
+            });
+        }
+        
+        // Collapsible filter section toggles (expand/collapse filters within panel)
+        setupCollapsibleFilters('jarvis');
+        setupCollapsibleFilters('user');
+    }
+    
+    /**
+     * Setup collapsible filter sections
+     */
+    function setupCollapsibleFilters(panel) {
+        const toggleBtn = document.getElementById(`${panel}-filters-toggle`);
+        const filtersBody = document.getElementById(`${panel}-filters-body`);
+        const chevron = document.getElementById(`${panel}-filters-chevron`);
+        
+        if (toggleBtn && filtersBody) {
+            toggleBtn.addEventListener('click', () => {
+                const isClosed = filtersBody.classList.contains('closed');
+                if (isClosed) {
+                    filtersBody.classList.remove('closed');
+                    toggleBtn.setAttribute('aria-expanded', 'true');
+                    if (chevron) chevron.textContent = '▼';
+                } else {
+                    filtersBody.classList.add('closed');
+                    toggleBtn.setAttribute('aria-expanded', 'false');
+                    if (chevron) chevron.textContent = '▲';
                 }
             });
         }
