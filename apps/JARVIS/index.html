@@ -802,8 +802,13 @@
                         </div>
                         <div class="vital-row" style="margin-top: 4px;">
                             <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Models:</span>
-                            <span id="vital-ollama-models" class="vital-value" style="color: #ffffff; font-weight: 600;">0</span>
+                            <span id="vital-ollama-models" class="vital-value" style="color: #ffffff; font-weight: 600;">0 models loaded</span>
                         </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Models List:</span>
+                            <span id="vital-ollama-model-list" class="vital-value" style="color: #cbd5e1; font-size: 0.65em;">--</span>
+                        </div>
+
                     </div>
                 </div>
 
@@ -813,11 +818,15 @@
                     <div class="vitals-content" style="margin-top: 8px;">
                         <div class="vital-row">
                             <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Memory:</span>
-                            <span id="vital-system-mem" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                            <span id="vital-system-mem" class="vital-value" style="color: #ffffff; font-weight: 600;">0 GB / 0 GB</span>
                         </div>
                         <div class="vital-row" style="margin-top: 4px;">
                             <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">CPU:</span>
-                            <span id="vital-system-cpu" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                            <span id="vital-system-cpu" class="vital-value" style="color: #ffffff; font-weight: 600;">0%</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Disk:</span>
+                            <span id="vital-system-disk" class="vital-value" style="color: #ffffff; font-weight: 600;">0 GB / 0 GB</span>
                         </div>
                     </div>
                 </div>
@@ -847,6 +856,6 @@
     </div>
     
     <div id="network-dots-container"></div>
-    <script src="app.js"></script>
+    <script src="app.js?v=20260326144900"></script>
 </body>
 </html>

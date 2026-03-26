@@ -864,27 +864,46 @@ if (document.readyState === 'loading') {
       // Update Ollama vitals
       const ollamaStatusEl = document.getElementById('vital-ollama-status');
       const ollamaModelsEl = document.getElementById('vital-ollama-models');
-      const ollamaErrorsEl = document.getElementById('vital-ollama-errors');
+      const ollamaModelListEl = document.getElementById('vital-ollama-model-list');
             
       if (vitals.ollama) {
         ollamaStatusEl.textContent = vitals.ollama.status;
         ollamaStatusEl.style.color = vitals.ollama.status === 'Connected' ? '#00ff88' : '#ff4444';
-        ollamaModelsEl.textContent = vitals.ollama.models || 0;
-        ollamaErrorsEl.textContent = vitals.ollama.recentErrors || 0;
-      }
-            
-      // Update system vitals (elements declared at top of function)
-            
-      if (vitals.system) {
-        if (vitals.system.memory) {
-          sysMemEl.textContent = vitals.system.memory.usedGB !== 0 
-            ? `${vitals.system.memory.usedGB} / ${vitals.system.memory.totalGB} GB (${vitals.system.memory.usedPercent}%)`
-            : 'N/A';
+        ollamaModelsEl.textContent = (vitals.ollama.models || 0) + ' models loaded';
+        
+        // Display model list with names, sizes, and types
+        if (vitals.ollama.modelList && vitals.ollama.modelList.length > 0) {
+          const modelStr = vitals.ollama.modelList.map(m => {
+            const sizeGB = (m.size / 1024 / 1024 / 1024).toFixed(2);
+            const sizeStr = sizeGB < 1 ? (m.size / 1024 / 1024).toFixed(0) + ' MB' : sizeGB + ' GB';
+            const typeStr = m.isRemote ? '☁️' : '💾';
+            return `${m.name} (${typeStr} ${m.params || sizeStr})`;
+          }).join(', ');
+          ollamaModelListEl.textContent = modelStr;
+        } else {
+          ollamaModelListEl.textContent = 'No models loaded';
         }
-        if (vitals.system.cpu) {
-          sysCpuEl.textContent = vitals.system.cpu.usagePercent !== 0 
-            ? `${vitals.system.cpu.usagePercent}%`
-            : 'N/A';
+        
+
+            
+      // Update system vitals
+      if (vitals.system) {
+        if (vitals.system.memory && vitals.system.memory.totalGB > 0) {
+          sysMemEl.textContent = `${vitals.system.memory.usedGB} / ${vitals.system.memory.totalGB} GB (${vitals.system.memory.usedPercent}%)`;
+        } else {
+          sysMemEl.textContent = 'N/A';
+        }
+        if (vitals.system.cpu && typeof vitals.system.cpu.usagePercent === 'number') {
+          sysCpuEl.textContent = `${vitals.system.cpu.usagePercent}%`;
+        } else {
+          sysCpuEl.textContent = 'N/A';
+        }
+        // Disk usage
+        const sysDiskEl = document.getElementById('vital-system-disk');
+        if (sysDiskEl && vitals.system.disk) {
+          sysDiskEl.textContent = `${vitals.system.disk.used} / ${vitals.system.disk.total} (${vitals.system.disk.usedPercent}%)`;
+        } else if (sysDiskEl) {
+          sysDiskEl.textContent = 'N/A';
         }
       }
             
