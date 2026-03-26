@@ -101,10 +101,10 @@
         setupSearchInputs();
         setupSyncButtons();
         setupPanelToggles();
+        setupFilterToggle();
         
-        // Populate type filter buttons dynamically based on loaded data
-        populateTypeFilters('jarvis', jarvisGraph.nodes);
-        populateTypeFilters('user', userGraph.nodes);
+        // Populate global filter buttons (same for both graphs)
+        populateGlobalTypeFilters(jarvisGraph.nodes);
         
         console.log('Dual neuro graphs v2 initialized.');
     }
@@ -231,19 +231,42 @@
      * Setup search inputs
      */
     function setupSearchInputs() {
-        const jarvisSearch = document.getElementById('jarvis-search');
-        if (jarvisSearch) {
-            jarvisSearch.addEventListener('input', (e) => {
-                jarvisGraph.setSearchTerm(e.target.value);
+        // Global search - filters both graphs
+        const globalSearch = document.getElementById('global-search');
+        if (globalSearch) {
+            globalSearch.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                jarvisGraph.setSearchTerm(term);
+                userGraph.setSearchTerm(term);
                 updateStats();
             });
         }
+    }
+    
+    function setupGlobalSearchInput() {
+        // Set up global search functionality
+        setupSearchInputs();
+    }
+    
+    function setupFilterToggle() {
+        // Toggle global filter dropdown
+        const toggleBtn = document.getElementById('global-filters-toggle');
+        const filtersBody = document.getElementById('global-filters-body');
+        const chevron = document.getElementById('global-filters-chevron');
         
-        const userSearch = document.getElementById('user-search');
-        if (userSearch) {
-            userSearch.addEventListener('input', (e) => {
-                userGraph.setSearchTerm(e.target.value);
-                updateStats();
+        if (toggleBtn && filtersBody) {
+            toggleBtn.addEventListener('click', () => {
+                if (filtersBody.classList.contains('open')) {
+                    filtersBody.classList.remove('open');
+                    filtersBody.classList.add('closed');
+                    toggleBtn.setAttribute('aria-expanded', 'false');
+                    if (chevron) chevron.textContent = '▼';
+                } else {
+                    filtersBody.classList.remove('closed');
+                    filtersBody.classList.add('open');
+                    toggleBtn.setAttribute('aria-expanded', 'true');
+                    if (chevron) chevron.textContent = '▲';
+                }
             });
         }
     }
@@ -354,3 +377,38 @@
     }
     
 })();
+})();
+
+// Populate global filter buttons with type counts
+function populateGlobalTypeFilters(nodes) {
+    const filterContainer = document.getElementById('global-filter-types');
+    if (!filterContainer) return;
+    
+    // Count nodes by category
+    const categoryCounts = {};
+    nodes.forEach(node => {
+        const cat = node.category || node.type || 'unknown';
+        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    });
+    
+    // Create filter buttons
+    const categories = Object.keys(categoryCounts).sort();
+    categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn';
+        btn.textContent = `${cat} (${categoryCounts[cat]})`;
+        btn.setAttribute('data-category', cat);
+        btn.addEventListener('click', () => {
+            // Update active state
+            document.querySelectorAll('#global-filter-types .filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Filter both graphs by category
+            const term = btn.textContent.split(' (')[0];
+            jarvisGraph.setSearchTerm(term);
+            userGraph.setSearchTerm(term);
+            updateStats();
+        });
+        filterContainer.appendChild(btn);
+    });
+}
