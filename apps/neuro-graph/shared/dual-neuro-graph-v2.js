@@ -67,21 +67,21 @@
             return;
         }
         
-        // Collapse panels by default so graph is visible
+        // Expand panels by default so search is visible
         const jarvisInfo = document.getElementById('jarvis-info');
         const userInfo = document.getElementById('user-info');
-        if (jarvisInfo) jarvisInfo.classList.add('collapsed');
-        if (userInfo) userInfo.classList.add('collapsed');
+        if (jarvisInfo) jarvisInfo.classList.remove('collapsed');
+        if (userInfo) userInfo.classList.remove('collapsed');
         
         // Setup interactions
         jarvisGraph.setupInteractions();
         userGraph.setupInteractions();
         
-        // Collapse filter sections by default
+        // Expand filter sections by default (filters are collapsible from search)
         const jarvisFilters = document.getElementById('jarvis-filters-body');
         const userFilters = document.getElementById('user-filters-body');
-        if (jarvisFilters) jarvisFilters.classList.add('closed');
-        if (userFilters) userFilters.classList.add('closed');
+        if (jarvisFilters) jarvisFilters.classList.add('open');
+        if (userFilters) userFilters.classList.add('open');
         
         // Load data
         await jarvisGraph.load();
@@ -102,7 +102,67 @@
         setupSyncButtons();
         setupPanelToggles();
         
+        // Populate type filter buttons dynamically based on loaded data
+        populateTypeFilters('jarvis', jarvisGraph.nodes);
+        populateTypeFilters('user', userGraph.nodes);
+        
         console.log('Dual neuro graphs v2 initialized.');
+    }
+    
+    /**
+     * Populate type filter buttons based on node categories
+     */
+    function populateTypeFilters(panel, nodes) {
+        const filterContainer = document.getElementById(`${panel}-filter-types`);
+        if (!filterContainer || !nodes || nodes.length === 0) return;
+        
+        // Count nodes by category
+        const categoryCount = {};
+        nodes.forEach(node => {
+            const cat = (node.category || node.type || 'other').toLowerCase();
+            categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+        });
+        
+        // Create "All" button first
+        const allBtn = document.createElement('button');
+        allBtn.className = 'filter-btn active';
+        allBtn.textContent = `All (${nodes.length})`;
+        allBtn.dataset.type = 'all';
+        allBtn.addEventListener('click', () => handleTypeFilterClick(panel, 'all'));
+        filterContainer.appendChild(allBtn);
+        
+        // Create buttons for each category (sorted by count)
+        const sortedCategories = Object.entries(categoryCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6); // Top 6 categories
+        
+        sortedCategories.forEach(([cat, count]) => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn';
+            // Capitalize first letter
+            const label = cat.charAt(0).toUpperCase() + cat.slice(1);
+            btn.textContent = `${label} (${count})`;
+            btn.dataset.type = cat;
+            btn.addEventListener('click', () => handleTypeFilterClick(panel, cat));
+            filterContainer.appendChild(btn);
+        });
+    }
+    
+    /**
+     * Handle type filter button clicks
+     */
+    function handleTypeFilterClick(panel, type) {
+        const container = document.getElementById(`${panel}-filter-types`);
+        if (!container) return;
+        
+        // Update active state
+        const buttons = container.querySelectorAll('.filter-btn');
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.type === type);
+        });
+        
+        // Apply filter to graph (if needed - currently GraphViewer doesn't support type filtering)
+        console.log(`[${panel}] Type filter: ${type}`);
     }
     
     /**
@@ -270,17 +330,17 @@
         
         if (toggleBtn && filtersBody) {
             toggleBtn.addEventListener('click', () => {
-                const isClosed = filtersBody.classList.contains('closed');
-                if (isClosed) {
-                    filtersBody.classList.remove('closed');
-                    filtersBody.classList.add('open');
-                    toggleBtn.setAttribute('aria-expanded', 'true');
-                    if (chevron) chevron.textContent = '▼';
-                } else {
+                const isOpen = filtersBody.classList.contains('open');
+                if (isOpen) {
+                    // Close filters
                     filtersBody.classList.remove('open');
-                    filtersBody.classList.add('closed');
+                    toggleBtn.classList.remove('active');
                     toggleBtn.setAttribute('aria-expanded', 'false');
-                    if (chevron) chevron.textContent = '▲';
+                } else {
+                    // Open filters
+                    filtersBody.classList.add('open');
+                    toggleBtn.classList.add('active');
+                    toggleBtn.setAttribute('aria-expanded', 'true');
                 }
             });
         }
