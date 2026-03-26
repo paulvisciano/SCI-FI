@@ -73,7 +73,7 @@
             border-radius: 8px;
             padding: 10px;
             z-index: 100;
-            max-height: 0;
+            max-height: 500px;
             overflow: hidden;
             transition: max-height 0.3s ease;
             backdrop-filter: blur(10px);
@@ -172,8 +172,135 @@
             border-color: #00ffff;
         }
         
+        /* Top-level search bar (ALWAYS visible) */
+        .top-search-container {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            z-index: 500;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .top-search-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
         /* Search input */
         .search-input {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+            color: #00ffff;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .search-input:focus {
+            border-color: #00ffff;
+        }
+        
+        .search-input::placeholder {
+            color: rgba(0, 255, 255, 0.5);
+        }
+        
+        /* Filters toggle button */
+        .filters-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            font-size: 11px;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .filters-toggle:hover {
+            color: #00ffff;
+            border-color: rgba(0, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .filters-toggle.active {
+            background: rgba(0, 255, 255, 0.15);
+            color: #00ffff;
+            border-color: #00ffff;
+        }
+        
+        .filters-toggle #filters-chevron {
+            font-size: 9px;
+            transition: transform 0.2s;
+        }
+        
+        .filters-toggle.active #filters-chevron {
+            transform: rotate(180deg);
+        }
+        
+        /* Filters dropdown panel */
+        .filters-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(10, 10, 10, 0.98);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            z-index: 501;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+        
+        .filters-dropdown.open {
+            display: block;
+        }
+        
+        .filters-dropdown .filter-section {
+            margin-bottom: 12px;
+        }
+        
+        .filters-dropdown .filter-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .filters-dropdown .filter-label {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .filters-dropdown .filter-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        /* Search bar inside panel (legacy - keep for fallback) */
+        .search-bar {
+            margin-bottom: 10px;
+        }
+        
+        .search-input-small {
             width: 100%;
             padding: 6px 10px;
             font-size: 11px;
@@ -184,8 +311,47 @@
             margin-bottom: 8px;
         }
         
-        .search-input::placeholder {
+        .search-input-small::placeholder {
             color: rgba(0, 255, 255, 0.5);
+        }
+        
+        /* Panel-internal filters toggle (legacy) */
+        .filters-toggle-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            font-size: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+        
+        .filters-toggle-panel:hover {
+            color: #00ffff;
+            border-color: rgba(0, 255, 255, 0.5);
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        .filters-toggle-panel.active {
+            background: rgba(0, 255, 255, 0.15);
+            color: #00ffff;
+            border-color: #00ffff;
+        }
+        
+        .filters-toggle-panel #jarvis-filters-chevron,
+        .filters-toggle-panel #user-filters-chevron {
+            font-size: 8px;
+            transition: transform 0.2s;
+        }
+        
+        .filters-toggle-panel.active #jarvis-filters-chevron,
+        .filters-toggle-panel.active #user-filters-chevron {
+            transform: rotate(180deg);
         }
         
         /* Stats display */
@@ -211,18 +377,97 @@
             color: var(--user-color);
         }
         
-        /* Collapsed state */
+        /* Collapsed state - show ONLY header (h3 + tagline) */
         .info-panel.collapsed {
-            max-height: auto;
-            overflow: visible;
+            max-height: 50px !important;
+            overflow: hidden !important;
         }
         
-        .info-panel.collapsed .collapsible-body {
-            display: none;
+        /* Hide everything except header when collapsed */
+        .info-panel.collapsed .search-bar,
+        .info-panel.collapsed .panel-controls,
+        .info-panel.collapsed .panel-controls {
+            display: none !important;
         }
         
-        /* Toggle button */
-        .panel-toggle {
+        /* Expanded state */
+        .info-panel:not(.collapsed) {
+            max-height: 500px;
+        }
+        
+        /* Collapsible filters body */
+        .filters-body {
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            max-height: 0;
+            opacity: 0;
+        }
+        
+        .filters-body.open {
+            max-height: 200px;
+            opacity: 1;
+        }
+        
+        .filters-body .filter-row {
+            margin-bottom: 8px;
+        }
+        
+        .filters-body .filter-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Panel controls - stats and buttons */
+        .panel-controls {
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+        }
+        
+        /* Top search container - always visible, outside panels */
+        .top-search-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            max-width: 90%;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            z-index: 150;
+            backdrop-filter: blur(10px);
+        }
+        
+        .top-search-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+            font-size: 13px;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #00ffff;
+        }
+        
+        .search-input::placeholder {
+            color: #64748b;
+        }
+        
+        /* Filters toggle */
+        .filters-toggle {
             position: absolute;
             top: 10px;
             right: 10px;
@@ -304,49 +549,53 @@
     </style>
 </head>
 <body>
+    <!-- Top-level search bar (ALWAYS visible, even when panels are collapsed) -->
+    <div class="top-search-container">
+        <div class="top-search-row">
+            <input type="search" class="search-input" id="global-search" placeholder="🔍 Search nodes...">
+            <button class="filters-toggle" id="global-filters-toggle">
+                <span>Filters</span>
+                <span id="global-filters-chevron">▼</span>
+            </button>
+        </div>
+        <!-- Filters dropdown panel -->
+        <div class="filters-body" id="global-filters-body">
+            <div class="filter-row" id="global-filter-types">
+                <!-- Populated by JS -->
+            </div>
+            <div class="filter-row date-filters">
+                <button class="filter-btn active" data-range="today">Today</button>
+                <button class="filter-btn" data-range="week">Week</button>
+                <button class="filter-btn" data-range="month">Month</button>
+                <button class="filter-btn" data-range="all">All</button>
+            </div>
+        </div>
+    </div>
+    
     <div class="dual-container">
         <!-- Left Panel: JARVIS Graph -->
         <div class="graph-panel jarvis" id="jarvis-panel">
             <canvas id="jarvis-canvas"></canvas>
             <div class="graph-label">🧠 JARVIS Memory Graph</div>
             
-            <div class="info-panel collapsed" id="jarvis-info">
+            <div class="info-panel" id="jarvis-info">
                 <h3>⚡ JARVIS Neuro Graph</h3>
                 <p class="tagline" style="font-size: 10px; color: #94a3b8;">Technical learnings, foundations, capabilities</p>
                 
-                <div class="filter-section">
-                    <button type="button" class="collapsible-trigger" id="jarvis-filters-toggle" aria-expanded="false">
-                        <span>Filters</span>
-                        <span id="jarvis-filters-chevron">▲</span>
-                    </button>
-                    <div id="jarvis-filters-body" class="collapsible-body closed">
-                        <div class="filter-row" id="jarvis-filter-types">
-                            <!-- Populated by JS -->
-                        </div>
-                        <div class="filter-row" style="margin-top: 6px;">
-                            <button class="filter-btn active" data-range="today">Today</button>
-                            <button class="filter-btn" data-range="week">This Week</button>
-                            <button class="filter-btn" data-range="month">This Month</button>
-                            <button class="filter-btn" data-range="all">All Time</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="filter-section" style="margin-top: 8px;">
-                    <input type="search" class="search-input" id="jarvis-search" placeholder="Search JARVIS nodes...">
+                <!-- Stats and controls -->
+                <div class="panel-controls">
                     <div class="stats-row">
                         <span class="stat-item">Nodes: <span class="stat-value" id="jarvis-node-count">0</span></span>
                         <span class="stat-item">Synapses: <span class="stat-value" id="jarvis-synapse-count">0</span></span>
                     </div>
-                </div>
-                
-                <div class="panel-buttons" style="margin-top: 8px;">
-                    <button class="filter-btn" onclick="jarvisGraph.clearSelection()">✕ Clear</button>
-                    <button class="filter-btn" onclick="jarvisGraph.randomPulse()">⚡ Pulse</button>
+                    <div class="panel-buttons">
+                        <button class="filter-btn" onclick="jarvisGraph.clearSelection()">✕ Clear</button>
+                        <button class="filter-btn" onclick="jarvisGraph.randomPulse()">⚡ Pulse</button>
+                    </div>
                 </div>
             </div>
             
-            <button type="button" class="panel-toggle" id="jarvis-toggle" aria-label="Toggle panel">›</button>
+            <button type="button" class="panel-toggle" id="jarvis-toggle" aria-label="Toggle panel">‹</button>
             <div class="loading-overlay" id="jarvis-loading">
                 <div class="loading-spinner"></div>
             </div>
@@ -357,43 +606,24 @@
             <canvas id="user-canvas"></canvas>
             <div class="graph-label">👤 User Life Graph</div>
             
-            <div class="info-panel collapsed" id="user-info">
+            <div class="info-panel" id="user-info">
                 <h3>🌟 User Neuro Graph</h3>
                 <p class="tagline" style="font-size: 10px; color: #94a3b8;">Life, relationships, context, experiences</p>
                 
-                <div class="filter-section">
-                    <button type="button" class="collapsible-trigger" id="user-filters-toggle" aria-expanded="false">
-                        <span>Filters</span>
-                        <span id="user-filters-chevron">▲</span>
-                    </button>
-                    <div id="user-filters-body" class="collapsible-body closed">
-                        <div class="filter-row" id="user-filter-types">
-                            <!-- Populated by JS -->
-                        </div>
-                        <div class="filter-row" style="margin-top: 6px;">
-                            <button class="filter-btn active" data-range="today">Today</button>
-                            <button class="filter-btn" data-range="week">This Week</button>
-                            <button class="filter-btn" data-range="month">This Month</button>
-                            <button class="filter-btn" data-range="all">All Time</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="filter-section" style="margin-top: 8px;">
-                    <input type="search" class="search-input" id="user-search" placeholder="Search user nodes...">
+                <!-- Stats and controls -->
+                <div class="panel-controls">
                     <div class="stats-row">
                         <span class="stat-item">Nodes: <span class="stat-value" id="user-node-count">0</span></span>
                         <span class="stat-item">Synapses: <span class="stat-value" id="user-synapse-count">0</span></span>
                     </div>
-                </div>
-                
-                <div class="panel-buttons" style="margin-top: 8px;">
-                    <button class="filter-btn" onclick="userGraph.clearSelection()">✕ Clear</button>
-                    <button class="filter-btn" onclick="userGraph.randomPulse()">⚡ Pulse</button>
+                    <div class="panel-buttons">
+                        <button class="filter-btn" onclick="userGraph.clearSelection()">✕ Clear</button>
+                        <button class="filter-btn" onclick="userGraph.randomPulse()">⚡ Pulse</button>
+                    </div>
                 </div>
             </div>
             
-            <button type="button" class="panel-toggle" id="user-toggle" aria-label="Toggle panel">›</button>
+            <button type="button" class="panel-toggle" id="user-toggle" aria-label="Toggle panel">‹</button>
             <div class="loading-overlay" id="user-loading">
                 <div class="loading-spinner"></div>
             </div>
@@ -423,14 +653,5 @@
     <!-- Scripts -->
     <script src="./shared/GraphViewer.js"></script>
     <script src="./shared/dual-neuro-graph-v2.js"></script>
-    
-    <script>
-        // Initialize dual graphs on DOM ready
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Dual-index.html loaded');
-        });
-    </script>
 </body>
-</html>
->
 </html>

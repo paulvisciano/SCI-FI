@@ -96,11 +96,12 @@ function resolvePath(path) {
 }
         (function() {
         const CONFIG = window.NEURAL_GRAPH_CONFIG || {};
-        
+
         // Centralized configuration constants
         Object.assign(CONFIG, {
           ZOOM_SPEED: 0.015,
           MINIMAP_WIDTH: 260,
+          MINIMAP_HEIGHT: 188,
           MINIMAP_ZOOM_GAP: 10,
           MOBILE_BREAKPOINT: 768,
           PANEL_WIDTH: 240,
@@ -120,8 +121,9 @@ function resolvePath(path) {
             inbox: '#94a3b8',
           },
           DRAWER_LEVELS: [10, 30, 70], // vh visible
+          NEUROGRAPH_VERSION: 'v1.0.0',
         });
-        
+
         function dataDir() { const p = CONFIG.dataBasePath || './data'; return p.replace(/\/$/, ''); }
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d', {alpha: true});
@@ -372,7 +374,7 @@ function resolvePath(path) {
             d.setDate(d.getDate() - 1);
             return toLocalYYYYMMDD(d);
         }
-        // This week: Monday–Sunday in local timezone.
+        // This week: Monday-Sunday in local timezone.
         function getThisWeekRange() {
             const d = new Date();
             const day = d.getDay();
@@ -413,7 +415,7 @@ function resolvePath(path) {
             const yesterdayLocal = getYesterdayLocal();
             const weekRange = getThisWeekRange();
             const memoryRefColor = categoryColors.memoryReference || '#fbbf24';
-            
+
             // Normalize creation date from any supported field (used for temporalMap and per-node created).
             function getCreated(raw) {
                 const rawCreated = raw.attributes?.created || raw.created || raw.attributes?.date || '';
@@ -421,7 +423,7 @@ function resolvePath(path) {
                 const m = String(rawCreated).match(/^(\d{4}-\d{2}-\d{2})/);
                 return m ? m[1] : '';
             }
-            // Time of day in hours (0–24) for clock-ring layout. Based on when the node was created.
+            // Time of day in hours (0-24) for clock-ring layout. Based on when the node was created.
             // Uses: created/attributes; then moments[0]; for archive/file also parses time from node name (e.g. convo-jarvis-2026-03-14-111634 → 11:16:34).
             function getTimeOfDayHours(raw) {
                 function parseTimeFromString(s) {
@@ -467,13 +469,13 @@ function resolvePath(path) {
                 const created = getCreated(t);
                 if (created) temporalMap[created] = t.id;
             });
-            
+
             // Calculate date range for positioning
             const dates = Object.keys(temporalMap).sort();
             const minDate = dates[0];
             const maxDate = dates[dates.length - 1];
 
-            // Order nodes so archive/file (and others) are sorted by creation date — temporal dimension along orbit
+            // Order nodes so archive/file (and others) are sorted by creation date - temporal dimension along orbit
             const temporal = rawNodes.filter(n => ((n.category || n.type || '')).toLowerCase() === 'temporal');
             // Treat `openclaw-skill` as a learning-like node (outer ring).
             const learning = rawNodes.filter(n => {
@@ -513,7 +515,7 @@ function resolvePath(path) {
             const mappedNodes = sortedRawNodes.map((n, idx) => {
                 const created = getCreated(n);
                 let x, y, z;
-                
+
                 if (n.category === 'temporal') {
                     const dateIndex = dates.indexOf(created);
                     const totalDates = dates.length;
@@ -545,7 +547,7 @@ function resolvePath(path) {
                         const isArchiveOrFile = cat === 'archive' || cat === 'file';
                         if (isLearning || isArchiveOrFile) {
                             // Two rings by creation time of day: learnings = outer ring, archive/file = inner ring.
-                            // Same layout as an analog clock: 12 at top, 3 right, 6 bottom, 9 left; hour positions 1–12.
+                            // Same layout as an analog clock: 12 at top, 3 right, 6 bottom, 9 left; hour positions 1-12.
                             const hours = getTimeOfDayHours(n);
                             const hour12 = hours % 12;
                             const angleClock = (hour12 / 12) * Math.PI * 2;
@@ -584,7 +586,7 @@ function resolvePath(path) {
                         z = Math.sin(angle) * radius;
                     }
                 }
-                
+
                 // Node size encodes importance (scale 1 = smaller nodes, more fit on screen)
                 const catForSize = (n.category || n.type || '').toLowerCase();
                 let baseSize;
@@ -716,7 +718,7 @@ function resolvePath(path) {
         // Load graph: one code path. Uses loadMemory('latest') then inits History UI.
         async function loadGraphData() {
             if (window.location.protocol === 'file:') {
-                console.info('Serving from file:// — use a local server (e.g. npx serve) or GitHub Pages to load full data.');
+                console.info('Serving from file:// - use a local server (e.g. npx serve) or GitHub Pages to load full data.');
                 useFallbackGraph();
                 return;
             }
@@ -861,7 +863,7 @@ function resolvePath(path) {
                     body.className = 'collapsible-body timeline-body accordion-body';
                     body.setAttribute('role', 'region');
                     body.setAttribute('aria-label', 'Timeline entries');
-                    // Latest (current) first — quick to load, easy to return to
+                    // Latest (current) first - quick to load, easy to return to
                     const latestBtn = document.createElement('button');
                     latestBtn.type = 'button';
                     latestBtn.className = 'filter-btn timeline-entry active';
@@ -883,7 +885,7 @@ function resolvePath(path) {
                         btn.style.textAlign = 'left';
                         btn.style.marginBottom = '4px';
                         const ts = entry.timestamp ? entry.timestamp.replace(/ \+0700$/, '') : '';
-                        btn.textContent = (ts ? ts + ' — ' : '') + entry.neurons + ' neurons · ' + entry.synapses + ' synapses';
+                        btn.textContent = (ts ? ts + ' - ' : '') + entry.neurons + ' neurons · ' + entry.synapses + ' synapses';
                         btn.dataset.commit = entry.commit;
                         btn.addEventListener('click', () => loadMemoryAtCommit(entry.commit));
                         body.appendChild(btn);
@@ -969,7 +971,7 @@ function resolvePath(path) {
         function project(x, y, z) {
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
-            // Main view: 3D perspective (angle, pitch, dist) — layout uses full x,y,z
+            // Main view: 3D perspective (angle, pitch, dist) - layout uses full x,y,z
             if (orthoView) {
                 const { minX, maxZ, scale, offsetX, offsetY, centerX, centerZ } = orthoView;
                 const cosA = Math.cos(camera.angle);
@@ -1323,9 +1325,9 @@ function resolvePath(path) {
                     const midY = (p1.y + p2.y) / 2;
                     const edgeInSpotlight = !spotlightActive || distToMouse(midX, midY) <= SPOTLIGHT_RADIUS;
                     const edgeSpotlightDim = edgeInSpotlight ? 1 : SPOTLIGHT_DIM_ALPHA;
-                    
+
                     if (isConnected) {
-                        // Highlight: connected to selected node — bright white line
+                        // Highlight: connected to selected node - bright white line
                         ctx.globalAlpha = edgeSpotlightDim;
                         ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
                         ctx.lineWidth = 2;
@@ -1373,7 +1375,7 @@ function resolvePath(path) {
                 sorted.forEach(item => {
                     const n = item.node;
                     const p = item.proj;
-                    
+
                     if (!passesFilter(item.idx)) return;
                     // When a temporal node is selected, only draw nodes in its chain (canvas-only hide)
                     if (temporalFocusNodeIds !== null && !temporalFocusNodeIds.has(item.idx)) return;
@@ -1427,7 +1429,7 @@ function resolvePath(path) {
                         ctx.stroke();
                     }
                 });
-                
+
                 // Draw labels with progressive zoom-based visibility (multiple tiers)
                 // On "All" filter: only show label for the selected node to reduce clutter.
                 // On focused time filters (Today / Yesterday / This week): show labels only for:
@@ -1445,22 +1447,22 @@ function resolvePath(path) {
                     if (temporalFocusNodeIds !== null && !temporalFocusNodeIds.has(idx)) return;
                     const isHovered = hovered === idx;
                     const isNeighborOfSelected = selected !== null && idx !== selected && activeNodeIds !== null && activeNodeIds.has(idx);
-                    
+
                     // When both filters are "all": only show label for the selected node, nodes connected to it,
                     // or the node currently hovered so exploration still feels responsive.
                     if (!isHovered && currentTimeFilter === 'all' && currentCategoryFilter === 'all' && selected !== idx && !isNeighborOfSelected) return;
-                    
+
                     // Focus mode: hide labels for unconnected nodes
                     const isConnected = activeNodeIds !== null && activeNodeIds.has(idx);
                     if (activeNodeIds !== null && !isConnected) return; // Skip label
-                    
+
                     const isSelected = (selected === idx);
                     const isConnectedToSelected = isNeighborOfSelected;
                     const nodeType = (n.type || '').toLowerCase();
                     const isTemporal = nodeType === 'temporal';
                     const isFileNode = nodeType === 'file';
                     const isArchiveNode = nodeType === 'archive';
-                    
+
                     // On focused time filters (Today / Yesterday / This week), hide labels for
                     // dense clusters: only show temporal anchors, the selected node, and its
                     // directly connected neighbors. This prevents huge walls of text when a
@@ -1472,30 +1474,30 @@ function resolvePath(path) {
                     // File/archive nodes now show rich inline previews (image/text/audio/video), so we
                     // don't need labels on simple hover. Keep labels only when they're selected.
                     if ((isFileNode || isArchiveNode) && !isSelected) return;
-                    
+
                     // Size-based visibility: only show labels for important/large neurons
                     // EXCEPTION: always show if selected, in focus mode chain, or temporal (timeline anchors)
                     const isImportant = n.size >= minSizeForLabel || isTemporal;
-                    
+
                     if (!isImportant && !isSelected && !isConnectedToSelected && !isHovered) return; // Skip small, unconnected labels
-                    
+
                     const p = screenPos[idx];
                     const labelInSpotlight = !spotlightActive || distToMouse(p.x, p.y) <= SPOTLIGHT_RADIUS;
                     const r = (n.size * (p.scale ?? 1)) * nodeSize3D;
                     const isDimmed = activeNodeIds !== null && !activeNodeIds.has(idx);
                     const dimAlpha = 0.25;
-                    
+
                     // Title label sizing: keep selected strong, but make hover title a bit smaller
                     const baseSize = 10;
                     const fontSize = isSelected
                         ? baseSize * 1.4
                         : (isHovered ? baseSize * 2.0 : (isConnectedToSelected ? baseSize * 1.1 : baseSize));
-                    
+
                     ctx.font = `bold ${fontSize}px monospace`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.globalAlpha = (isDimmed ? dimAlpha * 0.95 : 1) * (labelInSpotlight ? 1 : SPOTLIGHT_DIM_ALPHA);
-                    
+
                     const shadowBlur = isSelected ? 12 : 8;
                     const shadowOpacity = isSelected ? 1.0 : 0.9;
                     ctx.shadowColor = `rgba(0, 0, 0, ${shadowOpacity})`;
@@ -1504,12 +1506,12 @@ function resolvePath(path) {
                     ctx.shadowOffsetY = 0;
                     ctx.lineWidth = isSelected ? 4 : 3;
                     ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
-                    
+
                     ctx.fillStyle = isSelected ? '#ffffaa' : (isHovered ? '#e0f2fe' : '#ffffff');
                     // Title just below the node
                     ctx.strokeText(n.name, p.x, p.y + r + 12);
                     ctx.fillText(n.name, p.x, p.y + r + 12);
-                    
+
                     // When hovered, show a compact inline info line under the label
                     if (isHovered) {
                         const baseInfoSize = 9;
@@ -1532,7 +1534,7 @@ function resolvePath(path) {
                             ctx.fillText(info, p.x, p.y + r + 34);
                         }
                     }
-                    
+
                     ctx.shadowBlur = 0;
                     ctx.lineWidth = 1;
                     ctx.globalAlpha = 1;
@@ -1551,21 +1553,21 @@ function resolvePath(path) {
                 } else {
                     nodes.forEach((n, idx) => drawLabelForIndex(idx));
                 }
-                
+
                 // Selection highlight ring
                 if (selected !== null && nodes[selected]) {
                     const n = nodes[selected];
                     const p = screenPos[selected];
                     const r = (n.size * (p.scale ?? 1)) * nodeSize3D;
                     const outer = r + 8;
-                    
+
                     ctx.strokeStyle = '#ffff00';
                     ctx.lineWidth = 3;
                     ctx.globalAlpha = 0.9;
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, outer, 0, 6.28);
                     ctx.stroke();
-                    
+
                     // Pulsing outer ring
                     const pulse = Math.sin(time * 0.05) * 0.3 + 0.7;
                     ctx.strokeStyle = `rgba(255, 255, 0, ${pulse * 0.6})`;
@@ -1961,7 +1963,7 @@ function resolvePath(path) {
             resyncSelectionByIdKey(selKey);
             const count = nodes.length;
             const edgeCount = edges.length;
-            console.log('Time: ' + getTimeFilterDisplayName(time) + ', Category: ' + currentCategoryFilter + ' — ' + count + ' neurons, ' + edgeCount + ' synapses');
+            console.log('Time: ' + getTimeFilterDisplayName(time) + ', Category: ' + currentCategoryFilter + ' - ' + count + ' neurons, ' + edgeCount + ' synapses');
             schedulePopulateFilterList();
         }
         function setActiveCategoryFilter(category) {
@@ -1975,7 +1977,7 @@ function resolvePath(path) {
             resyncSelectionByIdKey(selKey);
             const count = nodes.length;
             const edgeCount = edges.length;
-            console.log('Time: ' + currentTimeFilter + ', Category: ' + category + ' — ' + count + ' neurons, ' + edgeCount + ' synapses');
+            console.log('Time: ' + currentTimeFilter + ', Category: ' + category + ' - ' + count + ' neurons, ' + edgeCount + ' synapses');
             schedulePopulateFilterList();
         }
         function nodePassesFilter(n) {
@@ -2126,7 +2128,7 @@ function resolvePath(path) {
         let drawerDragJustEnded = false;
         const drawer = document.getElementById('bottomDrawer');
         const drawerHeader = drawer ? drawer.querySelector('.drawer-header') : null;
-        
+
         function setDrawerLevel(level) {
             level = Math.max(0, Math.min(2, level));
             drawerLevel = level;
@@ -2161,12 +2163,12 @@ function resolvePath(path) {
                 }
             }
         }
-        
+
         // Backwards compat: treat open=true as level 2, open=false as level 0
         function setDrawerOpen(open) {
             setDrawerLevel(open ? 2 : 0);
         }
-        
+
         if (drawerHeader) {
             const SNAP_THRESHOLD = 20; // px past midpoint to snap to next level
             let dragStartY = 0;
@@ -2226,7 +2228,7 @@ function resolvePath(path) {
                 if (dragStartY !== 0) { onDragEnd(e); dragStartY = 0; }
             });
         }
-        
+
         document.getElementById('drawer-toggle')?.addEventListener('click', function(e) {
             if (window.innerWidth > 768) return;
             if (drawerDragJustEnded) return;
@@ -2606,7 +2608,7 @@ function resolvePath(path) {
 
             const desc = node.desc || node.attributes.description || '';
             const size = node.attributes.fileSize;
-            const sizeText = typeof size === 'number' ? `${(size / 1024).toFixed(0)} KB` : '—';
+            const sizeText = typeof size === 'number' ? `${(size / 1024).toFixed(0)} KB` : '-';
             const created = node.attributes.created || node.created || '';
 
             const mediaHtml = renderMedia(fileType, resolvedPath);
@@ -2832,9 +2834,9 @@ function resolvePath(path) {
 
         canvas.addEventListener('click', e => {
             if (didDrag) { didDrag = false; return; }
-            
+
             const clickedNode = hitTestNode(e.clientX, e.clientY);
-            
+
             if (clickedNode !== null) {
                 selected = clickedNode;
                 const node = nodes[selected];
@@ -2923,7 +2925,7 @@ function resolvePath(path) {
             if (e.key === 'ArrowUp') keyFly.back = false;
             if (e.key === 'ArrowDown') keyFly.forward = false;
         });
-        
+
         // Set drawer content only (no side effects). Used for mobile so popover is skipped.
         function setDrawerContent(node) {
             const content = document.getElementById('drawerDetails');
@@ -3011,7 +3013,7 @@ function resolvePath(path) {
             .then(() => {
                 if (window.location.hash) handleHashNavigation();
                 if (typeof window.onNeuroGraphLoaded === 'function') window.onNeuroGraphLoaded();
-                // No random node selection on load — popover only appears when user clicks a node
+                // No random node selection on load - popover only appears when user clicks a node
             })
             .catch(err => {
                 const statusEl = document.getElementById('status');
@@ -3030,7 +3032,7 @@ function resolvePath(path) {
             closeFilePreview();
             window.location.hash = '';
         };
-        
+
         let characterProfiles = {};
         async function loadCharacterProfiles() {
             const url = CONFIG.characterProfilesUrl;
@@ -3213,8 +3215,8 @@ function resolvePath(path) {
                     <button type="button" class="memory-link-sidebar-close" aria-label="Close">&times;</button>
                     <h3 id="memory-link-sidebar-title" class="memory-link-sidebar-title">Connected mind</h3>
                     <p class="memory-link-sidebar-url-wrap"><a id="memory-link-sidebar-url" href="#" target="_blank" rel="noopener" class="memory-link-sidebar-url"></a></p>
-                    <p class="memory-link-sidebar-meta"><span class="memory-link-sidebar-label">Fingerprint:</span> <span id="memory-link-sidebar-fingerprint">—</span></p>
-                    <p class="memory-link-sidebar-meta"><span class="memory-link-sidebar-label">Stats:</span> <span id="memory-link-sidebar-stats">—</span></p>
+                    <p class="memory-link-sidebar-meta"><span class="memory-link-sidebar-label">Fingerprint:</span> <span id="memory-link-sidebar-fingerprint">-</span></p>
+                    <p class="memory-link-sidebar-meta"><span class="memory-link-sidebar-label">Stats:</span> <span id="memory-link-sidebar-stats">-</span></p>
                     <button type="button" class="memory-link-sidebar-explore" id="memory-link-sidebar-explore">Explore Memory</button>
                 </div>`;
             sidebar.style.cssText = 'position:fixed;top:0;right:0;width:280px;max-width:100%;height:100%;background:rgba(15,26,58,0.98);border-left:2px solid rgba(251,191,36,0.5);z-index:100;display:none;overflow-y:auto;';
@@ -3269,20 +3271,20 @@ function resolvePath(path) {
             if (fpUrl) {
                 fetch(fpUrl).then(r => r.ok ? r.json() : Promise.reject(new Error(r.statusText)))
                     .then(data => {
-                        const hash = (data.hash || data.masterHash || '—').toString();
+                        const hash = (data.hash || data.masterHash || '-').toString();
                         document.getElementById('memory-link-sidebar-fingerprint').textContent = hash.length > 20 ? hash.slice(0, 20) + '…' : hash;
                         document.getElementById('memory-link-sidebar-fingerprint').title = hash;
-                        const neurons = data.neurons != null ? data.neurons : '—';
-                        const synapses = data.synapses != null ? data.synapses : '—';
+                        const neurons = data.neurons != null ? data.neurons : '-';
+                        const synapses = data.synapses != null ? data.synapses : '-';
                         document.getElementById('memory-link-sidebar-stats').textContent = neurons + ' neurons · ' + synapses + ' synapses';
                     })
                     .catch(() => {
-                        document.getElementById('memory-link-sidebar-fingerprint').textContent = '—';
+                        document.getElementById('memory-link-sidebar-fingerprint').textContent = '-';
                         document.getElementById('memory-link-sidebar-stats').textContent = 'Could not load stats';
                     });
             } else {
-                document.getElementById('memory-link-sidebar-fingerprint').textContent = '—';
-                document.getElementById('memory-link-sidebar-stats').textContent = '—';
+                document.getElementById('memory-link-sidebar-fingerprint').textContent = '-';
+                document.getElementById('memory-link-sidebar-stats').textContent = '-';
             }
         }
 
@@ -3558,8 +3560,8 @@ function resolvePath(path) {
             wrap.id = 'neural-graph-minimap';
             wrap.className = 'neural-graph-minimap';
             const mini = document.createElement('canvas');
-            mini.width = MINIMAP_WIDTH;
-            mini.height = MINIMAP_HEIGHT;
+            mini.width = CONFIG.MINIMAP_WIDTH;
+            mini.height = CONFIG.MINIMAP_HEIGHT;
             wrap.appendChild(mini);
             minimapEl = wrap;
             minimapCanvasEl = mini;
@@ -3783,7 +3785,7 @@ function resolvePath(path) {
             const btnMinus = document.createElement('button');
             btnMinus.type = 'button';
             btnMinus.setAttribute('aria-label', 'Zoom out');
-            btnMinus.textContent = '−';
+            btnMinus.textContent = '-';
             btnMinus.className = 'neural-graph-zoom-btn';
             btnMinus.addEventListener('click', () => {
                 if (viewZoom / zoomStep <= getViewZoomMin()) {
@@ -4354,18 +4356,18 @@ function resolvePath(path) {
         function openFullContext() {
             if (selected === null || !nodes[selected]) return;
             const node = nodes[selected];
-            
+
             // Try rawContentPath first (for file nodes), then sourceDocument
             const rawPath = node.attributes?.rawContentPath;
             const sourcePath = node.sourceDocument || node.attributes?.sourceDocument;
             const pathToOpen = rawPath || sourcePath;
-            
+
             const resolvedPath = resolvePath(pathToOpen);
             if (typeof resolvedPath !== 'string' || !resolvedPath) {
                 alert('No file path available for this node');
                 return;
             }
-            
+
             // Fallback to existing behavior for remote/source documents
             const pathOnDisk = resolvedPath;
 
@@ -4441,7 +4443,7 @@ function resolvePath(path) {
 
         // Start rendering immediately (will display as data loads)
         render();
-        
+
         // Load character profiles, then graph data
         // Unregister old service workers that were caching aggressively
         if ('serviceWorker' in navigator) {
@@ -4452,7 +4454,7 @@ function resolvePath(path) {
                 });
             }).catch(err => console.log('No service workers to unregister:', err));
         }
-        
+
         loadCharacterProfiles();
         // Initial selection (hash vs random) is handled by the single loadGraphData().then() above
 
@@ -4557,7 +4559,7 @@ function resolvePath(path) {
                     resyncSelectionByIdKey(selKey);
 
                     console.log(`🧠 +${addedNodes} neurons, +${addedSynapses} synapses (total loaded: ${graphFullNodes.length} / ${graphFullEdges.length}; visible: ${nodes.length} / ${edges.length})`);
-                    
+
                     const statusMsg = `${nodes.length} neurons · ${edges.length} synapses`;
                     if (statusEl) statusEl.textContent = statusMsg;
                     if (countEl) countEl.textContent = nodes.length;
