@@ -883,8 +883,7 @@ if (document.readyState === 'loading') {
         } else {
           ollamaModelListEl.textContent = 'No models loaded';
         }
-        
-
+      }
             
       // Update system vitals
       if (vitals.system) {
