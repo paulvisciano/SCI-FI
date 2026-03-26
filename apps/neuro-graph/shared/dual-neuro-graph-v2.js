@@ -273,9 +273,11 @@
                 const isClosed = filtersBody.classList.contains('closed');
                 if (isClosed) {
                     filtersBody.classList.remove('closed');
+                    filtersBody.classList.add('open');
                     toggleBtn.setAttribute('aria-expanded', 'true');
                     if (chevron) chevron.textContent = '▼';
                 } else {
+                    filtersBody.classList.remove('open');
                     filtersBody.classList.add('closed');
                     toggleBtn.setAttribute('aria-expanded', 'false');
                     if (chevron) chevron.textContent = '▲';

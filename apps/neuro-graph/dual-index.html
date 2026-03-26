@@ -223,11 +223,21 @@
             visibility: hidden !important;
         }
         
-        /* Hide all children except h3 and tagline when collapsed */
+        /* Hide all children except h3, tagline, and search-bar when collapsed */
         .info-panel.collapsed > .filter-section,
         .info-panel.collapsed > .stats-row,
         .info-panel.collapsed > .panel-buttons,
-        .info-panel.collapsed > .search-container {
+        .info-panel.collapsed > .panel-controls {
+            display: none !important;
+        }
+        
+        /* Search bar stays visible when panel is expanded (not collapsed) */
+        .info-panel:not(.collapsed) .search-bar {
+            display: block;
+        }
+        
+        /* Search bar hidden when panel is collapsed */
+        .info-panel.collapsed .search-bar {
             display: none !important;
         }
         
@@ -246,6 +256,115 @@
         .collapsible-body.open {
             max-height: 400px;
             opacity: 1;
+        }
+        
+        .info-panel.collapsed > .search-bar,
+        .info-panel.collapsed > .panel-controls {
+            display: none !important;
+        }
+        
+        /* Search bar - always visible when panel expanded */
+        .search-bar {
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+            font-size: 13px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #00ffff;
+        }
+        
+        .user .search-input:focus {
+            border-color: #f87171;
+        }
+        
+        .search-input::placeholder {
+            color: #64748b;
+        }
+        
+        /* Filters toggle within search area */
+        .filters-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            margin-top: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .filters-toggle:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: rgba(0, 255, 255, 0.4);
+        }
+        
+        /* Filters body - collapsible within search area */
+        .filters-body {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            margin-top: 6px;
+        }
+        
+        .filters-body.open {
+            max-height: 400px;
+            opacity: 1;
+        }
+        
+        /* Panel controls - stats and buttons */
+        .panel-controls {
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+        }
+        
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        
+        .stat-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .stat-value {
+            color: #00ffff;
+            font-weight: 600;
+        }
+        
+        .user .stat-value {
+            color: #f87171;
+        }
+        
+        .panel-buttons {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
         }
         
         /* Toggle button */
@@ -341,30 +460,38 @@
                 <h3>⚡ JARVIS Neuro Graph</h3>
                 <p class="tagline" style="font-size: 10px; color: #94a3b8;">Technical learnings, foundations, capabilities</p>
                 
-                <div class="filter-section">
-                    <button type="button" class="collapsible-trigger" id="jarvis-filters-toggle" aria-expanded="false">
+                <!-- Search bar - always visible when panel expanded -->
+                <div class="search-bar">
+                    <input type="search" class="search-input" id="jarvis-search" placeholder="Search JARVIS nodes...">
+                    
+                    <!-- Filters dropdown - collapsible within search area -->
+                    <div class="filters-toggle" id="jarvis-filters-toggle">
                         <span>Filters</span>
-                        <span id="jarvis-filters-chevron">▲</span>
-                    </button>
-                    <div id="jarvis-filters-body" class="collapsible-body closed">
+                        <span id="jarvis-filters-chevron">▼</span>
+                    </div>
+                    
+                    <div id="jarvis-filters-body" class="filters-body closed">
                         <div class="filter-row" id="jarvis-filter-types">
                             <!-- Populated by JS -->
                         </div>
-                        <div class="filter-row" style="margin-top: 6px;">
+                        <div class="filter-row date-filters">
                             <button class="filter-btn active" data-range="today">Today</button>
-                            <button class="filter-btn" data-range="week">This Week</button>
-                            <button class="filter-btn" data-range="month">This Month</button>
-                            <button class="filter-btn" data-range="all">All Time</button>
+                            <button class="filter-btn" data-range="week">Week</button>
+                            <button class="filter-btn" data-range="month">Month</button>
+                            <button class="filter-btn" data-range="all">All</button>
                         </div>
-                        <input type="search" class="search-input" id="jarvis-search" placeholder="Search JARVIS nodes..." style="margin-top: 8px;">
-                        <div class="stats-row" style="margin-top: 8px;">
-                            <span class="stat-item">Nodes: <span class="stat-value" id="jarvis-node-count">0</span></span>
-                            <span class="stat-item">Synapses: <span class="stat-value" id="jarvis-synapse-count">0</span></span>
-                        </div>
-                        <div class="panel-buttons" style="margin-top: 8px;">
-                            <button class="filter-btn" onclick="jarvisGraph.clearSelection()">✕ Clear</button>
-                            <button class="filter-btn" onclick="jarvisGraph.randomPulse()">⚡ Pulse</button>
-                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats and controls - below search -->
+                <div class="panel-controls">
+                    <div class="stats-row">
+                        <span class="stat-item">Nodes: <span class="stat-value" id="jarvis-node-count">0</span></span>
+                        <span class="stat-item">Synapses: <span class="stat-value" id="jarvis-synapse-count">0</span></span>
+                    </div>
+                    <div class="panel-buttons">
+                        <button class="filter-btn" onclick="jarvisGraph.clearSelection()">✕ Clear</button>
+                        <button class="filter-btn" onclick="jarvisGraph.randomPulse()">⚡ Pulse</button>
                     </div>
                 </div>
             </div>
@@ -384,30 +511,38 @@
                 <h3>🌟 User Neuro Graph</h3>
                 <p class="tagline" style="font-size: 10px; color: #94a3b8;">Life, relationships, context, experiences</p>
                 
-                <div class="filter-section">
-                    <button type="button" class="collapsible-trigger" id="user-filters-toggle" aria-expanded="false">
+                <!-- Search bar - always visible when panel expanded -->
+                <div class="search-bar">
+                    <input type="search" class="search-input" id="user-search" placeholder="Search user nodes...">
+                    
+                    <!-- Filters dropdown - collapsible within search area -->
+                    <div class="filters-toggle" id="user-filters-toggle">
                         <span>Filters</span>
-                        <span id="user-filters-chevron">▲</span>
-                    </button>
-                    <div id="user-filters-body" class="collapsible-body closed">
+                        <span id="user-filters-chevron">▼</span>
+                    </div>
+                    
+                    <div id="user-filters-body" class="filters-body closed">
                         <div class="filter-row" id="user-filter-types">
                             <!-- Populated by JS -->
                         </div>
-                        <div class="filter-row" style="margin-top: 6px;">
+                        <div class="filter-row date-filters">
                             <button class="filter-btn active" data-range="today">Today</button>
-                            <button class="filter-btn" data-range="week">This Week</button>
-                            <button class="filter-btn" data-range="month">This Month</button>
-                            <button class="filter-btn" data-range="all">All Time</button>
+                            <button class="filter-btn" data-range="week">Week</button>
+                            <button class="filter-btn" data-range="month">Month</button>
+                            <button class="filter-btn" data-range="all">All</button>
                         </div>
-                        <input type="search" class="search-input" id="user-search" placeholder="Search user nodes..." style="margin-top: 8px;">
-                        <div class="stats-row" style="margin-top: 8px;">
-                            <span class="stat-item">Nodes: <span class="stat-value" id="user-node-count">0</span></span>
-                            <span class="stat-item">Synapses: <span class="stat-value" id="user-synapse-count">0</span></span>
-                        </div>
-                        <div class="panel-buttons" style="margin-top: 8px;">
-                            <button class="filter-btn" onclick="userGraph.clearSelection()">✕ Clear</button>
-                            <button class="filter-btn" onclick="userGraph.randomPulse()">⚡ Pulse</button>
-                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats and controls - below search -->
+                <div class="panel-controls">
+                    <div class="stats-row">
+                        <span class="stat-item">Nodes: <span class="stat-value" id="user-node-count">0</span></span>
+                        <span class="stat-item">Synapses: <span class="stat-value" id="user-synapse-count">0</span></span>
+                    </div>
+                    <div class="panel-buttons">
+                        <button class="filter-btn" onclick="userGraph.clearSelection()">✕ Clear</button>
+                        <button class="filter-btn" onclick="userGraph.randomPulse()">⚡ Pulse</button>
                     </div>
                 </div>
             </div>
