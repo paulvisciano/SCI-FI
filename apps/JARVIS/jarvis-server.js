@@ -1087,43 +1087,57 @@ function handleTranscript(filepath, transcript, extension) {
     console.log('🤖 User message:', userMessage);
 
     // Run openclaw agent asynchronously (non-blocking)
-    const agentStart = Date.now();
-    console.log(`[${new Date().toISOString()}] ⏱️ Agent START (handleTranscript)`);
+        console.log(`[${new Date().toISOString()}] ⏱️ Agent START (handleTranscript)`);
     
-    // Security fix: Use execFile instead of exec to prevent command injection
-    execFile('openclaw', ['agent', '--agent', 'jarvis', '--message', userMessage], { encoding: 'utf8', timeout: 120000 },
-        (agentErr, agentOutput) => {
-            const agentDuration = Date.now() - agentStart;
-            const agentTimestamp = new Date().toISOString();
-            
-            if (agentErr) {
-                console.error(`[${agentTimestamp}] ❌ Agent failed:`, agentErr.message);
-                // Still archive on error so we don't leave files in live/
-                archiveRecording(filepath, extension, transcript);
-                activeTranscriptions--;
-                return;
-            }
-            
-            console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
-            console.log(`[${agentTimestamp}] ✅ Sent user message to jarvis agent`);
-            
-            let responseText = agentOutput.split('\n')
-                .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
-                .join('\n').trim();
-            
-            // Archive AFTER agent completes - transcript is now available in liveDir for UI polling
-            const responsePath = archiveRecording(filepath, extension, transcript);
-            
-            if (responsePath && responseText) {
-                fs.writeFileSync(responsePath, responseText);
-            }
-            
-            // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
-            const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
-            pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
+    // Security fix: Use spawn instead of execFile to prevent command injection
+    const agentProcess = spawn('openclaw', ['agent', '--agent', 'jarvis', '--message', userMessage], { encoding: 'utf8' });
+    let agentOutput = '';
+    let agentErr = null;
+    const agentStart = Date.now();
+    
+    agentProcess.stdout.on('data', (data) => {
+        agentOutput += data;
+    });
+    
+    agentProcess.stderr.on('data', (data) => {
+        console.error(`agent stderr: ${data}`);
+    });
+    
+    agentProcess.on('error', (error) => {
+        agentErr = error;
+    });
+    
+    agentProcess.on('close', (code) => {
+        const agentDuration = Date.now() - agentStart;
+        const agentTimestamp = new Date().toISOString();
+        
+        if (code !== 0) {
+            console.error(`[${agentTimestamp}] ❌ Agent failed with code ${code}`);
+            // Still archive on error so we don't leave files in live/
+            archiveRecording(filepath, extension, transcript);
             activeTranscriptions--;
+            return;
         }
-    );
+        
+        console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
+        console.log(`[${agentTimestamp}] ✅ Sent user message to jarvis agent`);
+        
+        let responseText = agentOutput.split('\n')
+            .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
+            .join('\n').trim();
+        
+        // Archive AFTER agent completes - transcript is now available in liveDir for UI polling
+        const responsePath = archiveRecording(filepath, extension, transcript);
+        
+        if (responsePath && responseText) {
+            fs.writeFileSync(responsePath, responseText);
+        }
+        
+        // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
+        const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
+        pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
+        activeTranscriptions--;
+    });
 }
 
 function archiveRecording(filepath, extension, transcript) {
