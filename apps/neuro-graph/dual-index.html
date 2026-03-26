@@ -211,14 +211,21 @@
             color: var(--user-color);
         }
         
-        /* Collapsed state */
+        /* Collapsed state - show ONLY header */
         .info-panel.collapsed {
-            max-height: 50px;
-            overflow: hidden;
+            max-height: 50px !important;
+            overflow: hidden !important;
         }
         
-        .info-panel.collapsed .collapsible-body {
-            display: none;
+        /* Hide entire filter section when collapsed */
+        .info-panel.collapsed .filter-section {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        
+        /* Hide all direct children except h3 and p.tagline when collapsed */
+        .info-panel.collapsed > *:not(h3):not(.tagline) {
+            display: none !important;
         }
         
         /* Collapsible body hidden state */
@@ -437,9 +444,19 @@
         // Initialize dual graphs on DOM ready
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Dual-index.html loaded');
+            
+            // Ensure panels are collapsed on load
+            const panels = document.querySelectorAll('.info-panel');
+            panels.forEach(panel => {
+                panel.classList.add('collapsed');
+            });
+            
+            // Ensure filter sections are collapsed
+            const filterBodies = document.querySelectorAll('.collapsible-body');
+            filterBodies.forEach(body => {
+                body.classList.add('closed');
+            });
         });
     </script>
 </body>
-</html>
->
 </html>
