@@ -218,8 +218,13 @@
         const jarvisInfo = document.getElementById('jarvis-info');
         if (jarvisToggle && jarvisInfo) {
             jarvisToggle.addEventListener('click', () => {
-                jarvisInfo.classList.toggle('collapsed');
-                jarvisToggle.textContent = jarvisInfo.classList.contains('collapsed') ? '›' : '‹';
+                if (jarvisInfo.classList.contains('collapsed')) {
+                    jarvisInfo.classList.remove('collapsed');
+                    jarvisToggle.textContent = '‹';
+                } else {
+                    jarvisInfo.classList.add('collapsed');
+                    jarvisToggle.textContent = '›';
+                }
             });
         }
         
@@ -227,8 +232,13 @@
         const userInfo = document.getElementById('user-info');
         if (userToggle && userInfo) {
             userToggle.addEventListener('click', () => {
-                userInfo.classList.toggle('collapsed');
-                userToggle.textContent = userInfo.classList.contains('collapsed') ? '›' : '‹';
+                if (userInfo.classList.contains('collapsed')) {
+                    userInfo.classList.remove('collapsed');
+                    userToggle.textContent = '‹';
+                } else {
+                    userInfo.classList.add('collapsed');
+                    userToggle.textContent = '›';
+                }
             });
         }
     }

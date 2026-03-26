@@ -6,95 +6,411 @@
     <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate, max-age=0">
     <meta http-equiv="pragma" content="no-cache">
     <meta http-equiv="expires" content="0">
-    <!-- Disable service worker caching -->
-    <meta name="service-worker" content="no-cache">
-    <title>Neuro Graph — JARVIS / Paul</title>
+    <title>Neuro Graph — Dual View (JARVIS + User)</title>
     <link rel="stylesheet" href="./shared/neural-graph.css">
     <style>
-        .brain-switcher { padding: 6px 0; }
-        .brain-switcher-label { font-size: 10px; color: #0088ff; margin-right: 8px; }
-        .brain-switcher-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
-        .brain-btn { padding: 4px 10px; font-size: 10px; border-radius: 6px; cursor: pointer; border: 1px solid rgba(0,255,255,0.3); background: rgba(0,0,0,0.3); color: #94a3b8; font-family: inherit; }
-        .brain-btn:hover { color: #00ffff; border-color: rgba(0,255,255,0.5); }
-        .brain-btn.active { background: rgba(0,255,255,0.2); color: #00ffff; border-color: #00ffff; }
-        .brain-counts { display: flex; flex-direction: column; gap: 4px; }
-        .brain-count-row { display: flex; align-items: baseline; gap: 6px; font-size: 10px; }
-        .brain-count-label { color: #94a3b8; min-width: 3em; }
-        .brain-count-stat { color: #00ffff; font-weight: bold; }
-        .panel-meta-hidden { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
-        .client-version { font-size: 0.75em; color: #00ffff; opacity: 0.7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace; }
+        /* Dual-Graph Layout */
+        :root {
+            --jarvis-color: #00ffff;
+            --user-color: #f87171;
+            --divider-width: 4px;
+            --divider-color: rgba(0, 255, 255, 0.3);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+            background: #0a0a0a;
+        }
+        
+        /* Main dual-container */
+        .dual-container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        /* Left panel: JARVIS graph */
+        .graph-panel {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .graph-panel.jarvis {
+            border-right: var(--divider-width) solid var(--divider-color);
+        }
+        
+        .graph-panel.user {
+            border-left: var(--divider-width) solid var(--divider-color);
+        }
+        
+        /* Canvas for each panel */
+        .graph-panel canvas {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        /* Info panel (overlay) */
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 100;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .info-panel h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #00ffff;
+        }
+        
+        .info-panel.jarvis h3 {
+            color: var(--jarvis-color);
+        }
+        
+        .info-panel.user h3 {
+            color: var(--user-color);
+        }
+        
+        .graph-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 4px;
+            font-size: 11px;
+            color: #00ffff;
+            z-index: 50;
+            pointer-events: none;
+        }
+        
+        .graph-panel.user .graph-label {
+            color: var(--user-color);
+        }
+        
+        /* Sync button */
+        .sync-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .sync-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #00ffff, #f87171);
+            border: none;
+            border-radius: 25px;
+            color: #0a0a0a;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .sync-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        
+        .sync-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Filter controls */
+        .filter-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 4px 8px;
+            font-size: 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            color: #94a3b8;
+            cursor: pointer;
+        }
+        
+        .filter-btn:hover {
+            color: #00ffff;
+            border-color: rgba(0, 255, 255, 0.5);
+        }
+        
+        .filter-btn.active {
+            background: rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+            border-color: #00ffff;
+        }
+        
+        /* Search input */
+        .search-input {
+            width: 100%;
+            padding: 6px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+            color: #00ffff;
+            margin-bottom: 8px;
+        }
+        
+        .search-input::placeholder {
+            color: rgba(0, 255, 255, 0.5);
+        }
+        
+        /* Stats display */
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            font-size: 10px;
+            margin-top: 8px;
+        }
+        
+        .stat-item {
+            padding: 2px 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+        
+        .stat-value {
+            color: #00ffff;
+            font-weight: bold;
+        }
+        
+        .graph-panel.user .stat-value {
+            color: var(--user-color);
+        }
+        
+        /* Collapsed state */
+        .info-panel.collapsed {
+            max-height: auto;
+            overflow: visible;
+        }
+        
+        .info-panel.collapsed .collapsible-body {
+            display: none;
+        }
+        
+        /* Toggle button */
+        .panel-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 50%;
+            color: #00ffff;
+            cursor: pointer;
+            z-index: 150;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .graph-panel.user .panel-toggle {
+            border-color: rgba(248, 113, 113, 0.3);
+            color: var(--user-color);
+        }
+        
+        /* Responsive: stack on mobile */
+        @media (max-width: 768px) {
+            .dual-container {
+                flex-direction: column;
+            }
+            
+            .graph-panel {
+                height: 50vh;
+                border-right: none;
+                border-bottom: var(--divider-width) solid var(--divider-color);
+            }
+            
+            .graph-panel.user {
+                border-left: none;
+                border-top: var(--divider-width) solid var(--divider-color);
+            }
+            
+            .sync-bar {
+                bottom: 10px;
+            }
+        }
+        
+        /* Loading state */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 255, 255, 0.3);
+            border-top-color: #00ffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <div id="info" class="collapsed">
-        <div class="panel-top">
-        <div class="panel-top-content">
-        <div class="panel-header">
-            <div style="display: flex; align-items: baseline; gap: 8px;">
-                <h3 style="margin: 0;">⚡ Neuro Graph</h3>
-                <span id="neurograph-version" class="client-version">v1.0.0</span>
-            </div>
-            <p class="tagline">Memories. Alive. Connected.</p>
-        </div>
-        <div class="filter-section brain-switcher" role="region" aria-label="Switch brain">
-            <span class="brain-switcher-label">Brain:</span>
-            <div class="brain-switcher-buttons">
-                <button type="button" class="brain-btn" data-brain="JARVIS/RAW/memories" aria-pressed="true">JARVIS</button>
-                <button type="button" class="brain-btn" data-brain="RAW/memories" aria-pressed="false">User</button>
-            </div>
-        </div>
-        <p class="panel-status" id="status">—</p>
-        <p class="panel-meta panel-meta-hidden" aria-hidden="true">
-            <span class="stat" id="count">0</span> <span class="stat" id="synapseCount">0</span>
-        </p>
-        <div class="filter-section">
-            <button type="button" class="collapsible-trigger" id="filters-toggle" aria-expanded="true" aria-controls="filters-body" data-accordion-body="filters-body">
-                <span>Filters</span>
-                <span id="filters-chevron">▲</span>
-            </button>
-            <div id="filters-body" class="collapsible-body accordion-body accordion-body-filters open" role="region" aria-label="Filters">
-                <div id="filter-row-category" class="filter-row" role="group" aria-label="Filter by neuron type">
-                    <!-- Populated by JS from available types in current time frame -->
+    <div class="dual-container">
+        <!-- Left Panel: JARVIS Graph -->
+        <div class="graph-panel jarvis" id="jarvis-panel">
+            <canvas id="jarvis-canvas"></canvas>
+            <div class="graph-label">🧠 JARVIS Memory Graph</div>
+            
+            <div class="info-panel collapsed" id="jarvis-info">
+                <h3>⚡ JARVIS Neuro Graph</h3>
+                <p class="tagline" style="font-size: 10px; color: #94a3b8;">Technical learnings, foundations, capabilities</p>
+                
+                <div class="filter-section">
+                    <button type="button" class="collapsible-trigger" id="jarvis-filters-toggle" aria-expanded="false">
+                        <span>Filters</span>
+                        <span id="jarvis-filters-chevron">▲</span>
+                    </button>
+                    <div id="jarvis-filters-body" class="collapsible-body closed">
+                        <div class="filter-row" id="jarvis-filter-types">
+                            <!-- Populated by JS -->
+                        </div>
+                        <div class="filter-row" style="margin-top: 6px;">
+                            <button class="filter-btn active" data-range="today">Today</button>
+                            <button class="filter-btn" data-range="week">This Week</button>
+                            <button class="filter-btn" data-range="month">This Month</button>
+                            <button class="filter-btn" data-range="all">All Time</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filter-section" style="margin-top: 8px;">
+                    <input type="search" class="search-input" id="jarvis-search" placeholder="Search JARVIS nodes...">
+                    <div class="stats-row">
+                        <span class="stat-item">Nodes: <span class="stat-value" id="jarvis-node-count">0</span></span>
+                        <span class="stat-item">Synapses: <span class="stat-value" id="jarvis-synapse-count">0</span></span>
+                    </div>
+                </div>
+                
+                <div class="panel-buttons" style="margin-top: 8px;">
+                    <button class="filter-btn" onclick="jarvisGraph.clearSelection()">✕ Clear</button>
+                    <button class="filter-btn" onclick="jarvisGraph.randomPulse()">⚡ Pulse</button>
                 </div>
             </div>
-        </div>
-        <div class="filter-section">
-            <button type="button" class="filter-toggle collapsible-trigger" id="filter-toggle" aria-expanded="true" aria-controls="filter-list-wrap" data-accordion-body="filter-list-wrap">
-                <span>Jump to node</span>
-                <span id="filter-chevron">▲</span>
-            </button>
-            <div id="filter-list-wrap" class="accordion-body accordion-body-jump open" role="region" aria-label="Jump to node">
-                <div class="filter-row filter-row-search" role="search">
-                    <input type="search" id="node-search-input" placeholder="Search nodes…" aria-label="Filter nodes by name" autocomplete="off">
-                </div>
-                <div id="filter-list" class="filter-list" role="list" aria-label="Node list by category"></div>
+            
+            <button type="button" class="panel-toggle" id="jarvis-toggle" aria-label="Toggle panel">›</button>
+            <div class="loading-overlay" id="jarvis-loading">
+                <div class="loading-spinner"></div>
             </div>
         </div>
-        </div>
-        <div class="filter-section">
-            <button type="button" class="collapsible-trigger" id="actions-toggle" aria-expanded="false" aria-controls="actions-body" data-accordion-body="actions-body">
-                <span>Actions</span>
-                <span id="actions-chevron">▼</span>
-            </button>
-            <div id="actions-body" class="collapsible-body accordion-body accordion-body-actions" role="region" aria-label="Actions">
-                <div class="panel-buttons">
-                    <button class="primary" id="share-memory-btn" type="button">⎘ Share</button>
-                    <button class="primary" onclick="walk()">⚡ Random Pulse</button>
-                    <button class="primary" onclick="clearSelection()">✕ Clear</button>
+        
+        <!-- Right Panel: User Graph -->
+        <div class="graph-panel user" id="user-panel">
+            <canvas id="user-canvas"></canvas>
+            <div class="graph-label">👤 User Life Graph</div>
+            
+            <div class="info-panel collapsed" id="user-info">
+                <h3>🌟 User Neuro Graph</h3>
+                <p class="tagline" style="font-size: 10px; color: #94a3b8;">Life, relationships, context, experiences</p>
+                
+                <div class="filter-section">
+                    <button type="button" class="collapsible-trigger" id="user-filters-toggle" aria-expanded="false">
+                        <span>Filters</span>
+                        <span id="user-filters-chevron">▲</span>
+                    </button>
+                    <div id="user-filters-body" class="collapsible-body closed">
+                        <div class="filter-row" id="user-filter-types">
+                            <!-- Populated by JS -->
+                        </div>
+                        <div class="filter-row" style="margin-top: 6px;">
+                            <button class="filter-btn active" data-range="today">Today</button>
+                            <button class="filter-btn" data-range="week">This Week</button>
+                            <button class="filter-btn" data-range="month">This Month</button>
+                            <button class="filter-btn" data-range="all">All Time</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="filter-section" style="margin-top: 8px;">
+                    <input type="search" class="search-input" id="user-search" placeholder="Search user nodes...">
+                    <div class="stats-row">
+                        <span class="stat-item">Nodes: <span class="stat-value" id="user-node-count">0</span></span>
+                        <span class="stat-item">Synapses: <span class="stat-value" id="user-synapse-count">0</span></span>
+                    </div>
+                </div>
+                
+                <div class="panel-buttons" style="margin-top: 8px;">
+                    <button class="filter-btn" onclick="userGraph.clearSelection()">✕ Clear</button>
+                    <button class="filter-btn" onclick="userGraph.randomPulse()">⚡ Pulse</button>
                 </div>
             </div>
-        </div>
+            
+            <button type="button" class="panel-toggle" id="user-toggle" aria-label="Toggle panel">›</button>
+            <div class="loading-overlay" id="user-loading">
+                <div class="loading-spinner"></div>
+            </div>
         </div>
     </div>
-    <canvas id="canvas"></canvas>
-    <button type="button" id="panel-toggle" aria-label="Expand panel">‹</button>
     
-    <div id="neural-graph-drawer-mount"></div>
-    <script src="./shared/neural-graph-drawer.js"></script>
-
-    <div id="share-modal-overlay" class="share-modal-overlay" aria-hidden="true">
+    <!-- Sync Bar (centered at bottom) -->
+    <div class="sync-bar">
+        <button class="sync-btn" id="sync-breathe-btn">🫁 Breathe Now</button>
+        <button class="filter-btn" id="sync-zoom-in">🔍 +</button>
+        <button class="filter-btn" id="sync-zoom-out">🔍 −</button>
+    </div>
+    
+    <!-- Share Modal (reused from single view) -->
+    <div id="share-modal-overlay" class="share-modal-overlay" aria-hidden="true" style="display: none;">
         <div class="share-modal" role="dialog" aria-labelledby="share-modal-title">
-            <h3 id="share-modal-title">Share — Jarvis Neural Mind</h3>
+            <h3 id="share-modal-title">Share Neuro Graph</h3>
             <div class="share-preview" id="share-preview"></div>
             <div class="share-actions">
                 <button type="button" class="btn-copy" id="share-modal-copy">Copy</button>
@@ -103,87 +419,18 @@
             </div>
         </div>
     </div>
-
+    
+    <!-- Scripts -->
+    <script src="./shared/GraphViewer.js"></script>
+    <script src="./shared/dual-neuro-graph-v2.js"></script>
+    
     <script>
-    (function() {
-        var BRAIN_KEY = 'neuroGraphBrain';
-        var defaultBrain = 'JARVIS/RAW/memories';
-        var allowedBrains = ['JARVIS/RAW/memories', 'RAW/memories'];
-        var storedBrain = (typeof localStorage !== 'undefined' && localStorage.getItem(BRAIN_KEY)) || '';
-        var currentBrain = (allowedBrains.indexOf(storedBrain) >= 0) ? storedBrain : defaultBrain;
-        window.NEURAL_GRAPH_CONFIG = {
-            dataBasePath: currentBrain,
-            brains: [
-                { id: 'jarvis', label: 'JARVIS', path: 'JARVIS/RAW/memories' },
-                { id: 'user', label: 'User', path: 'RAW/memories' }
-            ],
-            categoryColors: { self: '#fbbf24', foundation: '#06b6d4', value: '#a78bfa', capability: '#38bdf8', person: '#f87171', project: '#10b981', infrastructure: '#8b5cf6', temporal: '#f59e0b', emotion: '#06b6d4', archive: '#a78bfa' },
-            archiveSubtypeColors: { image: '#c084fc', audio: '#34d399', video: '#f472b6', document: '#94a3b8', default: '#a78bfa' },
-            filterCategoryOrder: ['temporal', 'learning', 'archive', 'file', 'self', 'foundation', 'value', 'capability', 'project', 'infrastructure', 'person'],
-            filterCategoryLabels: { temporal: 'Temporal', learning: 'Learnings', archive: 'Archive', file: 'File', self: 'Self', foundation: 'Foundation', value: 'Values', capability: 'Capabilities', project: 'Projects', infrastructure: 'Infrastructure', person: 'People' },
-            fallbackNodes: [
-                { id: 0, name: 'Paul', type: 'person', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 10, color: '#FF6B6B', glow: 22, freq: 100, desc: 'Urban Runner, digital nomad' },
-                { id: 1, name: 'Volleyball', type: 'activity', x: 80, y: -60, z: 40, vx: 0, vy: 0, vz: 0, size: 9, color: '#00ffff', glow: 20, freq: 50, desc: '18 years of competition, flow state' },
-                { id: 2, name: 'Bangkok', type: 'location', x: -70, y: 50, z: -50, vx: 0, vy: 0, vz: 0, size: 8, color: '#00ff88', glow: 18, freq: 40, desc: 'Primary base, Urban Runner epicenter' }
-            ],
-            fallbackEdges: [ { from: 0, to: 1, weight: 8 }, { from: 0, to: 2, weight: 7 }, { from: 1, to: 2, weight: 6 } ],
-            shareTitle: "Neuro Graph — Neural Mind",
-            shareShortBoot: "Interactive neural graph. JARVIS and Paul memories. Part of SCI-FI neuro-graph.",
-            shareVerifyUrlDefault: 'paulvisciano.github.io/claw/memory/BOOT.md',
-            shareHeading: "Neuro Graph",
-            shareLoadMemoryLabel: "Load memory at the start of a new session",
-            liveUrl: window.location.href,
-            characterProfilesUrl: '',
-            getFullContextFetchUrl: function(path) { return path; },
-            rawCommitBase: '',
-            rawOrigin: ''
-        };
-        document.addEventListener('DOMContentLoaded', function() {
-            var buttons = document.querySelectorAll('.brain-btn');
-            function setActiveBrain(path) {
-                currentBrain = path;
-                window.NEURAL_GRAPH_CONFIG.dataBasePath = path;
-                buttons.forEach(function(btn) {
-                    var isActive = btn.getAttribute('data-brain') === path;
-                    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-                    btn.classList.toggle('active', isActive);
-                });
-            }
-            setActiveBrain(currentBrain);
-            buttons.forEach(function(btn) {
-                btn.addEventListener('click', async function() {
-                    var path = this.getAttribute('data-brain');
-                    if (!path || path === currentBrain) return;
-                    try { localStorage.setItem(BRAIN_KEY, path); } catch (_) {}
-                    setActiveBrain(path);
-                    try {
-                        if (window.reloadLatestMemory) {
-                            await window.reloadLatestMemory();
-                        } else if (window.loadMemory) {
-                            await window.loadMemory('latest');
-                        }
-                    } catch (err) {
-                        console.error('Brain switch failed:', err);
-                    }
-                });
-            });
+        // Initialize dual graphs on DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Dual-index.html loaded');
         });
-    })();
     </script>
-    <script src="./shared/neural-graph.js?v=2026-03-23-brain-data-switch"></script>
-    <script>
-        // Drawer stats (date, count, hash) are updated by neural-graph.js from graph data and memory-version dataset.
-        // Update version display dynamically from NEUROGRAPH_VERSION constant
-        if (window.NEURAL_GRAPH_CONFIG && window.NEURAL_GRAPH_CONFIG.NEUROGRAPH_VERSION) {
-            document.getElementById('neurograph-version').textContent = window.NEURAL_GRAPH_CONFIG.NEUROGRAPH_VERSION;
-        }
-    </script>
-    <!-- Deployment verification: 2026-02-22 15:31:58 UTC -->
-    <!-- Memory version updated dynamically by neural-graph.js from git commit -->
-    <div id="memory-version" style="position: fixed; bottom: 10px; left: 10px; font-size: 8px; color: #00ff00; opacity: 0.3; pointer-events: none; z-index: 1;"
-         data-commit-hash=""
-         data-commit-date="">
-        <span id="memory-version-text">Loading...</span>
-    </div>
 </body>
+</html>
+>
 </html>
