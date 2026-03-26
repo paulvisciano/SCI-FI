@@ -723,6 +723,26 @@ function handleRequest(req, res) {
         return;
     }
 
+    // System vitals endpoint - returns OpenClaw Gateway, Ollama, and system stats
+    if (req.url === '/api/vitals') {
+        // Use IIFE to handle async properly
+        (async () => {
+            try {
+                const vitals = await getSystemVitals();
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(vitals));
+            } catch (err) {
+                console.error('Vitals endpoint error:', err.message);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ 
+                    error: 'Failed to fetch vitals', 
+                    details: err.message 
+                }));
+            }
+        })();
+        return;
+    }
+
     // Process inbox endpoint (auto-triggered after recording)
     if (req.method === 'POST' && req.url === '/api/process-inbox') {
         console.log('🔄 Processing inbox...');
@@ -1198,6 +1218,91 @@ function archiveRecording(filepath, extension, transcript) {
         return null;
     }
     return responsePath;
+}
+
+// === SYSTEM VITALS CACHING ===
+let vitalsCache = { data: null, timestamp: 0 };
+const VITALS_CACHE_TTL = 30000; // 30 seconds
+
+async function getSystemVitals() {
+    const now = Date.now();
+    if (vitalsCache.data && (now - vitalsCache.timestamp < VITALS_CACHE_TTL)) {
+        return vitalsCache.data;
+    }
+    
+    const data = {
+        openclawGateway: { status: 'Unknown', pid: null, memoryMB: null, uptime: null },
+        ollama: { status: 'Unknown', models: 0, modelList: [] },
+        system: { cpu: { usagePercent: null }, memory: { totalGB: null, usedGB: null, usedPercent: null }, disk: { total: null, used: null, usedPercent: null } }
+    };
+    
+    // Check OpenClaw Gateway process
+    try {
+        const psOutput = execSync('ps aux | grep "openclaw gateway" | grep -v grep | head -1', { encoding: 'utf8' }).trim();
+        if (psOutput) {
+            const fields = psOutput.split(/\s+/);
+            const pid = parseInt(fields[1]);
+            const rssKB = parseInt(fields[5]);
+            const startTime = fields[9];
+            
+            data.openclawGateway = {
+                status: 'Running',
+                pid: pid,
+                memoryMB: Math.round(rssKB / 1024),
+                uptime: Date.now() - (new Date().setTime(new Date().getTime() - ( Date.now() / 1000 - startTime )) * 1000)
+            };
+        }
+    } catch (err) {
+        // Leave as Unknown
+    }
+    
+    // Check Ollama connection
+    try {
+        const ollamaOutput = execSync('curl -s http://localhost:11434', { timeout: 5000, encoding: 'utf8' });
+        if (ollamaOutput.includes('Ollama Server is running')) {
+            data.ollama.status = 'Connected';
+            
+            // Get model list
+            const modelsOutput = execSync('curl -s http://localhost:11434/api/tags', { timeout: 5000, encoding: 'utf8' });
+            const modelsData = JSON.parse(modelsOutput);
+            if (modelsData.models && modelsData.models.length > 0) {
+                data.ollama.models = modelsData.models.length;
+                data.ollama.modelList = modelsData.models;
+            }
+        }
+    } catch (err) {
+        // Leave as Unknown
+    }
+    
+    // Get system stats
+    try {
+        // Memory - use node.js built-in
+        const memUsage = process.memoryUsage();
+        const totalMem = 16384 * 1024; // Approx 16GB in KB
+        const heapUsed = memUsage.heapUsed;
+        data.system.memory.usedGB = (heapUsed / 1024 / 1024 / 1024).toFixed(2);
+        data.system.memory.totalGB = (totalMem / 1024 / 1024 / 1024).toFixed(2);
+        data.system.memory.usedPercent = Math.round((heapUsed / totalMem) * 100);
+    } catch (err) {
+        // Leave as null
+    }
+    
+    // Disk usage - parse df output
+    try {
+        const dfOutput = execSync('df -h /', { encoding: 'utf8' }).trim();
+        const lines = dfOutput.split('\n');
+        if (lines.length >= 2) {
+            const parts = lines[1].split(/\s+/);
+            data.system.disk.total = parts[1];
+            data.system.disk.used = parts[2];
+            data.system.disk.usedPercent = parseInt(parts[4].replace('%', '')) || null;
+        }
+    } catch (err) {
+        // Leave as null
+    }
+    
+    vitalsCache = { data, timestamp: now };
+    return data;
 }
 
 // === Start Server ===

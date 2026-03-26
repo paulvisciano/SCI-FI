@@ -830,19 +830,19 @@ if (document.readyState === 'loading') {
 
   // System Vitals auto-refresh (every 30 seconds)
   async function refreshVitals() {
-    try {
-      // Get elements (declare at top of function for try/catch access)
-      const gatewayStatusEl = document.getElementById('vital-gateway-status');
-      const gatewayPidEl = document.getElementById('vital-gateway-pid');
-      const gatewayMemEl = document.getElementById('vital-gateway-mem');
-      const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
-      const sysMemEl = document.getElementById('vital-system-mem');
-      const sysCpuEl = document.getElementById('vital-system-cpu');
-      const vitalRefreshBtn = document.getElementById('vital-refresh-btn');
-      const vitalCloseBtn = document.getElementById('vitals-close');
-      const vitalsOverlay = document.getElementById('vitals-overlay');
-            
-      const response = await fetch(`${API_BASE}/api/vitals`);
+  // Get elements (declare at top of function for try/catch access)
+  const gatewayStatusEl = document.getElementById('vital-gateway-status');
+  const gatewayPidEl = document.getElementById('vital-gateway-pid');
+  const gatewayMemEl = document.getElementById('vital-gateway-mem');
+  const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
+  const sysMemEl = document.getElementById('vital-system-mem');
+  const sysCpuEl = document.getElementById('vital-system-cpu');
+  const vitalRefreshBtn = document.getElementById('vital-refresh-btn');
+  const vitalCloseBtn = document.getElementById('vitals-close');
+  const vitalsOverlay = document.getElementById('vitals-overlay');
+  
+  try {
+    const response = await fetch(`${API_BASE}/api/vitals`);
       console.log('Vitals API response:', response.status, response.ok);
       if (!response.ok) {throw new Error(`Vitals API error: ${response.status}`);}
       const vitals = await response.json();
