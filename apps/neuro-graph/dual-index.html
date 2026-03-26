@@ -386,7 +386,7 @@
         /* Hide everything except header when collapsed */
         .info-panel.collapsed .search-bar,
         .info-panel.collapsed .panel-controls,
-        .info-panel.collapsed .filter-section {
+        .info-panel.collapsed .panel-controls {
             display: none !important;
         }
         
@@ -424,8 +424,50 @@
             border-radius: 6px;
         }
         
-        /* Toggle button */
-        .panel-toggle {
+        /* Top search container - always visible, outside panels */
+        .top-search-container {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            max-width: 90%;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            z-index: 150;
+            backdrop-filter: blur(10px);
+        }
+        
+        .top-search-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 4px;
+            color: white;
+            font-size: 13px;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #00ffff;
+        }
+        
+        .search-input::placeholder {
+            color: #64748b;
+        }
+        
+        /* Filters toggle */
+        .filters-toggle {
             position: absolute;
             top: 10px;
             right: 10px;
@@ -507,6 +549,29 @@
     </style>
 </head>
 <body>
+    <!-- Top-level search bar (ALWAYS visible, even when panels are collapsed) -->
+    <div class="top-search-container">
+        <div class="top-search-row">
+            <input type="search" class="search-input" id="global-search" placeholder="🔍 Search nodes...">
+            <button class="filters-toggle" id="global-filters-toggle">
+                <span>Filters</span>
+                <span id="global-filters-chevron">▼</span>
+            </button>
+        </div>
+        <!-- Filters dropdown panel -->
+        <div class="filters-body" id="global-filters-body">
+            <div class="filter-row" id="global-filter-types">
+                <!-- Populated by JS -->
+            </div>
+            <div class="filter-row date-filters">
+                <button class="filter-btn active" data-range="today">Today</button>
+                <button class="filter-btn" data-range="week">Week</button>
+                <button class="filter-btn" data-range="month">Month</button>
+                <button class="filter-btn" data-range="all">All</button>
+            </div>
+        </div>
+    </div>
+    
     <div class="dual-container">
         <!-- Left Panel: JARVIS Graph -->
         <div class="graph-panel jarvis" id="jarvis-panel">
@@ -517,27 +582,7 @@
                 <h3>⚡ JARVIS Neuro Graph</h3>
                 <p class="tagline" style="font-size: 10px; color: #94a3b8;">Technical learnings, foundations, capabilities</p>
                 
-                <!-- Search bar inside panel -->
-                <div class="search-bar">
-                    <input type="search" class="search-input" id="jarvis-search" placeholder="Search JARVIS nodes...">
-                    <button class="filters-toggle" id="jarvis-filters-toggle">
-                        <span>Filters</span>
-                        <span id="jarvis-filters-chevron">▼</span>
-                    </button>
-                    <div id="jarvis-filters-body" class="filters-body open">
-                        <div class="filter-row" id="jarvis-filter-types">
-                            <!-- Populated by JS -->
-                        </div>
-                        <div class="filter-row date-filters">
-                            <button class="filter-btn active" data-range="today">Today</button>
-                            <button class="filter-btn" data-range="week">Week</button>
-                            <button class="filter-btn" data-range="month">Month</button>
-                            <button class="filter-btn" data-range="all">All</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Stats and controls below search -->
+                <!-- Stats and controls -->
                 <div class="panel-controls">
                     <div class="stats-row">
                         <span class="stat-item">Nodes: <span class="stat-value" id="jarvis-node-count">0</span></span>
@@ -565,30 +610,7 @@
                 <h3>🌟 User Neuro Graph</h3>
                 <p class="tagline" style="font-size: 10px; color: #94a3b8;">Life, relationships, context, experiences</p>
                 
-                <!-- Search bar - always visible when panel expanded -->
-                <div class="search-bar">
-                    <input type="search" class="search-input" id="user-search" placeholder="Search user nodes...">
-                    
-                    <!-- Filters dropdown - collapsible within search area -->
-                    <div class="filters-toggle" id="user-filters-toggle">
-                        <span>Filters</span>
-                        <span id="user-filters-chevron">▼</span>
-                    </div>
-                    
-                    <div id="user-filters-body" class="filters-body open">
-                        <div class="filter-row" id="user-filter-types">
-                            <!-- Populated by JS -->
-                        </div>
-                        <div class="filter-row date-filters">
-                            <button class="filter-btn active" data-range="today">Today</button>
-                            <button class="filter-btn" data-range="week">Week</button>
-                            <button class="filter-btn" data-range="month">Month</button>
-                            <button class="filter-btn" data-range="all">All</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Stats and controls - below search -->
+                <!-- Stats and controls -->
                 <div class="panel-controls">
                     <div class="stats-row">
                         <span class="stat-item">Nodes: <span class="stat-value" id="user-node-count">0</span></span>
