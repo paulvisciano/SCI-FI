@@ -70,8 +70,14 @@
         // Expand panels by default so search is visible
         const jarvisInfo = document.getElementById('jarvis-info');
         const userInfo = document.getElementById('user-info');
-        if (jarvisInfo) jarvisInfo.classList.remove('collapsed');
-        if (userInfo) userInfo.classList.remove('collapsed');
+        if (jarvisInfo) {
+            jarvisInfo.classList.remove('collapsed');
+            jarvisInfo.style.maxHeight = '500px';
+        }
+        if (userInfo) {
+            userInfo.classList.remove('collapsed');
+            userInfo.style.maxHeight = '500px';
+        }
         
         // Setup interactions
         jarvisGraph.setupInteractions();
