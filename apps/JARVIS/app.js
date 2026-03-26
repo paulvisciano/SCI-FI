@@ -501,9 +501,15 @@ document.addEventListener('keydown', async (e) => {
 });
 
 function checkServerStatus() {
+    console.log('[checkServerStatus] Starting...');
+    const indicator = document.getElementById('server-indicator');
+    const statusText = document.getElementById('server-status-text');
+    console.log('[checkServerStatus] Elements:', { indicator: !!indicator, statusText: !!statusText });
+    
     fetch(`${API_BASE}/health`)
         .then(res => res.json())
         .then(data => {
+            console.log('[checkServerStatus] Health response:', data);
             const indicator = document.getElementById('server-indicator');
             const statusText = document.getElementById('server-status-text');
             
@@ -528,6 +534,8 @@ function checkServerStatus() {
                 // Client version inline next to J.A.R.V.I.S title (top right)
                 document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
                 statusText.style.color = '#00ffff';
+            
+            console.log('[checkServerStatus] Status text updated:', statusText.textContent);
                 
                 // Restore faded state after updating text (polling doesn't break fade)
                 if (wasFaded && statusEl) {
@@ -548,7 +556,8 @@ function checkServerStatus() {
                 statusText.style.color = '#ff4444';
             }
         })
-        .catch(() => {
+        .catch((err) => {
+            console.error('[checkServerStatus] Error:', err);
             const indicator = document.getElementById('server-indicator');
             const statusText = document.getElementById('server-status-text');
             indicator.style.background = '#ff4444';
@@ -569,6 +578,7 @@ function updateOrbVersion() {
 updateOrbVersion();
 
 // Server status check interval with cleanup on page unload
+console.log('[UI] Starting server status interval...');
 const serverStatusInterval = setInterval(checkServerStatus, 5000);
 window.addEventListener('beforeunload', () => {
     clearInterval(serverStatusInterval);
