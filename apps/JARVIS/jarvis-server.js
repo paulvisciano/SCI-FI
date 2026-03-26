@@ -9,7 +9,7 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { exec, execSync } = require('child_process');
+const { exec, execFile, execSync } = require('child_process');
 const QRCode = require('qrcode');
 const deviceRegistry = require('./device-registry');
 
@@ -32,6 +32,22 @@ function formatDateForFilename(date = new Date()) {
 
 function formatDateForArchive(date = new Date()) {
     return date.toISOString().split('T')[0];
+}
+
+// === SECURITY CONSTANTS ===
+const MAX_MESSAGE_LENGTH = 5000;
+const MAX_FILE_SIZE = 52428800; // 50MB in bytes
+const AGENT_TIMEOUT = 15000; // 15 seconds
+
+// === SECURITY VALIDATION ===
+function isValidInput(input) {
+    if (typeof input !== 'string') return false;
+    if (input.length > MAX_MESSAGE_LENGTH) return false;
+    // Reject dangerous characters: ; | & $() \n \r
+    if (/[;|&$\n\r]/.test(input)) return false;
+    // Reject backticks and command substitution patterns
+    if (/[`$]/.test(input)) return false;
+    return true;
 }
 
 const CONFIG = {
@@ -122,12 +138,57 @@ function getDeviceType(mac, ip, isGateway) {
 
 function getNetworkInfo(callback) {
   // Use full paths for macOS commands
-  exec('/usr/sbin/ipconfig getpacket en0', { timeout: 5000 }, (err1, ipconfigOut) => {
-    if (err1) return callback(err1);
-    
-    exec('/usr/sbin/arp -a', { timeout: 5000 }, (err2, arpOut) => {
-      if (err2) return callback(err2);
-      
+  const ipconfigProcess = spawn('/usr/sbin/ipconfig', ['getpacket', 'en0'], { encoding: 'utf8' });
+  let ipconfigOut = '';
+  let ipconfigDone = false;
+  let arpDone = false;
+  
+  ipconfigProcess.stdout.on('data', (data) => {
+    ipconfigOut += data;
+  });
+  
+  ipconfigProcess.stderr.on('data', (data) => {
+    console.error(`ipconfig stderr: ${data}`);
+  });
+  
+  ipconfigProcess.on('error', (err) => {
+    return callback(err);
+  });
+  
+  ipconfigProcess.on('close', (code) => {
+    if (code !== 0) {
+      return callback(new Error(`ipconfig failed with code ${code}`));
+    }
+    ipconfigDone = true;
+    if (arpDone) finishGetNetworkInfo(callback, ipconfigOut, arpOut);
+  });
+  
+  // Use full paths for macOS commands
+  const arpProcess = spawn('/usr/sbin/arp', ['-a'], { encoding: 'utf8' });
+  let arpOut = '';
+  
+  arpProcess.stdout.on('data', (data) => {
+    arpOut += data;
+  });
+  
+  arpProcess.stderr.on('data', (data) => {
+    console.error(`arp stderr: ${data}`);
+  });
+  
+  arpProcess.on('error', (err) => {
+    return callback(err);
+  });
+  
+  arpProcess.on('close', (code) => {
+    if (code !== 0) {
+      return callback(new Error(`arp failed with code ${code}`));
+    }
+    arpDone = true;
+    if (ipconfigDone) finishGetNetworkInfo(callback, ipconfigOut, arpOut);
+  });
+}
+
+function finishGetNetworkInfo(callback, ipconfigOut, arpOut) {
       const info = { ip: null, netmask: null, gateway: null, devices: [] };
       
       // Parse ipconfig for IP and gateway
@@ -171,9 +232,7 @@ function getNetworkInfo(callback) {
       });
       
       callback(null, info);
-    });
-  });
-}
+    }
 
 // === Parse multipart form data ===
 function parseMultipart(buffer, contentType) {
@@ -341,8 +400,46 @@ function handleRequest(req, res) {
     }
 
     if (req.method === 'POST' && req.url === '/upload') {
+        // Rate limiting: simple per-IP counter
+        const clientIp = req.socket.remoteAddress || 'unknown';
+        const now = Date.now();
+        const RATE_LIMIT_WINDOW = 60000; // 1 minute
+        const RATE_LIMIT_MAX = 10; // max 10 uploads per minute per IP
+        
+        if (!global.rateLimitCounts) global.rateLimitCounts = {};
+        if (!global.rateLimitCounts[clientIp]) {
+            global.rateLimitCounts[clientIp] = { count: 0, windowStart: now };
+        }
+        
+        const clientData = global.rateLimitCounts[clientIp];
+        if (now - clientData.windowStart > RATE_LIMIT_WINDOW) {
+            clientData.count = 0;
+            clientData.windowStart = now;
+        }
+        
+        if (clientData.count >= RATE_LIMIT_MAX) {
+            res.writeHead(429, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: false, error: 'Rate limit exceeded. Max 10 uploads per minute.' }));
+            return;
+        }
+        
+        clientData.count++;
+        
+        // File size limit: 50MB max
+        const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+        let totalSize = 0;
+        
         const chunks = [];
-        req.on('data', chunk => chunks.push(chunk));
+        req.on('data', chunk => {
+            totalSize += chunk.length;
+            if (totalSize > MAX_FILE_SIZE) {
+                res.writeHead(413, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, error: 'File too large. Max 50MB allowed.' }));
+                req.destroy();
+                return;
+            }
+            chunks.push(chunk);
+        });
         req.on('end', () => {
             const buffer = Buffer.concat(chunks);
             const contentType = req.headers['content-type'];
@@ -623,7 +720,8 @@ function handleRequest(req, res) {
             const agentStart = Date.now();
             console.log(`[${timestamp}] ⏱️ Agent START`);
             
-            exec(`openclaw agent --agent jarvis --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' },
+            // Security fix: Use execFile instead of exec to prevent command injection
+            execFile('openclaw', ['agent', '--agent', 'jarvis', '--message', userMessage], { encoding: 'utf8', timeout: 120000 },
                 (agentErr, agentOutput) => {
                     const agentDuration = Date.now() - agentStart;
                     const agentTimestamp = new Date().toISOString();
@@ -646,7 +744,8 @@ function handleRequest(req, res) {
                     
                     // Post to Jarvis agent session (OpenClaw)
                     try {
-                        exec(`openclaw sessions send --sessionKey "agent:jarvis:main" --message "${responseText.replace(/"/g, '\\"')}"`, { encoding: 'utf8' },
+                        // Security fix: Use execFile instead of exec to prevent command injection
+                        execFile('openclaw', ['sessions', 'send', '--sessionKey', 'agent:jarvis:main', '--message', responseText], { encoding: 'utf8', timeout: 120000 },
                             (sessionErr) => {
                                 if (sessionErr) {
                                     console.error(`[${agentTimestamp}] ⚠️ Session send failed:`, sessionErr.message);
@@ -920,7 +1019,8 @@ function processRecording(filepath, extension) {
     if (extension === '.webm') {
         const wavPath = filepath.replace('.webm', '.wav');
         const ffmpegPath = process.env.FMPEG_PATH || 'ffmpeg'; // Configurable via env var
-        exec(`${ffmpegPath} -i "${filepath}" -ar 16000 -ac 1 "${wavPath}" -y 2>&1`, 
+        // Security fix: Use execFile instead of exec to prevent command injection
+        execFile(ffmpegPath, ['-i', filepath, '-ar', '16000', '-ac', '1', wavPath, '-y'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
             (convError, stdout, stderr) => {
                 if (convError) {
                     const errMsg = '❌ FFmpeg conversion failed: ' + convError.message;
@@ -946,7 +1046,8 @@ function processRecording(filepath, extension) {
 
 function transcribeWithWhisper(audioPath, modelPath, extension) {
     const timestamp = new Date().toISOString();
-    exec(`${CONFIG.whisperCli} -m "${modelPath}" -otxt "${audioPath}" 2>&1`, 
+    // Security fix: Use execFile instead of exec to prevent command injection
+    execFile(CONFIG.whisperCli, ['-m', modelPath, '-otxt', audioPath], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
         (error, stdout, stderr) => {
             const txtFile = audioPath + '.txt';
             
@@ -989,7 +1090,8 @@ function handleTranscript(filepath, transcript, extension) {
     const agentStart = Date.now();
     console.log(`[${new Date().toISOString()}] ⏱️ Agent START (handleTranscript)`);
     
-    exec(`openclaw agent --agent jarvis --message "${userMessage.replace(/"/g, '\\"')}" 2>&1`, { encoding: 'utf8' },
+    // Security fix: Use execFile instead of exec to prevent command injection
+    execFile('openclaw', ['agent', '--agent', 'jarvis', '--message', userMessage], { encoding: 'utf8', timeout: 120000 },
         (agentErr, agentOutput) => {
             const agentDuration = Date.now() - agentStart;
             const agentTimestamp = new Date().toISOString();
@@ -1129,6 +1231,42 @@ function archiveLeftovers() {
     });
     console.log('✅ Leftover archive complete\n');
 }
+
+// === HELPER: Safe exec with timeout ===
+function safeExecWithTimeout(command, args, options = {}, timeoutMs, callback) {
+    const child = spawn(command, args, { ...options, encoding: 'utf8' });
+    
+    let timeoutId;
+    let exited = false;
+    
+    const cleanup = (code, signal) => {
+        if (exited) return;
+        exited = true;
+        clearTimeout(timeoutId);
+        if (callback) callback(code, signal);
+    };
+    
+    child.on('exit', cleanup);
+    child.on('error', (err) => {
+        if (!exited) {
+            exited = true;
+            clearTimeout(timeoutId);
+            if (callback) callback(err.code, err.signal);
+        }
+    });
+    
+    timeoutId = setTimeout(() => {
+        if (!exited) {
+            exited = true;
+            console.warn(`⚠️ Process timeout (${timeoutMs}ms): ${command}`);
+            child.kill('SIGKILL');
+            if (callback) callback(null, 'timeout');
+        }
+    }, timeoutMs);
+}
+
+// === HELPER: Spawn with timeout for long-running processes ===
+const { spawn } = require('child_process');
 
 // Track active transcriptions for graceful shutdown
 let activeTranscriptions = 0;
