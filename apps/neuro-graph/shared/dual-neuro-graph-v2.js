@@ -382,39 +382,37 @@
         initDualGraphs();
     }
     
-})();
-})();
-
-// Populate global filter buttons with type counts
-function populateGlobalTypeFilters(nodes) {
-    const filterContainer = document.getElementById('global-filter-types');
-    if (!filterContainer) return;
-    
-    // Count nodes by category
-    const categoryCounts = {};
-    nodes.forEach(node => {
-        const cat = node.category || node.type || 'unknown';
-        categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
-    });
-    
-    // Create filter buttons
-    const categories = Object.keys(categoryCounts).sort();
-    categories.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.className = 'filter-btn';
-        btn.textContent = `${cat} (${categoryCounts[cat]})`;
-        btn.setAttribute('data-category', cat);
-        btn.addEventListener('click', () => {
-            // Update active state
-            document.querySelectorAll('#global-filter-types .filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // Filter both graphs by category
-            const term = btn.textContent.split(' (')[0];
-            jarvisGraph.setSearchTerm(term);
-            userGraph.setSearchTerm(term);
-            updateStats();
+    // Populate global filter buttons with type counts
+    function populateGlobalTypeFilters(nodes) {
+        const filterContainer = document.getElementById('global-filter-types');
+        if (!filterContainer) return;
+        
+        // Count nodes by category
+        const categoryCounts = {};
+        nodes.forEach(node => {
+            const cat = node.category || node.type || 'unknown';
+            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
         });
-        filterContainer.appendChild(btn);
-    });
-}
+        
+        // Create filter buttons
+        const categories = Object.keys(categoryCounts).sort();
+        categories.forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn';
+            btn.textContent = `${cat} (${categoryCounts[cat]})`;
+            btn.setAttribute('data-category', cat);
+            btn.addEventListener('click', () => {
+                // Update active state
+                document.querySelectorAll('#global-filter-types .filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Filter both graphs by category
+                const term = btn.textContent.split(' (')[0];
+                jarvisGraph.setSearchTerm(term);
+                userGraph.setSearchTerm(term);
+                updateStats();
+            });
+            filterContainer.appendChild(btn);
+        });
+    }
+})();
