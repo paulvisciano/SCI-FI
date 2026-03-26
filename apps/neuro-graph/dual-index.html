@@ -223,8 +223,11 @@
             visibility: hidden !important;
         }
         
-        /* Hide all direct children except h3 and p.tagline when collapsed */
-        .info-panel.collapsed > *:not(h3):not(.tagline) {
+        /* Hide all children except h3 and tagline when collapsed */
+        .info-panel.collapsed > .filter-section,
+        .info-panel.collapsed > .stats-row,
+        .info-panel.collapsed > .panel-buttons,
+        .info-panel.collapsed > .search-container {
             display: none !important;
         }
         
