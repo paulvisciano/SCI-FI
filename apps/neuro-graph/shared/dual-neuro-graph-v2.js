@@ -75,6 +75,12 @@
         await jarvisGraph.load();
         await userGraph.load();
         
+        // Force canvas resize after load (ensures proper sizing)
+        setTimeout(() => {
+            jarvisGraph.resizeCanvas();
+            userGraph.resizeCanvas();
+        }, 100);
+        
         // Update stats
         updateStats();
         
