@@ -1323,7 +1323,7 @@ async function getSystemVitals() {
         console.log('Memory stats error:', err.message);
     }
     
-    // CPU usage calculation - only available after second sample
+    // CPU usage calculation - first sample captures baseline, second sample returns value
     try {
         const currentCpuInfo = os.cpus().map(cpu => cpu.times);
         const totalIdle = currentCpuInfo.reduce((acc, cpu) => acc + cpu.idle, 0);
@@ -1340,6 +1340,11 @@ async function getSystemVitals() {
         if (tickDelta > 0 && idleDelta >= 0) {
             const usagePercent = Math.round(Math.max(0, (1 - idleDelta / tickDelta) * 100));
             data.system.cpu.usagePercent = usagePercent;
+            console.log('📊 CPU usage:', usagePercent + '%');
+        } else {
+            // First sample or edge case - return 0% as safe default
+            data.system.cpu.usagePercent = 0;
+            console.log('📊 CPU baseline captured (first sample)');
         }
         
         previousCpuInfo = currentCpuInfo;
@@ -1408,6 +1413,15 @@ function logStartup() {
     if (HTTPS_ENABLED) {
         console.log('🔒 HTTPS enabled (self-signed cert) — mobile mic access works');
     }
+    
+    // Initialize CPU baseline on startup so first /vitals call returns valid value
+    console.log('📊 Initializing CPU baseline...');
+    const cpuSample = os.cpus().map(cpu => cpu.times);
+    const totalIdle = cpuSample.reduce((acc, cpu) => acc + cpu.idle, 0);
+    const totalTick = cpuSample.reduce((acc, cpu) => 
+        acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
+    previousCpuInfo = cpuSample;
+    console.log('✅ CPU baseline initialized');
 }
 
 const server = HTTPS_ENABLED
