@@ -1,0 +1,20 @@
+{
+  "name": "apps",
+  "version": "1.0.0",
+  "description": "**Mission:** Make consciousness visible. Run local. Own your data. Expand human capability.",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint JARVIS/*.js neuro-graph/*.js neuro-graph/shared/*.js --cache",
+    "lint:fix": "eslint JARVIS/*.js neuro-graph/*.js neuro-graph/shared/*.js --fix --cache",
+    "check": "node --check JARVIS/app.js neuro-graph/shared/GraphViewer.js neuro-graph/shared/dual-neuro-graph-v2.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0"
+  }
+}

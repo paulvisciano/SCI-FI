@@ -432,6 +432,93 @@ function handleRequest(req, res) {
       return;
     }
 
+    // === Config API (JARVIS Config File Integration) ===
+    // JARVIS_HOME is where the .jarvis-config.json file lives
+    const JARVIS_HOME = process.env.JARVIS_HOME || process.env.HOME + '/JARVIS';
+    const CONFIG_FILE = path.join(JARVIS_HOME, '.jarvis-config.json');
+    
+    // Helper: read config from file
+    function getConfig() {
+      try {
+        const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+        return JSON.parse(data);
+      } catch (err) {
+        console.error('Config read error:', err.message);
+        return null;
+      }
+    }
+    
+    // Helper: write config to file
+    function saveConfig(config) {
+      try {
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+        return true;
+      } catch (err) {
+        console.error('Config write error:', err.message);
+        return false;
+      }
+    }
+    
+    // API: GET /api/config - Get current config
+    if (req.method === 'GET' && req.url === '/api/config') {
+      try {
+        const fullConfig = getConfig();
+        const desktopArchiving = fullConfig?.desktopArchiving || { enabled: false };
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ desktopArchiving }));
+      } catch (err) {
+        console.error('Config GET error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to get config', details: err.message }));
+      }
+      return;
+    }
+    
+    // API: POST /api/config - Update config
+    if (req.method === 'POST' && req.url === '/api/config') {
+      const chunks = [];
+      req.on('data', chunk => chunks.push(chunk));
+      req.on('end', () => {
+        try {
+          const body = Buffer.concat(chunks).toString();
+          const data = JSON.parse(body);
+          const newDesktopArchiving = data.desktopArchiving;
+          
+          if (newDesktopArchiving === undefined || newDesktopArchiving === null) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'desktopArchiving object required' }));
+            return;
+          }
+          
+          // Read existing config
+          const existingConfig = getConfig();
+          const updatedConfig = {
+            ...existingConfig,
+            desktopArchiving: newDesktopArchiving
+          };
+          
+          const success = saveConfig(updatedConfig);
+          
+          if (success) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              success: true,
+              config: { desktopArchiving: newDesktopArchiving },
+              message: `Desktop archiving ${newDesktopArchiving.enabled ? 'enabled' : 'disabled'}`
+            }));
+          } else {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: 'Failed to save config' }));
+          }
+        } catch (err) {
+          console.error('Config POST error:', err.message);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid JSON or config error', details: err.message }));
+        }
+      });
+      return;
+    }
+
     if (req.method === 'POST' && req.url === '/upload') {
         // Rate limiting: simple per-IP counter
         const clientIp = req.socket.remoteAddress || 'unknown';

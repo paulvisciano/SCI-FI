@@ -726,6 +726,142 @@
             color: #64ffda;
             font-weight: 600;
         }
+        
+        /* Settings Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background-color: #1a1a2e;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #444;
+            box-shadow: 0 0 20px rgba(0,255,255,0.2);
+        }
+
+        .modal-content h2 {
+            color: #00ffff;
+            margin-top: 0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .setting-label {
+            flex: 1;
+        }
+
+        .setting-label span {
+            display: block;
+            color: #fff;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .setting-label p {
+            color: #aaa;
+            font-size: 13px;
+            margin: 5px 0 0;
+        }
+
+        /* iOS-style Toggle */
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #444;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #22c55e;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #444;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .modal-actions button:hover {
+            transform: translateY(-1px);
+        }
+
+        .modal-actions button:first-of-type {
+            background-color: #00ffff;
+            color: #000;
+        }
+
+        .modal-actions button:last-of-type {
+            background-color: #333;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -830,9 +966,40 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Settings -->
+                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
+                    <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Settings</div>
+                    <div class="vitals-content" style="margin-top: 8px;">
+                        <button onclick="openSettingsModal()" style="background: rgba(0,255,255,0.1); border: 1px solid rgba(0,255,255,0.3); color: #00ffff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.2s;">Configure</button>
+                    </div>
+                </div>
             </div>
             <div class="vitals-footer" style="text-align: center; margin-top: 12px; font-size: 0.7em; color: #00ffff; opacity: 0.6;">
                 <span id="vitals-last-updated">Last updated: —</span> | <span style="cursor: pointer;" onclick="refreshVitals()">↺ Refresh</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <h2>Jarvis Settings</h2>
+            
+            <div class="setting-row">
+                <div class="setting-label">
+                    <span>🖥️ Desktop Archiving</span>
+                    <p class="setting-description">Archive screenshots/files from desktop during breathe pipeline</p>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="desktop-archiving-toggle" />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            
+            <div class="modal-actions">
+                <button onclick="saveSettings()">Save Changes</button>
+                <button onclick="closeSettingsModal()">Cancel</button>
             </div>
         </div>
     </div>

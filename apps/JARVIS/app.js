@@ -1011,4 +1011,106 @@ if (document.readyState === 'loading') {
   // Make refreshVitals globally accessible for onclick
   window.refreshVitals = refreshVitals;
     
+  // === Settings Modal Functions ===
+  
+  // Modal references
+  const settingsModal = document.getElementById('settings-modal');
+  const desktopArchivingToggle = document.getElementById('desktop-archiving-toggle');
+  
+  // Load settings from OpenClaw config
+  async function loadSettings() {
+    try {
+      const response = await fetch('/api/config');
+      const data = await response.json();
+      
+      if (desktopArchivingToggle) {
+        desktopArchivingToggle.checked = data.desktopArchiving?.enabled === true;
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    }
+  }
+  
+  // Save settings to OpenClaw config
+  async function saveSettings() {
+    const enabled = desktopArchivingToggle.checked;
+    
+    try {
+      const response = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          desktopArchiving: { enabled }
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Show toast notification
+        showToast(`Desktop archiving ${enabled ? 'enabled' : 'disabled'}`);
+        closeSettingsModal();
+      } else {
+        showToast('Error saving settings', 'error');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      showToast('Connection error', 'error');
+    }
+  }
+  
+  // Modal functions
+  function openSettingsModal() {
+    if (settingsModal) {
+      settingsModal.style.display = 'block';
+      loadSettings();
+    }
+  }
+  
+  function closeSettingsModal() {
+    if (settingsModal) {
+      settingsModal.style.display = 'none';
+    }
+  }
+  
+  // Close modal on outside click
+  if (settingsModal) {
+    window.onclick = function(event) {
+      if (event.target === settingsModal) {
+        closeSettingsModal();
+      }
+    };
+  }
+  
+  // Toast notification function
+  function showToast(message, type = 'success') {
+    // Create toast container if not exists
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.id = 'toast-container';
+      toastContainer.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; gap: 10px; pointer-events: none;';
+      document.body.appendChild(toastContainer);
+    }
+    
+    // Create toast
+    const toast = document.createElement('div');
+    toast.style.cssText = `background: rgba(0,0,0,0.9); border: 1px solid ${type === 'success' ? '#22c55e' : '#ef4444'}; padding: 12px 20px; border-radius: 8px; color: #fff; font-size: 0.9em; animation: fadeIn 0.3s ease; pointer-events: auto;`;
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+      }
+    }, 3000);
+  }
+  
+  // Add global functions
+  window.openSettingsModal = openSettingsModal;
+  window.closeSettingsModal = closeSettingsModal;
+  window.saveSettings = saveSettings;
+    
 })();
