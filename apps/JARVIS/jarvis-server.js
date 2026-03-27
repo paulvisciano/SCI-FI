@@ -834,6 +834,20 @@ function handleRequest(req, res) {
         return;
     }
 
+    // Breathe trigger endpoint - simulates breath cycle
+    if (req.method === 'POST' && req.url === '/api/breathe/trigger') {
+        console.log('🔄 Breathe trigger received');
+        
+        // Send SSE event or update state
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+            success: true, 
+            message: 'Breath cycle triggered', 
+            timestamp: new Date().toISOString() 
+        }));
+        return;
+    }
+
     // Process inbox endpoint (auto-triggered after recording)
     if (req.method === 'POST' && req.url === '/api/process-inbox') {
         console.log('🔄 Processing inbox...');

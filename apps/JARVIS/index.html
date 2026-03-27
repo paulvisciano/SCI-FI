@@ -113,6 +113,272 @@
             padding: 16px;
         }
 
+        /* Heartbeat Pulse Animation (60 BPM - 1 beat per second) */
+        @keyframes heartbeat {
+            0%, 100% { 
+                transform: scale(1);
+                opacity: 0.7;
+                box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+            }
+            15% { 
+                transform: scale(1.15);
+                opacity: 1;
+                box-shadow: 0 0 25px rgba(255, 68, 68, 0.8), 0 0 40px rgba(255, 68, 68, 0.5);
+            }
+            30% { 
+                transform: scale(1);
+                opacity: 0.7;
+                box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+            }
+        }
+
+        /* Irregular heartbeat */
+        @keyframes heartbeat-irregular {
+            0% { transform: scale(1); opacity: 0.7; }
+            12% { transform: scale(1.18); opacity: 1; }
+            25% { transform: scale(1); opacity: 0.7; }
+            40% { transform: scale(1.15); opacity: 1; }
+            50% { transform: scale(1); opacity: 0.7; }
+            65% { transform: scale(1.2); opacity: 1; }
+            75% { transform: scale(1); opacity: 0.7; }
+            90% { transform: scale(1.1); opacity: 1; }
+        }
+
+        /* Stopped heartbeat */
+        @keyframes heartbeat-stopped {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1); opacity: 0.1; }
+        }
+
+        /* Heartbeat Pulse Element */
+        .heartbeat-pulse {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ff4444 0%, #ff8888 100%);
+            border: 2px solid #ff4444;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .heartbeat-pulse.steady {
+            animation: heartbeat 1s ease-in-out infinite;
+        }
+
+        .heartbeat-pulse.irregular {
+            animation: heartbeat-irregular 2.5s ease-in-out infinite;
+        }
+
+        .heartbeat-pulse.stopped {
+            animation: heartbeat-stopped 2s ease-in-out infinite;
+            background: radial-gradient(circle, #ff4444 0%, #550000 100%);
+            border-color: #ff4444;
+        }
+
+        /* Breath Cycle Animation (8-second cycle: inhale→hold→exhale) */
+        @keyframes breathe-inhale {
+            0% { transform: scale(1); opacity: 0.4; }
+            30% { transform: scale(1.35); opacity: 1; }
+            40% { transform: scale(1.35); opacity: 1; }
+        }
+
+        @keyframes breathe-hold {
+            0% { transform: scale(1.35); opacity: 1; }
+            100% { transform: scale(1.35); opacity: 1; }
+        }
+
+        @keyframes breathe-exhale {
+            0% { transform: scale(1.35); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.4; }
+        }
+
+        @keyframes breathe-full {
+            0% { transform: scale(1); opacity: 0.4; }
+            25% { transform: scale(1.35); opacity: 1; }
+            35% { transform: scale(1.35); opacity: 1; }
+            75% { transform: scale(1); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 0.4; }
+        }
+
+        /* Breath Circle Element */
+        .breath-circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #00d9ff 0%, #00ff88 100%);
+            border: 2px solid #00d9ff;
+            box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .breath-circle.shallow {
+            animation: breathe-full 8s ease-in-out infinite;
+        }
+
+        .breath-circle.normal {
+            animation: breathe-full 8s ease-in-out infinite;
+        }
+
+        .breath-circle.deep {
+            animation: breathe-full 12s ease-in-out infinite;
+        }
+
+        .breath-circle.hold {
+            animation: breathe-full 16s ease-in-out infinite;
+        }
+
+        /* Breathe Visualizer (60s cycle with progress bar) */
+        .breathe-visualizer {
+            position: relative;
+            width: 100%;
+            height: 40px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .breathe-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00ffff 0%, #64ffda 50%, #00ff88 100%);
+            animation: breathe-full 60s linear infinite;
+            transition: width 1s ease;
+        }
+
+        .breathe-bar.animating {
+            animation-play-state: running;
+        }
+
+        .breathe-bar.paused {
+            animation-play-state: paused;
+        }
+
+        .breathe-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffffff;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-shadow: 0 0 10px rgba(0,255,255,0.5);
+        }
+
+        .breathe-controls {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .breathe-btn {
+            background: rgba(0,255,255,0.1);
+            border: 1px solid rgba(0,255,255,0.3);
+            border-radius: 6px;
+            color: #00ffff;
+            padding: 8px 16px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 140px;
+        }
+
+        .breathe-btn:hover {
+            background: rgba(0,255,255,0.2);
+            border-color: rgba(0,255,255,0.6);
+            box-shadow: 0 0 15px rgba(0,255,255,0.2);
+        }
+
+        .breathe-btn.active {
+            background: rgba(0,255,0,0.2);
+            border-color: rgba(0,255,0,0.6);
+            color: #00ff88;
+        }
+
+        /* Heartbeat Pulse Animation */
+        .heartbeat-pulse {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .heartbeat-pulse::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,68,68,0.2) 0%, rgba(255,68,68,0.1) 40%, transparent 70%);
+            animation: heartbeat 1.2s ease-in-out infinite;
+        }
+
+        /* Irregular heartbeat for more organic feel */
+        .heartbeat-irregular {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .heartbeat-irregular::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,68,68,0.15) 0%, rgba(255,68,68,0.08) 35%, transparent 65%);
+            animation: heartbeat-irregular 1.8s ease-in-out infinite;
+        }
+
+        /* Breath cycle indicators */
+        .breath-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin: 0 2px;
+            background: rgba(0,255,255,0.3);
+        }
+
+        .breath-indicator.active {
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .breath-indicator.hold {
+            background: #00ffff;
+            box-shadow: 0 0 10px #00ffff;
+        }
+
+        .breath-indicator.exhale {
+            background: #64ffda;
+            box-shadow: 0 0 10px #64ffda;
+        }
+
+        .breath-cycle-controls {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 10px;
+        }
+
         .vitals-card {
             background: rgba(0,0,0,0.3);
             border: 1px solid rgba(0,255,255,0.2);
@@ -972,6 +1238,71 @@
                     <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Settings</div>
                     <div class="vitals-content" style="margin-top: 8px;">
                         <button onclick="openSettingsModal()" style="background: rgba(0,255,255,0.1); border: 1px solid rgba(0,255,255,0.3); color: #00ffff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.2s;">Configure</button>
+                    </div>
+                </div>
+
+                <!-- Heartbeat Visualization -->
+                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255, 68, 68, 0.2); border-radius: 8px; padding: 12px; position: relative;">
+                    <div class="vitals-header" style="color: #ff4444; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Heartbeat</div>
+                    <div class="vitals-content" style="margin-top: 8px;">
+                        <div class="vital-row">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Rhythm:</span>
+                            <span id="heartbeat-rhythm" class="vital-value" style="color: #00ff88; font-weight: 600;">60 BPM</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Status:</span>
+                            <span id="heartbeat-status" class="vital-value" style="color: #ffffff; font-weight: 600;">Steady</span>
+                        </div>
+                        <div class="heartbeat-visual" style="margin-top: 12px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <div id="heartbeat-pulse" class="heartbeat-pulse"></div>
+                        </div>
+                        <div class="vital-row" style="margin-top: 8px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Last Beat:</span>
+                            <span id="heartbeat-last-beat" class="vital-value" style="color: #64ffda; font-size: 0.7em;">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Breath Cycle Visualization -->
+                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0, 217, 255, 0.2); border-radius: 8px; padding: 12px; position: relative;">
+                    <div class="vitals-header" style="color: #00d9ff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Breath Cycle</div>
+                    <div class="vitals-content" style="margin-top: 8px;">
+                        <div class="vital-row">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Cycle:</span>
+                            <span id="breath-cycle" class="vital-value" style="color: #00ff88; font-weight: 600;">8s</span>
+                        </div>
+                        <div class="vital-row" style="margin-top: 4px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Phase:</span>
+                            <span id="breath-phase" class="vital-value" style="color: #ffffff; font-weight: 600;">Ready</span>
+                        </div>
+                        <div class="breath-visual" style="margin-top: 12px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <div id="breath-circle" class="breath-circle"></div>
+                        </div>
+                        <div class="vital-row" style="margin-top: 8px;">
+                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Depth:</span>
+                            <span id="breath-depth" class="vital-value" style="color: #64ffda; font-size: 0.7em;">Normal</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Take a Breath Control -->
+                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: 8px; padding: 12px; position: relative;">
+                    <div class="vitals-header" style="color: #ffd700; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Relaxation</div>
+                    <div class="vitals-content" style="margin-top: 8px;">
+                        <div style="margin-bottom: 12px;">
+                            <button id="take-a-breath-btn" style="width: 100%; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); color: #ffd700; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.2s; font-weight: 600;">
+                                ✨ Take a Breath
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <label class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Depth:</label>
+                            <select id="breath-depth-select" style="flex: 1; background: rgba(0, 217, 255, 0.1); border: 1px solid rgba(0, 217, 255, 0.3); color: #00ffff; padding: 6px 8px; border-radius: 4px; font-size: 0.7em; cursor: pointer;">
+                                <option value="shallow">Shallow</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="deep">Deep</option>
+                                <option value="hold">Hold</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>

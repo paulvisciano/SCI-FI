@@ -1113,4 +1113,330 @@ if (document.readyState === 'loading') {
   window.closeSettingsModal = closeSettingsModal;
   window.saveSettings = saveSettings;
     
+  // === Breathe / Relaxation Functions ===
+  
+  // Breathe cycle state
+  let breathState = {
+    isAnimating: false,
+    phase: 'ready', // ready, inhale, hold, exhale
+    depth: 'normal',
+    startTime: null,
+    elapsedTime: 0
+  };
+  
+  // Heartbeat state
+  let heartbeatState = {
+    bpm: 60,
+    lastBeat: null,
+    steady: true
+  };
+  
+  // Update heartbeat display
+  function updateHeartbeatDisplay() {
+    const rhythmEl = document.getElementById('heartbeat-rhythm');
+    const statusEl = document.getElementById('heartbeat-status');
+    const lastBeatEl = document.getElementById('heartbeat-last-beat');
+    const heartbeatPulse = document.getElementById('heartbeat-pulse');
+    
+    if (rhythmEl) {
+      rhythmEl.textContent = `${heartbeatState.bpm} BPM`;
+    }
+    
+    if (statusEl) {
+      statusEl.textContent = heartbeatState.steady ? 'Steady' : 'Irregular';
+    }
+    
+    if (lastBeatEl) {
+      const now = new Date();
+      lastBeatEl.textContent = heartbeatState.lastBeat 
+        ? now.toLocaleTimeString() 
+        : '--';
+    }
+    
+    // Toggle heartbeat pulse class (new CSS classes)
+    if (heartbeatPulse) {
+      // Reset all classes first
+      heartbeatPulse.classList.remove('steady', 'irregular', 'stopped');
+      
+      if (heartbeatState.steady) {
+        heartbeatPulse.classList.add('steady');
+      } else {
+        heartbeatPulse.classList.add('irregular');
+      }
+    }
+  }
+  
+  // Update breath display
+  function updateBreathDisplay() {
+    const cycleEl = document.getElementById('breath-cycle');
+    const phaseEl = document.getElementById('breath-phase');
+    const depthEl = document.getElementById('breath-depth');
+    const breathCircle = document.getElementById('breath-circle');
+    
+    if (cycleEl) {
+      let cycleTime = 8; // Default 8s cycle
+      if (breathState.depth === 'shallow') cycleTime = 6;
+      if (breathState.depth === 'deep') cycleTime = 10;
+      if (breathState.depth === 'hold') cycleTime = 4;
+      cycleEl.textContent = `${cycleTime}s cycle`;
+    }
+    
+    if (phaseEl) {
+      phaseEl.textContent = breathState.phase.charAt(0).toUpperCase() + breathState.phase.slice(1);
+    }
+    
+    if (depthEl) {
+      depthEl.textContent = breathState.depth.charAt(0).toUpperCase() + breathState.depth.slice(1);
+    }
+    
+    // Update breath circle animation
+    if (breathCircle) {
+      if (breathState.isAnimating) {
+        breathCircle.style.animation = 'breathe-full 8s linear infinite';
+        breathCircle.style.animationPlayState = 'running';
+      } else {
+        breathCircle.style.animationPlayState = 'paused';
+      }
+    }
+  }
+  
+  // Trigger breath cycle via API
+  async function triggerBreathe() {
+    try {
+      console.log('[Breathe] Triggering breath cycle...');
+      const response = await fetch(`${API_BASE}/api/breathe/trigger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[Breathe] API response:', data);
+        
+        // Start animation
+        startBreathCycle();
+        
+        return { success: true, timestamp: data.timestamp };
+      } else {
+        throw new Error(`Breathe API error: ${response.status}`);
+      }
+    } catch (err) {
+      console.error('[Breathe] Trigger failed:', err);
+      
+      // Still start animation even if API fails
+      startBreathCycle();
+      
+      return { success: false, error: err.message };
+    }
+  }
+  
+  // Start breath cycle animation
+  function startBreathCycle() {
+    breathState.isAnimating = true;
+    breathState.phase = 'inhale';
+    breathState.startTime = Date.now();
+    
+    // Reset circle animation
+    const breathCircle = document.getElementById('breath-circle');
+    if (breathCircle) {
+      breathCircle.style.animation = 'none';
+      void breathCircle.offsetWidth; // Trigger reflow
+      breathCircle.style.animation = 'breathe-full 8s linear infinite';
+    }
+    
+    updateBreathDisplay();
+    
+    console.log('[Breathe] Animation started');
+  }
+  
+  // Manual breath control (for UI interaction)
+  function manualBreatheControl() {
+    const btn = document.getElementById('take-a-breath-btn');
+    
+    if (!btn) return;
+    
+    // Check if already animating
+    if (breathState.isAnimating) {
+      // Pause
+      breathState.isAnimating = false;
+      btn.textContent = '✨ Take a Breath';
+      btn.classList.remove('active');
+      
+      // Pause animation
+      const breathCircle = document.getElementById('breath-circle');
+      if (breathCircle) {
+        breathCircle.style.animationPlayState = 'paused';
+      }
+    } else {
+      // Start
+      triggerBreathe().then(result => {
+        if (result.success) {
+          btn.textContent = '⏹️ Pause Breath';
+          btn.classList.add('active');
+        }
+      });
+    }
+  }
+  
+  // Initialize breath circle element
+  function initBreathCircle() {
+    const breathCircle = document.getElementById('breath-circle');
+    if (breathCircle) {
+      // Create breath circle if not exists
+      breathCircle.style.cssText = `
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: radial-gradient(circle, #00d9ff 0%, #00ff88 100%);
+        box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+      `;
+    }
+    
+    // Setup breathe depth select
+    const depthSelect = document.getElementById('breath-depth-select');
+    if (depthSelect) {
+      depthSelect.addEventListener('change', (e) => {
+        breathState.depth = e.target.value;
+        updateBreathDisplay();
+      });
+    }
+    
+    // Setup "Take a Breath" button
+    const takeBreathBtn = document.getElementById('take-a-breath-btn');
+    if (takeBreathBtn) {
+      takeBreathBtn.addEventListener('click', manualBreatheControl);
+    }
+    
+    // Initial display update
+    updateBreathDisplay();
+  }
+  
+  // Initialize heartbeat
+  function initHeartbeat() {
+    // Simulate heartbeat rhythm
+    heartbeatState.bpm = 60;
+    heartbeatState.steady = true;
+    heartbeatState.lastBeat = new Date();
+    
+    // Simulate beats
+    setInterval(() => {
+      heartbeatState.lastBeat = new Date();
+      updateHeartbeatDisplay();
+    }, 5000); // Update every 5 seconds
+  }
+  
+  // Initialize breathe UI with CSS classes
+  function initBreathCircleEnhanced() {
+    const breathCircle = document.getElementById('breath-circle');
+    const depthSelect = document.getElementById('breath-depth-select');
+    const takeBreathBtn = document.getElementById('take-a-breath-btn');
+    
+    // Initialize breath circle with CSS class-based animation
+    if (breathCircle) {
+      // Apply CSS classes based on depth
+      updateBreathCSS(breathState.depth);
+    }
+    
+    // Setup depth selector to update CSS classes
+    if (depthSelect) {
+      depthSelect.addEventListener('change', (e) => {
+        breathState.depth = e.target.value;
+        if (breathCircle) {
+          updateBreathCSS(breathState.depth);
+        }
+        updateBreathDisplay();
+      });
+    }
+    
+    // Setup "Take a Breath" button with enhanced functionality
+    if (takeBreathBtn) {
+      takeBreathBtn.addEventListener('click', () => {
+        if (breathState.isAnimating) {
+          // Pause
+          breathState.isAnimating = false;
+          takeBreathBtn.innerHTML = '✨ Take a Breath';
+          takeBreathBtn.style.background = 'rgba(255, 215, 0, 0.15)';
+          takeBreathBtn.style.borderColor = 'rgba(255, 215, 0, 0.3)';
+          
+          // Pause animation
+          if (breathCircle) {
+            breathCircle.style.animationPlayState = 'paused';
+          }
+        } else {
+          // Start
+          startBreathCycle();
+          takeBreathBtn.innerHTML = '⏹️ Stop Relaxation';
+          takeBreathBtn.style.background = 'rgba(255, 68, 68, 0.15)';
+          takeBreathBtn.style.borderColor = 'rgba(255, 68, 68, 0.3)';
+        }
+      });
+    }
+    
+    // Initial display update
+    updateBreathDisplay();
+  }
+  
+  // Update breath circle with CSS classes
+  function updateBreathCSS(depth) {
+    const breathCircle = document.getElementById('breath-circle');
+    if (!breathCircle) return;
+    
+    // Reset all depth classes
+    breathCircle.classList.remove('shallow', 'normal', 'deep', 'hold');
+    
+    // Add current depth class
+    if (depth === 'shallow') {
+      breathCircle.classList.add('shallow');
+    } else if (depth === 'normal') {
+      breathCircle.classList.add('normal');
+    } else if (depth === 'deep') {
+      breathCircle.classList.add('deep');
+    } else if (depth === 'hold') {
+      breathCircle.classList.add('hold');
+    }
+    
+    // If animating, ensure animation is running
+    if (breathState.isAnimating) {
+      breathCircle.style.animationPlayState = 'running';
+    }
+  }
+  
+  // Initialize heartbeat with CSS classes
+  function initHeartbeatEnhanced() {
+    const heartbeatPulse = document.getElementById('heartbeat-pulse');
+    const heartbeatRhythmEl = document.getElementById('heartbeat-rhythm');
+    const heartbeatStatusEl = document.getElementById('heartbeat-status');
+    
+    // Apply CSS class based on rhythm state
+    if (heartbeatPulse) {
+      if (heartbeatState.steady) {
+        heartbeatPulse.classList.add('steady');
+        heartbeatPulse.classList.remove('irregular', 'stopped');
+      } else {
+        heartbeatPulse.classList.add('irregular');
+        heartbeatPulse.classList.remove('steady', 'stopped');
+      }
+    }
+    
+    // Update display text
+    if (heartbeatRhythmEl) {
+      heartbeatRhythmEl.textContent = `${heartbeatState.bpm} BPM`;
+    }
+    
+    if (heartbeatStatusEl) {
+      heartbeatStatusEl.textContent = heartbeatState.steady ? 'Steady' : 'Irregular';
+      heartbeatStatusEl.style.color = heartbeatState.steady ? '#00ff88' : '#ffd700';
+    }
+    
+    // Simulate heartbeat rhythm updates
+    setInterval(() => {
+      heartbeatState.lastBeat = new Date();
+      updateHeartbeatDisplay();
+    }, 5000);
+  }
+  
+  // Initialize enhanced UI components
+  initBreathCircleEnhanced();
+  initHeartbeatEnhanced();
+    
 })();
