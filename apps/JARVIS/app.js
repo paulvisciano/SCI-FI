@@ -831,18 +831,18 @@ if (document.readyState === 'loading') {
   // System Vitals auto-refresh (every 30 seconds)
   async function refreshVitals() {
   // Get elements (declare at top of function for try/catch access)
-  const gatewayStatusEl = document.getElementById('vital-gateway-status');
-  const gatewayPidEl = document.getElementById('vital-gateway-pid');
-  const gatewayMemEl = document.getElementById('vital-gateway-mem');
-  const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
-  const sysMemEl = document.getElementById('vital-system-mem');
-  const sysCpuEl = document.getElementById('vital-system-cpu');
-  const vitalRefreshBtn = document.getElementById('vital-refresh-btn');
-  const vitalCloseBtn = document.getElementById('vitals-close');
-  const vitalsOverlay = document.getElementById('vitals-overlay');
+    const gatewayStatusEl = document.getElementById('vital-gateway-status');
+    const gatewayPidEl = document.getElementById('vital-gateway-pid');
+    const gatewayMemEl = document.getElementById('vital-gateway-mem');
+    const gatewayUptimeEl = document.getElementById('vital-gateway-uptime');
+    const sysMemEl = document.getElementById('vital-system-mem');
+    const sysCpuEl = document.getElementById('vital-system-cpu');
+    const vitalRefreshBtn = document.getElementById('vital-refresh-btn');
+    const vitalCloseBtn = document.getElementById('vitals-close');
+    const vitalsOverlay = document.getElementById('vitals-overlay');
   
-  try {
-    const response = await fetch(`${API_BASE}/api/vitals`);
+    try {
+      const response = await fetch(`${API_BASE}/api/vitals`);
       console.log('Vitals API response:', response.status, response.ok);
       if (!response.ok) {throw new Error(`Vitals API error: ${response.status}`);}
       const vitals = await response.json();
@@ -1103,7 +1103,7 @@ if (document.readyState === 'loading') {
     setTimeout(() => {
       if (toast.parentNode) {
         toast.style.animation = 'fadeOut 0.3s ease';
-        setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+        setTimeout(() => { if (toast.parentNode) {toast.parentNode.removeChild(toast);} }, 300);
       }
     }, 3000);
   }
@@ -1175,9 +1175,9 @@ if (document.readyState === 'loading') {
     
     if (cycleEl) {
       let cycleTime = 8; // Default 8s cycle
-      if (breathState.depth === 'shallow') cycleTime = 6;
-      if (breathState.depth === 'deep') cycleTime = 10;
-      if (breathState.depth === 'hold') cycleTime = 4;
+      if (breathState.depth === 'shallow') {cycleTime = 6;}
+      if (breathState.depth === 'deep') {cycleTime = 10;}
+      if (breathState.depth === 'hold') {cycleTime = 4;}
       cycleEl.textContent = `${cycleTime}s cycle`;
     }
     
@@ -1253,7 +1253,7 @@ if (document.readyState === 'loading') {
   function manualBreatheControl() {
     const btn = document.getElementById('take-a-breath-btn');
     
-    if (!btn) return;
+    if (!btn) {return;}
     
     // Check if already animating
     if (breathState.isAnimating) {
@@ -1379,7 +1379,7 @@ if (document.readyState === 'loading') {
   // Update breath circle with CSS classes
   function updateBreathCSS(depth) {
     const breathCircle = document.getElementById('breath-circle');
-    if (!breathCircle) return;
+    if (!breathCircle) {return;}
     
     // Reset all depth classes
     breathCircle.classList.remove('shallow', 'normal', 'deep', 'hold');
@@ -1440,3 +1440,331 @@ if (document.readyState === 'loading') {
   initHeartbeatEnhanced();
     
 })();
+
+// === Three.js Neurograph Rendering ===
+// Load neurograph data and render 3D visualization
+
+let neurographScene, neurographCamera, neurographRenderer, neurographControls;
+let neurons = [];
+let synapses = [];
+let neurographData = null;
+let idleRotation = 0;
+let isNeurographLoaded = false;
+
+// Initialize Three.js scene
+function initNeurograph() {
+  const canvas = document.getElementById('neurograph-canvas');
+  if (!canvas) {
+    console.warn('[Neurograph] Canvas element not found');
+    return;
+  }
+
+  // Create scene
+  neurographScene = new THREE.Scene();
+  neurographScene.background = new THREE.Color(0x000000);
+  neurographScene.fog = new THREE.FogExp2(0x000000, 0.002);
+
+  // Create camera
+  neurographCamera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+  );
+  neurographCamera.position.z = 50;
+
+  // Create renderer
+  neurographRenderer = new THREE.WebGLRenderer({
+    canvas: canvas,
+    antialias: true,
+    alpha: true
+  });
+  neurographRenderer.setSize(window.innerWidth, window.innerHeight);
+  neurographRenderer.setPixelRatio(window.devicePixelRatio);
+
+  // Add orbit controls for rotation/zoom
+  neurographControls = new THREE.OrbitControls(neurographCamera, neurographRenderer.domElement);
+  neurographControls.enableDamping = true;
+  neurographControls.dampingFactor = 0.05;
+  neurographControls.minDistance = 10;
+  neurographControls.maxDistance = 200;
+
+  // Add lighting
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+  neurographScene.add(ambientLight);
+
+  const pointLight = new THREE.PointLight(0x00ffff, 1, 100);
+  pointLight.position.set(20, 20, 20);
+  neurographScene.add(pointLight);
+
+  const pointLight2 = new THREE.PointLight(0x00bfff, 0.8, 100);
+  pointLight2.position.set(-20, -20, 20);
+  neurographScene.add(pointLight2);
+
+  const pointLight3 = new THREE.PointLight(0xffd700, 0.6, 100);
+  pointLight3.position.set(0, 30, -20);
+  neurographScene.add(pointLight3);
+
+  // Event listeners
+  window.addEventListener('resize', onNeurographWindowResize);
+
+  // Load neurograph data
+  loadNeurographData();
+}
+
+// Handle window resize
+function onNeurographWindowResize() {
+  if (neurographCamera && neurographRenderer) {
+    neurographCamera.aspect = window.innerWidth / window.innerHeight;
+    neurographCamera.updateProjectionMatrix();
+    neurographRenderer.setSize(window.innerWidth, window.innerHeight);
+  }
+}
+
+// Load neurograph data from API
+function loadNeurographData() {
+  fetch('/api/neurograph')
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`Neurograph API error: ${res.status}`);
+      }
+      return res.json();
+    })
+    .then(data => {
+      console.log('[Neurograph] Data loaded:', data);
+      neurographData = data;
+      createNeurograph(data);
+      isNeurographLoaded = true;
+    })
+    .catch(err => {
+      console.warn('[Neurograph] Failed to load data:', err);
+      // Create fallback neurograph if API fails
+      createFallbackNeurograph();
+      isNeurographLoaded = true;
+    });
+}
+
+// Create neurograph from data
+function createNeurograph(data) {
+  if (!neurographScene) return;
+
+  // Clear existing objects
+  neurons.forEach(neuron => neurographScene.remove(neuron));
+  synapses.forEach(synapse => neurographScene.remove(synapse));
+  neurons = [];
+  synapses = [];
+
+  // Create nodes as spheres
+  const nodes = data.nodes || [];
+  const connections = data.connections || [];
+
+  // Create nodes with Jarvis theme colors
+  const nodeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x00ffff,
+    emissive: 0x0088ff,
+    emissiveIntensity: 0.3,
+    roughness: 0.3,
+    metalness: 0.7
+  });
+
+  nodes.forEach((node, idx) => {
+    const radius = 0.5 + Math.random() * 0.5; // Random radius 0.5-1.0
+    const geometry = new THREE.SphereGeometry(radius, 32, 32);
+    const neuron = new THREE.Mesh(geometry, nodeMaterial.clone());
+    
+    // Position node in sphere pattern around origin
+    const angle = (idx / nodes.length) * Math.PI * 2;
+    const radiusPos = 20 + Math.random() * 10;
+    neuron.position.set(
+      Math.cos(angle) * radiusPos,
+      (Math.random() - 0.5) * 20,
+      Math.sin(angle) * radiusPos
+    );
+    
+    neuron.userData = {
+      id: node.id || idx,
+      label: node.label || `Node ${idx}`,
+      position: neuron.position.clone()
+    };
+    
+    neurographScene.add(neuron);
+    neurons.push(neuron);
+  });
+
+  // Create connection lines (synapses)
+  const lineMaterial = new THREE.LineBasicMaterial({
+    color: 0x00bfff,
+    transparent: true,
+    opacity: 0.6
+  });
+
+  connections.forEach(conn => {
+    const sourceNode = neurons[conn.from] || neurons[conn.from % neurons.length];
+    const targetNode = neurons[conn.to] || neurons[conn.to % neurons.length];
+
+    if (sourceNode && targetNode) {
+      const points = [
+        sourceNode.userData.position,
+        new THREE.Vector3(
+          (sourceNode.userData.position.x + targetNode.userData.position.x) / 2,
+          (Math.random() - 0.5) * 10,
+          (sourceNode.userData.position.z + targetNode.userData.position.z) / 2
+        ),
+        targetNode.userData.position
+      ];
+
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, lineMaterial.clone());
+      
+      line.userData = {
+        from: conn.from,
+        to: conn.to,
+        strength: conn.strength || 1
+      };
+      
+      neurographScene.add(line);
+      synapses.push(line);
+    }
+  });
+
+  // Add node labels as text sprites
+  neurons.forEach((neuron, idx) => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+    
+    context.fillStyle = '#000000';
+    context.fillRect(0, 0, 256, 64);
+    
+    context.fillStyle = '#00ffff';
+    context.font = 'bold 12px Arial, sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(neuron.userData.label, 128, 32);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.9 });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(6, 2, 1);
+    sprite.position.copy(neuron.position).add(new THREE.Vector3(0, 2.5, 0));
+    
+    neurographScene.add(sprite);
+  });
+}
+
+// Create fallback neurograph when API fails
+function createFallbackNeurograph() {
+  if (!neurographScene) return;
+
+  const nodeCount = 20 + Math.random() * 20;
+  const connections = [];
+
+  for (let i = 0; i < nodeCount; i++) {
+    const radius = 0.5 + Math.random() * 0.5;
+    const geometry = new THREE.SphereGeometry(radius, 32, 32);
+    const material = new THREE.MeshStandardMaterial({
+      color: 0x00ffff,
+      emissive: 0x0088ff,
+      emissiveIntensity: 0.3
+    });
+    const neuron = new THREE.Mesh(geometry, material);
+
+    const angle = (i / nodeCount) * Math.PI * 2;
+    const radiusPos = 15 + Math.random() * 20;
+    neuron.position.set(
+      Math.cos(angle) * radiusPos,
+      (Math.random() - 0.5) * 15,
+      Math.sin(angle) * radiusPos
+    );
+
+    neurons.push(neuron);
+    neurographScene.add(neuron);
+
+    // Connect to 2-3 previous nodes
+    if (i > 3) {
+      const numConnections = 2 + Math.floor(Math.random() * 2);
+      for (let j = 0; j < numConnections; j++) {
+        const targetIdx = i - 1 - Math.floor(Math.random() * Math.min(i, 5));
+        if (targetIdx >= 0 && targetIdx < neurons.length - 1) {
+          connections.push({ from: i, to: targetIdx });
+        }
+      }
+    }
+  }
+
+  // Create connection lines
+  const lineMaterial = new THREE.LineBasicMaterial({
+    color: 0x00bfff,
+    transparent: true,
+    opacity: 0.5
+  });
+
+  connections.forEach(conn => {
+    const sourceNode = neurons[conn.from];
+    const targetNode = neurons[conn.to];
+
+    if (sourceNode && targetNode) {
+      const points = [
+        sourceNode.position,
+        new THREE.Vector3(
+          (sourceNode.position.x + targetNode.position.x) / 2,
+          (Math.random() - 0.5) * 10,
+          (sourceNode.position.z + targetNode.position.z) / 2
+        ),
+        targetNode.position
+      ];
+
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, lineMaterial.clone());
+      synapses.push(line);
+      neurographScene.add(line);
+    }
+  });
+
+  console.log('[Neurograph] Fallback neurograph created:', nodeCount, 'nodes');
+}
+
+// Animation loop
+function animateNeurograph() {
+  requestAnimationFrame(animateNeurograph);
+
+  if (neurographControls) {
+    neurographControls.update();
+  }
+
+  // Idle rotation - slow spin when no interaction
+  if (neurographScene && neurons.length > 0 && isNeurographLoaded) {
+    idleRotation += 0.002;
+    
+    neurons.forEach((neuron, idx) => {
+      neuron.position.x = neuron.position.x * Math.cos(idleRotation) - 
+                         neuron.position.z * Math.sin(idleRotation);
+      neuron.position.z = neuron.position.x * Math.sin(idleRotation) + 
+                         neuron.position.z * Math.cos(idleRotation);
+    });
+  }
+
+  // Update synapse pulsation
+  if (synapses.length > 0 && isNeurographLoaded) {
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
+    synapses.forEach((synapse, idx) => {
+      synapse.material.opacity = 0.3 + 0.3 * pulse;
+    });
+  }
+
+  neurographRenderer.render(neurographScene, neurographCamera);
+}
+
+// Initialize neurograph when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[Neurograph] DOM loaded, initializing...');
+    initNeurograph();
+    animateNeurograph();
+  });
+} else {
+  console.log('[Neurograph] DOM already ready, initializing...');
+  initNeurograph();
+  animateNeurograph();
+}

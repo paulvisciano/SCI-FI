@@ -20,8 +20,8 @@ let previousCpuInfo = os.cpus().map(cpu => cpu.times);
 // === HTTPS Configuration ===
 const HTTPS_ENABLED = process.env.VOICE_HTTPS_ENABLED !== 'false';
 const HTTPS_OPTIONS = {
-    key: fs.readFileSync(path.join(__dirname, 'assets', 'https-key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, 'assets', 'https-cert.pem'))
+  key: fs.readFileSync(path.join(__dirname, 'assets', 'https-key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, 'assets', 'https-cert.pem'))
 };
 
 
@@ -31,11 +31,11 @@ const BUILD_DATE = '2026-03-28';
 
 // Date formatting utility for consistent date handling
 function formatDateForFilename(date = new Date()) {
-    return date.toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + date.toTimeString().split(' ')[0].replace(/:/g, '');
+  return date.toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + date.toTimeString().split(' ')[0].replace(/:/g, '');
 }
 
 function formatDateForArchive(date = new Date()) {
-    return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0];
 }
 
 // === SECURITY CONSTANTS ===
@@ -45,84 +45,84 @@ const AGENT_TIMEOUT = 15000; // 15 seconds
 
 // === SECURITY VALIDATION ===
 function isValidInput(input) {
-    if (typeof input !== 'string') return false;
-    if (input.length > MAX_MESSAGE_LENGTH) return false;
-    // Reject dangerous characters: ; | & $() \n \r
-    if (/[;|&$\n\r]/.test(input)) return false;
-    // Reject backticks and command substitution patterns
-    if (/[`$]/.test(input)) return false;
-    return true;
+  if (typeof input !== 'string') {return false;}
+  if (input.length > MAX_MESSAGE_LENGTH) {return false;}
+  // Reject dangerous characters: ; | & $() \n \r
+  if (/[;|&$\n\r]/.test(input)) {return false;}
+  // Reject backticks and command substitution patterns
+  if (/[`$]/.test(input)) {return false;}
+  return true;
 }
 
 const CONFIG = {
-    port: process.env.VOICE_PORT || 18787,
-    inboxDir: process.env.VOICE_INBOX_DIR || path.join(process.env.HOME, 'JARVIS', 'inbox'),
-    liveDir: process.env.VOICE_LIVE_DIR || path.join(process.env.HOME, 'JARVIS', 'live'),
-    modelDir: process.env.VOICE_MODEL_DIR || path.join(__dirname, 'assets'),
-    archiveBase: process.env.VOICE_ARCHIVE_BASE || path.join(process.env.HOME, 'RAW', 'archive'),
-    gatewayUrl: process.env.VOICE_GATEWAY_URL || 'ws://127.0.0.1:18789',
-    whisperModel: process.env.VOICE_WHISPER_MODEL || 'ggml-large-v3.bin',
-    whisperCli: process.env.VOICE_WHISPER_CLI || findWhisperCli(),
-    neurographDir: process.env.NEUROGRAPH_DIR || path.join(__dirname, 'neuro-graph')
+  port: process.env.VOICE_PORT || 18787,
+  inboxDir: process.env.VOICE_INBOX_DIR || path.join(process.env.HOME, 'JARVIS', 'inbox'),
+  liveDir: process.env.VOICE_LIVE_DIR || path.join(process.env.HOME, 'JARVIS', 'live'),
+  modelDir: process.env.VOICE_MODEL_DIR || path.join(__dirname, 'assets'),
+  archiveBase: process.env.VOICE_ARCHIVE_BASE || path.join(process.env.HOME, 'RAW', 'archive'),
+  gatewayUrl: process.env.VOICE_GATEWAY_URL || 'ws://127.0.0.1:18789',
+  whisperModel: process.env.VOICE_WHISPER_MODEL || 'ggml-large-v3.bin',
+  whisperCli: process.env.VOICE_WHISPER_CLI || findWhisperCli(),
+  neurographDir: process.env.NEUROGRAPH_DIR || path.join(__dirname, 'neuro-graph')
 };
 
 // Auto-detect whisper-cli from common locations
 function findWhisperCli() {
-    const candidates = [
-        '/opt/homebrew/opt/whisper-cpp/libexec/bin/whisper-cli',
-        '/usr/local/bin/whisper-cli',
-        '/opt/homebrew/bin/whisper-cli',
-        path.join(process.env.HOME, '.cargo', 'bin', 'whisper-cli')
-    ];
-    for (const candidate of candidates) {
-        if (fs.existsSync(candidate)) return candidate;
-    }
-    return 'whisper-cli'; // Fallback to PATH
+  const candidates = [
+    '/opt/homebrew/opt/whisper-cpp/libexec/bin/whisper-cli',
+    '/usr/local/bin/whisper-cli',
+    '/opt/homebrew/bin/whisper-cli',
+    path.join(process.env.HOME, '.cargo', 'bin', 'whisper-cli')
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {return candidate;}
+  }
+  return 'whisper-cli'; // Fallback to PATH
 }
 
 // Whisper.cpp health check - verify executable exists and is runnable
 function checkWhisperHealth() {
-    const whisperPath = CONFIG.whisperCli;
+  const whisperPath = CONFIG.whisperCli;
     
-    if (!fs.existsSync(whisperPath)) {
-        console.error(`❌ Whisper CLI not found: ${whisperPath}`);
-        console.error('Set VOICE_WHISPER_CLI environment variable to point to the correct location');
-        return false;
-    }
+  if (!fs.existsSync(whisperPath)) {
+    console.error(`❌ Whisper CLI not found: ${whisperPath}`);
+    console.error('Set VOICE_WHISPER_CLI environment variable to point to the correct location');
+    return false;
+  }
     
-    // Try to run whisper-cli with --help to verify it's executable
-    try {
-        const { spawnSync } = require('child_process');
-        const result = spawnSync(whisperPath, ['--help'], { timeout: 5000 });
+  // Try to run whisper-cli with --help to verify it's executable
+  try {
+    const { spawnSync } = require('child_process');
+    const result = spawnSync(whisperPath, ['--help'], { timeout: 5000 });
         
-        if (result.error) {
-            console.error(`❌ Whisper CLI is not executable: ${whisperPath}`);
-            console.error(`Error: ${result.error.message}`);
-            return false;
-        }
-        
-        console.log(`✅ Whisper CLI verified: ${whisperPath}`);
-        return true;
-    } catch (err) {
-        console.error(`❌ Whisper CLI check failed: ${err.message}`);
-        return false;
+    if (result.error) {
+      console.error(`❌ Whisper CLI is not executable: ${whisperPath}`);
+      console.error(`Error: ${result.error.message}`);
+      return false;
     }
+        
+    console.log(`✅ Whisper CLI verified: ${whisperPath}`);
+    return true;
+  } catch (err) {
+    console.error(`❌ Whisper CLI check failed: ${err.message}`);
+    return false;
+  }
 }
 
 // Ensure directories exist
 [CONFIG.inboxDir, CONFIG.liveDir, CONFIG.modelDir, CONFIG.archiveBase].forEach(dir => {
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-        console.log('✓ Created:', dir);
-    }
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log('✓ Created:', dir);
+  }
 });
 
 // Validate model exists
 const modelPath = path.join(CONFIG.modelDir, CONFIG.whisperModel);
 if (!fs.existsSync(modelPath)) {
-    console.error('❌ Model not found:', modelPath);
-    console.error('Set VOICE_MODEL_DIR or VOICE_WHISPER_MODEL environment variable');
-    process.exit(1);
+  console.error('❌ Model not found:', modelPath);
+  console.error('Set VOICE_MODEL_DIR or VOICE_WHISPER_MODEL environment variable');
+  process.exit(1);
 }
 
 // Track current transcription status
@@ -159,13 +159,13 @@ function getManufacturer(mac) {
 }
 
 function getDeviceType(mac, ip, isGateway) {
-  if (isGateway) return 'router';
+  if (isGateway) {return 'router';}
   const manufacturer = getManufacturer(mac);
-  if (manufacturer.includes('Apple')) return 'laptop/phone';
-  if (manufacturer.includes('Samsung')) return 'phone';
-  if (manufacturer.includes('Nokia')) return 'phone';
-  if (manufacturer.includes('Huawei')) return 'phone';
-  if (manufacturer.includes('Amazon')) return 'smart device';
+  if (manufacturer.includes('Apple')) {return 'laptop/phone';}
+  if (manufacturer.includes('Samsung')) {return 'phone';}
+  if (manufacturer.includes('Nokia')) {return 'phone';}
+  if (manufacturer.includes('Huawei')) {return 'phone';}
+  if (manufacturer.includes('Amazon')) {return 'smart device';}
   return 'device';
 }
 
@@ -193,7 +193,7 @@ function getNetworkInfo(callback) {
       return callback(new Error(`ipconfig failed with code ${code}`));
     }
     ipconfigDone = true;
-    if (arpDone) finishGetNetworkInfo(callback, ipconfigOut, arpOut);
+    if (arpDone) {finishGetNetworkInfo(callback, ipconfigOut, arpOut);}
   });
   
   // Use full paths for macOS commands
@@ -217,935 +217,1113 @@ function getNetworkInfo(callback) {
       return callback(new Error(`arp failed with code ${code}`));
     }
     arpDone = true;
-    if (ipconfigDone) finishGetNetworkInfo(callback, ipconfigOut, arpOut);
+    if (ipconfigDone) {finishGetNetworkInfo(callback, ipconfigOut, arpOut);}
   });
 }
 
 function finishGetNetworkInfo(callback, ipconfigOut, arpOut) {
-      const info = { ip: null, netmask: null, gateway: null, devices: [] };
+  const info = { ip: null, netmask: null, gateway: null, devices: [] };
       
-      // Parse ipconfig for IP and gateway
-      const ipLines = ipconfigOut.split('\n');
-      ipLines.forEach(line => {
-        if (line.includes('server_identifier')) {
-          const match = line.match(/server_identifier.*?:\s*([\d.]+)/);
-          if (match) info.gateway = match[1];
-        }
-        if (line.includes('ciaddr')) {
-          const match = line.match(/ciaddr\s*=\s*([\d.]+)/);
-          if (match && match[1] !== '0.0.0.0') info.ip = match[1];  // ciaddr = client IP
-        }
-        if (line.includes('yiaddr') && !info.ip) {
-          const match = line.match(/yiaddr\s*=\s*([\d.]+)/);
-          if (match) info.ip = match[1];  // yiaddr = your IP
-        }
-      });
-      
-      // Fallback: use first non-gateway device IP
-      if (!info.ip && info.devices.length > 0) {
-        const myDevice = info.devices.find(d => !d.isGateway);
-        if (myDevice) info.ip = myDevice.ip;
-      }
-      
-      // Parse arp for devices
-      const arpLines = arpOut.split('\n');
-      arpLines.forEach(line => {
-        if (line.includes('at') && line.includes('en')) {
-          const match = line.match(/\(([\d.]+)\).*at\s+([\w:]+)/);
-          if (match && !match[1].includes('255') && !match[1].includes('224')) {
-            info.devices.push({
-              ip: match[1], mac: match[2],
-              type: match[1] === info.gateway ? 'gateway' : 'device',
-              manufacturer: getManufacturer(match[2]),
-              deviceType: getDeviceType(match[2], match[1], match[1] === info.gateway),
-              isGateway: match[1] === info.gateway
-            });
-          }
-        }
-      });
-      
-      callback(null, info);
+  // Parse ipconfig for IP and gateway
+  const ipLines = ipconfigOut.split('\n');
+  ipLines.forEach(line => {
+    if (line.includes('server_identifier')) {
+      const match = line.match(/server_identifier.*?:\s*([\d.]+)/);
+      if (match) {info.gateway = match[1];}
     }
+    if (line.includes('ciaddr')) {
+      const match = line.match(/ciaddr\s*=\s*([\d.]+)/);
+      if (match && match[1] !== '0.0.0.0') {info.ip = match[1];}  // ciaddr = client IP
+    }
+    if (line.includes('yiaddr') && !info.ip) {
+      const match = line.match(/yiaddr\s*=\s*([\d.]+)/);
+      if (match) {info.ip = match[1];}  // yiaddr = your IP
+    }
+  });
+      
+  // Fallback: use first non-gateway device IP
+  if (!info.ip && info.devices.length > 0) {
+    const myDevice = info.devices.find(d => !d.isGateway);
+    if (myDevice) {info.ip = myDevice.ip;}
+  }
+      
+  // Parse arp for devices
+  const arpLines = arpOut.split('\n');
+  arpLines.forEach(line => {
+    if (line.includes('at') && line.includes('en')) {
+      const match = line.match(/\(([\d.]+)\).*at\s+([\w:]+)/);
+      if (match && !match[1].includes('255') && !match[1].includes('224')) {
+        info.devices.push({
+          ip: match[1], mac: match[2],
+          type: match[1] === info.gateway ? 'gateway' : 'device',
+          manufacturer: getManufacturer(match[2]),
+          deviceType: getDeviceType(match[2], match[1], match[1] === info.gateway),
+          isGateway: match[1] === info.gateway
+        });
+      }
+    }
+  });
+      
+  callback(null, info);
+}
 
 // === Parse multipart form data ===
 function parseMultipart(buffer, contentType) {
-    const boundary = contentType.split('boundary=')[1];
-    if (!boundary) return null;
+  const boundary = contentType.split('boundary=')[1];
+  if (!boundary) {return null;}
     
-    const boundaryBuffer = Buffer.from('--' + boundary);
-    const start = buffer.indexOf(boundaryBuffer) + boundaryBuffer.length + 2;
-    const end = buffer.indexOf(boundaryBuffer, start);
+  const boundaryBuffer = Buffer.from('--' + boundary);
+  const start = buffer.indexOf(boundaryBuffer) + boundaryBuffer.length + 2;
+  const end = buffer.indexOf(boundaryBuffer, start);
     
-    if (start < boundaryBuffer.length || end === -1) return null;
+  if (start < boundaryBuffer.length || end === -1) {return null;}
     
-    const headerEnd = buffer.indexOf('\r\n\r\n', start);
-    if (headerEnd === -1) return null;
+  const headerEnd = buffer.indexOf('\r\n\r\n', start);
+  if (headerEnd === -1) {return null;}
     
-    return buffer.slice(headerEnd + 4, end - 2);
+  return buffer.slice(headerEnd + 4, end - 2);
 }
 
 // === Request Handler (used by both HTTP and HTTPS) ===
 function handleRequest(req, res) {
-    // Restrict CORS to known origins (configurable via env var)
-    const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : ['http://localhost:*', 'https://localhost:*'];
-    const origin = req.headers.origin;
-    if (!origin || allowedOrigins.some(o => origin.includes(o.replace('*', '')))) {
-        res.setHeader('Access-Control-Allow-Origin', origin || '*');
-    }
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // Restrict CORS to known origins (configurable via env var)
+  const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : ['http://localhost:*', 'https://localhost:*'];
+  const origin = req.headers.origin;
+  if (!origin || allowedOrigins.some(o => origin.includes(o.replace('*', '')))) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
-    // Standardized error response helper
-    const sendError = (code, message, details = null) => {
-        res.writeHead(code, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: message, code, details }));
-    };
+  // Standardized error response helper
+  const sendError = (code, message, details = null) => {
+    res.writeHead(code, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: message, code, details }));
+  };
 
-    if (req.method === 'OPTIONS') {
-        res.writeHead(200);
-        res.end();
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+
+  // Network scanner endpoints
+  if (req.method === 'GET' && req.url === '/network/devices') {
+    getNetworkInfo((err, info) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
         return;
-    }
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(info));
+    });
+    return;
+  }
 
-    // Network scanner endpoints
-    if (req.method === 'GET' && req.url === '/network/devices') {
-      getNetworkInfo((err, info) => {
-        if (err) {
+  if (req.method === 'GET' && req.url === '/network/qr') {
+    getNetworkInfo((err, info) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+        return;
+      }
+      // Use ciaddr from ipconfig if yiaddr/ip is null
+      const ip = info.ip || info.ciaddr || '127.0.0.1';
+      const url = `https://${ip}:${CONFIG.port}`;
+      QRCode.toDataURL(url, (qrErr, dataUrl) => {
+        if (qrErr) {
+          console.error('QR generation error:', qrErr);
           res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: err.message }));
+          res.end(JSON.stringify({ error: 'QR generation failed', details: qrErr.message }));
           return;
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(info));
+        res.end(JSON.stringify({ url, qr: dataUrl, ip }));
       });
-      return;
-    }
+    });
+    return;
+  }
 
-    if (req.method === 'GET' && req.url === '/network/qr') {
-      getNetworkInfo((err, info) => {
-        if (err) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: err.message }));
+  // Device registry API - list all devices
+  if (req.method === 'GET' && req.url === '/api/devices') {
+    const devices = deviceRegistry.listDevices();
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ devices }));
+    return;
+  }
+
+  // Device registry API - register/update device
+  if (req.method === 'POST' && req.url === '/api/register-device') {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => {
+      try {
+        const body = Buffer.concat(chunks).toString();
+        const data = JSON.parse(body);
+        const { mac, name, owner } = data;
+          
+        // Validate MAC address format (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
+        const macRegex = /^([0-9A-Fa-f]{2}[:|-]?){5}([0-9A-Fa-f]{2})$/;
+        if (!mac) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'MAC address required' }));
           return;
         }
-        // Use ciaddr from ipconfig if yiaddr/ip is null
-        const ip = info.ip || info.ciaddr || '127.0.0.1';
-        const url = `https://${ip}:${CONFIG.port}`;
-        QRCode.toDataURL(url, (qrErr, dataUrl) => {
-          if (qrErr) {
-            console.error('QR generation error:', qrErr);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'QR generation failed', details: qrErr.message }));
-            return;
-          }
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ url, qr: dataUrl, ip }));
-        });
-      });
-      return;
-    }
-
-    // Device registry API - list all devices
-    if (req.method === 'GET' && req.url === '/api/devices') {
-      const devices = deviceRegistry.listDevices();
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ devices }));
-      return;
-    }
-
-    // Device registry API - register/update device
-    if (req.method === 'POST' && req.url === '/api/register-device') {
-      const chunks = [];
-      req.on('data', chunk => chunks.push(chunk));
-      req.on('end', () => {
-        try {
-          const body = Buffer.concat(chunks).toString();
-          const data = JSON.parse(body);
-          const { mac, name, owner } = data;
-          
-          // Validate MAC address format (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
-          const macRegex = /^([0-9A-Fa-f]{2}[:|-]?){5}([0-9A-Fa-f]{2})$/;
-          if (!mac) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'MAC address required' }));
-            return;
-          }
-          if (!macRegex.test(mac)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid MAC address format. Use XX:XX:XX:XX:XX:XX' }));
-            return;
-          }
-          
-          // Validate name length and sanitize
-          if (!name || name.trim().length === 0) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Device name required' }));
-            return;
-          }
-          if (name.length > 50) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Device name must be 50 characters or less' }));
-            return;
-          }
-          
-          // Validate owner length
-          const sanitizedOwner = (owner || 'unknown').trim().toLowerCase();
-          if (sanitizedOwner.length > 20) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Owner must be 20 characters or less' }));
-            return;
-          }
-          
-          const device = deviceRegistry.updateDevice(mac, { name: name.trim(), owner: sanitizedOwner });
-          if (device) {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, device }));
-          } else {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Device not found' }));
-          }
-        } catch (err) {
+        if (!macRegex.test(mac)) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Invalid JSON' }));
+          res.end(JSON.stringify({ error: 'Invalid MAC address format. Use XX:XX:XX:XX:XX:XX' }));
+          return;
         }
+          
+        // Validate name length and sanitize
+        if (!name || name.trim().length === 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Device name required' }));
+          return;
+        }
+        if (name.length > 50) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Device name must be 50 characters or less' }));
+          return;
+        }
+          
+        // Validate owner length
+        const sanitizedOwner = (owner || 'unknown').trim().toLowerCase();
+        if (sanitizedOwner.length > 20) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Owner must be 20 characters or less' }));
+          return;
+        }
+          
+        const device = deviceRegistry.updateDevice(mac, { name: name.trim(), owner: sanitizedOwner });
+        if (device) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, device }));
+        } else {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Device not found' }));
+        }
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      }
+    });
+    return;
+  }
+
+  // Device registry API - delete device
+  if (req.method === 'DELETE' && req.url.startsWith('/api/delete-device')) {
+    const mac = req.url.split('=')[1];
+    if (!mac) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'MAC address required' }));
+      return;
+    }
+      
+    const removed = deviceRegistry.deleteDevice(mac);
+    if (removed) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, device: removed }));
+    } else {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Device not found' }));
+    }
+    return;
+  }
+
+  // === Config API (JARVIS Config File Integration) ===
+  // JARVIS_HOME is where the .jarvis-config.json file lives
+  const JARVIS_HOME = process.env.JARVIS_HOME || process.env.HOME + '/JARVIS';
+  const CONFIG_FILE = path.join(JARVIS_HOME, '.jarvis-config.json');
+    
+  // Helper: read config from file
+  function getConfig() {
+    try {
+      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+      return JSON.parse(data);
+    } catch (err) {
+      console.error('Config read error:', err.message);
+      return null;
+    }
+  }
+    
+  // Helper: write config to file
+  function saveConfig(config) {
+    try {
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+      return true;
+    } catch (err) {
+      console.error('Config write error:', err.message);
+      return false;
+    }
+  }
+    
+  // API: GET /api/config - Get current config
+  if (req.method === 'GET' && req.url === '/api/config') {
+    try {
+      const fullConfig = getConfig();
+      const desktopArchiving = fullConfig?.desktopArchiving || { enabled: false };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ desktopArchiving }));
+    } catch (err) {
+      console.error('Config GET error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to get config', details: err.message }));
+    }
+    return;
+  }
+    
+  // API: POST /api/config - Update config
+  if (req.method === 'POST' && req.url === '/api/config') {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => {
+      try {
+        const body = Buffer.concat(chunks).toString();
+        const data = JSON.parse(body);
+        const newDesktopArchiving = data.desktopArchiving;
+          
+        if (newDesktopArchiving === undefined || newDesktopArchiving === null) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'desktopArchiving object required' }));
+          return;
+        }
+          
+        // Read existing config
+        const existingConfig = getConfig();
+        const updatedConfig = {
+          ...existingConfig,
+          desktopArchiving: newDesktopArchiving
+        };
+          
+        const success = saveConfig(updatedConfig);
+          
+        if (success) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            config: { desktopArchiving: newDesktopArchiving },
+            message: `Desktop archiving ${newDesktopArchiving.enabled ? 'enabled' : 'disabled'}`
+          }));
+        } else {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Failed to save config' }));
+        }
+      } catch (err) {
+        console.error('Config POST error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON or config error', details: err.message }));
+      }
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/upload') {
+    // Rate limiting: simple per-IP counter
+    const clientIp = req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const RATE_LIMIT_WINDOW = 60000; // 1 minute
+    const RATE_LIMIT_MAX = 10; // max 10 uploads per minute per IP
+        
+    if (!global.rateLimitCounts) {global.rateLimitCounts = {};}
+    if (!global.rateLimitCounts[clientIp]) {
+      global.rateLimitCounts[clientIp] = { count: 0, windowStart: now };
+    }
+        
+    const clientData = global.rateLimitCounts[clientIp];
+    if (now - clientData.windowStart > RATE_LIMIT_WINDOW) {
+      clientData.count = 0;
+      clientData.windowStart = now;
+    }
+        
+    if (clientData.count >= RATE_LIMIT_MAX) {
+      res.writeHead(429, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'Rate limit exceeded. Max 10 uploads per minute.' }));
+      return;
+    }
+        
+    clientData.count++;
+        
+    // File size limit: 50MB max
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    let totalSize = 0;
+        
+    const chunks = [];
+    req.on('data', chunk => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_FILE_SIZE) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'File too large. Max 50MB allowed.' }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      const buffer = Buffer.concat(chunks);
+      const contentType = req.headers['content-type'];
+            
+      const audioData = parseMultipart(buffer, contentType);
+            
+      if (!audioData) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Invalid upload' }));
+        return;
+      }
+            
+      // Detect format from first bytes
+      let extension = '.webm';
+      if (audioData[0] === 0x1a && audioData[1] === 0x45) {
+        extension = '.webm';
+      } else if (audioData.toString('utf8', 0, 4) === 'OggS') {
+        extension = '.ogg';
+      } else if (audioData[0] === 0xFF && audioData[1] === 0xFB) {
+        extension = '.mp3';
+      }
+            
+      const timestamp = Date.now();
+      const filename = `recording-${timestamp}${extension}`;
+      const filepath = path.join(CONFIG.liveDir, filename);
+            
+      // Note: timestamp uses Date.now() for uniqueness, not formatDateForFilename
+
+      fs.writeFileSync(filepath, audioData);
+      console.log('📥 Received:', filename, `(${audioData.length} bytes)`, '→ live/');
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ 
+        ok: true, 
+        filename, 
+        filepath,
+        message: 'Saved to live/. Processing conversation...'
+      }));
+
+      // Transcribe after saving (live conversation, not batch)
+      processRecording(filepath, extension);
+    });
+    return;
+  }
+
+  // Serve neurograph static files (supports /neural-graph, /neural-graph/, /neuro-graph, /neuro-graph/)
+  if (req.method === 'GET' && (req.url.startsWith('/neural-graph') || req.url.startsWith('/neuro-graph'))) {
+    // Strip query string and decode URL so filenames with spaces and unicode work
+    const urlWithoutQuery = req.url.split('?')[0];
+    // Support both /neural-graph and /neuro-graph prefixes (with or without trailing slash)
+    let rawPath = urlWithoutQuery.replace('/neural-graph', '').replace('/neuro-graph', '');
+    // Remove leading slash if present
+    rawPath = rawPath.replace(/^\//, '');
+    const neuroPath = decodeURIComponent(rawPath);
+    const filePath = path.join(CONFIG.neurographDir, neuroPath === '' ? 'index.html' : neuroPath);
+        
+    if (fs.existsSync(filePath) && !filePath.includes('..')) {
+      const ext = path.extname(filePath).toLowerCase();
+      const contentTypes = {
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.mp4': 'video/mp4'
+      };
+            
+      const cacheHeaders = {};
+      if (['.mp4', '.png', '.jpg', '.jpeg'].includes(ext)) {
+        cacheHeaders['Cache-Control'] = 'public, max-age=31536000';
+      } else if (['.html', '.js', '.css'].includes(ext)) {
+        cacheHeaders['Cache-Control'] = 'public, max-age=3600';
+      }
+            
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          res.writeHead(500);
+          res.end('File read error');
+          return;
+        }
+        res.writeHead(200, { 
+          'Content-Type': contentTypes[ext] || 'text/plain',
+          ...cacheHeaders
+        });
+        res.end(data);
       });
       return;
     }
+  }
 
-    // Device registry API - delete device
-    if (req.method === 'DELETE' && req.url.startsWith('/api/delete-device')) {
-      const mac = req.url.split('=')[1];
-      if (!mac) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'MAC address required' }));
+  // NeuroGraph data API (decoupled from frontend paths, works from any cwd)
+  // MUST be before generic static file handler
+  function resolveNeurographBrainDir(reqUrl) {
+    const base = process.env.HOME || '';
+    const defaultDir = path.join(base, 'JARVIS', 'RAW', 'memories');
+    try {
+      const parsed = new URL(reqUrl, 'http://localhost');
+      const brain = (parsed.searchParams.get('brain') || '').replace(/^\/+|\/+$/g, '');
+      if (brain === 'RAW/memories') {return path.join(base, 'RAW', 'memories');}
+      if (brain === 'JARVIS/RAW/memories') {return defaultDir;}
+      return defaultDir;
+    } catch (_) {
+      return defaultDir;
+    }
+  }
+  if (req.url.startsWith('/api/neurograph/nodes.json')) {
+    const brainDir = resolveNeurographBrainDir(req.url);
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    fs.readFile(nodesPath, (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({error: 'Failed to load nodes.json'}));
+        return;
+      }
+      res.writeHead(200, {'Content-Type': 'application/json'});
+      res.end(data);
+    });
+    return;
+  }
+    
+  if (req.url.startsWith('/api/neurograph/synapses.json')) {
+    const brainDir = resolveNeurographBrainDir(req.url);
+    const synapsesPath = path.join(brainDir, 'synapses.json');
+    fs.readFile(synapsesPath, (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({error: 'Failed to load synapses.json'}));
+        return;
+      }
+      res.writeHead(200, {'Content-Type': 'application/json'});
+      res.end(data);
+    });
+    return;
+  }
+
+  // === NEW NEUROGRAPH ENDPOINTS ===
+
+  // GET /api/neurograph - return nodes + synapses combined
+  if (req.method === 'GET' && req.url === '/api/neurograph') {
+    const brainDir = resolveNeurographBrainDir(req.url);
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    const synapsesPath = path.join(brainDir, 'synapses.json');
+    
+    try {
+      const nodesData = fs.readFileSync(nodesPath, 'utf8');
+      const synapsesData = fs.readFileSync(synapsesPath, 'utf8');
+      
+      const nodes = JSON.parse(nodesData);
+      const synapses = JSON.parse(synapsesData);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        nodes: nodes,
+        synapses: synapses,
+        meta: {
+          nodeCount: nodes.length,
+          synapseCount: synapses.length,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    } catch (err) {
+      console.error('Neurograph combined API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to load neurograph data', details: err.message }));
+    }
+    return;
+  }
+
+  // GET /api/neurograph/node/:id - return full context for a specific neuron
+  if (req.method === 'GET' && req.url.startsWith('/api/neurograph/node/')) {
+    const brainDir = resolveNeurographBrainDir(req.url);
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    
+    // Extract node ID from URL
+    const nodeId = req.url.split('/api/neurograph/node/')[1];
+    
+    try {
+      const nodesData = fs.readFileSync(nodesPath, 'utf8');
+      const nodes = JSON.parse(nodesData);
+      
+      // Find the node by ID
+      const node = nodes.find(n => n.id === nodeId);
+      
+      if (!node) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Node not found', nodeId }));
         return;
       }
       
-      const removed = deviceRegistry.deleteDevice(mac);
-      if (removed) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, device: removed }));
-      } else {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Device not found' }));
-      }
-      return;
-    }
-
-    // === Config API (JARVIS Config File Integration) ===
-    // JARVIS_HOME is where the .jarvis-config.json file lives
-    const JARVIS_HOME = process.env.JARVIS_HOME || process.env.HOME + '/JARVIS';
-    const CONFIG_FILE = path.join(JARVIS_HOME, '.jarvis-config.json');
-    
-    // Helper: read config from file
-    function getConfig() {
-      try {
-        const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-        return JSON.parse(data);
-      } catch (err) {
-        console.error('Config read error:', err.message);
-        return null;
-      }
-    }
-    
-    // Helper: write config to file
-    function saveConfig(config) {
-      try {
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-        return true;
-      } catch (err) {
-        console.error('Config write error:', err.message);
-        return false;
-      }
-    }
-    
-    // API: GET /api/config - Get current config
-    if (req.method === 'GET' && req.url === '/api/config') {
-      try {
-        const fullConfig = getConfig();
-        const desktopArchiving = fullConfig?.desktopArchiving || { enabled: false };
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ desktopArchiving }));
-      } catch (err) {
-        console.error('Config GET error:', err.message);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Failed to get config', details: err.message }));
-      }
-      return;
-    }
-    
-    // API: POST /api/config - Update config
-    if (req.method === 'POST' && req.url === '/api/config') {
-      const chunks = [];
-      req.on('data', chunk => chunks.push(chunk));
-      req.on('end', () => {
-        try {
-          const body = Buffer.concat(chunks).toString();
-          const data = JSON.parse(body);
-          const newDesktopArchiving = data.desktopArchiving;
-          
-          if (newDesktopArchiving === undefined || newDesktopArchiving === null) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'desktopArchiving object required' }));
-            return;
-          }
-          
-          // Read existing config
-          const existingConfig = getConfig();
-          const updatedConfig = {
-            ...existingConfig,
-            desktopArchiving: newDesktopArchiving
-          };
-          
-          const success = saveConfig(updatedConfig);
-          
-          if (success) {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              success: true,
-              config: { desktopArchiving: newDesktopArchiving },
-              message: `Desktop archiving ${newDesktopArchiving.enabled ? 'enabled' : 'disabled'}`
-            }));
-          } else {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, error: 'Failed to save config' }));
-          }
-        } catch (err) {
-          console.error('Config POST error:', err.message);
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Invalid JSON or config error', details: err.message }));
+      // Find all synapses connected to this node
+      const synapsesPath = path.join(brainDir, 'synapses.json');
+      const synapsesData = fs.readFileSync(synapsesPath, 'utf8');
+      const synapses = JSON.parse(synapsesData);
+      
+      const connectedSynapses = synapses.filter(s => 
+        s.source === nodeId || s.target === nodeId
+      );
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        node: node,
+        connectedSynapses: connectedSynapses,
+        meta: {
+          connectedCount: connectedSynapses.length,
+          timestamp: new Date().toISOString()
         }
+      }));
+    } catch (err) {
+      console.error('Neurograph node detail API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to load node data', details: err.message }));
+    }
+    return;
+  }
+
+  // GET /api/neurograph/search?q=term - search neurons by text
+  if (req.method === 'GET' && req.url.startsWith('/api/neurograph/search')) {
+    const brainDir = resolveNeurographBrainDir(req.url);
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    
+    // Extract search query from URL
+    const urlObj = new URL(req.url, 'http://localhost');
+    const query = urlObj.searchParams.get('q') || '';
+    const limit = parseInt(urlObj.searchParams.get('limit')) || 20;
+    
+    try {
+      const nodesData = fs.readFileSync(nodesPath, 'utf8');
+      const nodes = JSON.parse(nodesData);
+      
+      if (!query) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Search query required (q=term)' }));
+        return;
+      }
+      
+      const lowerQuery = query.toLowerCase();
+      
+      // Search in label, id, description, and category
+      const matchingNodes = nodes.filter(node => {
+        const labelMatch = (node.label || '').toLowerCase().includes(lowerQuery);
+        const idMatch = (node.id || '').toLowerCase().includes(lowerQuery);
+        const descriptionMatch = (node.attributes?.description || '').toLowerCase().includes(lowerQuery);
+        const categoryMatch = (node.category || '').toLowerCase().includes(lowerQuery);
+        
+        return labelMatch || idMatch || descriptionMatch || categoryMatch;
+      }).slice(0, limit);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        results: matchingNodes,
+        query: query,
+        count: matchingNodes.length,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (err) {
+      console.error('Neurograph search API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to search nodes', details: err.message }));
+    }
+    return;
+  }
+
+  // GET /api/memory/recent - return last N nodes created (default: 10)
+  if (req.method === 'GET' && req.url === '/api/memory/recent') {
+    const brainDir = resolveNeurographBrainDir(req.url);
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    
+    // Extract limit from query parameter
+    const urlObj = new URL(req.url, 'http://localhost');
+    const limit = parseInt(urlObj.searchParams.get('limit')) || 10;
+    
+    try {
+      const nodesData = fs.readFileSync(nodesPath, 'utf8');
+      const nodes = JSON.parse(nodesData);
+      
+      // Filter nodes that have creation date in attributes
+      const nodesWithDate = nodes.filter(node => 
+        node.attributes?.created || 
+        node.attributes?.sourceDocument ||
+        (node.moments && node.moments.length > 0)
+      );
+      
+      // Sort by creation date (newest first)
+      nodesWithDate.sort((a, b) => {
+        const dateA = a.attributes?.created || 
+                      (a.moments && a.moments[0]) || 
+                      a.attributes?.sourceDocument || 
+                      '';
+        const dateB = b.attributes?.created || 
+                      (b.moments && b.moments[0]) || 
+                      b.attributes?.sourceDocument || 
+                      '';
+        return dateB.localeCompare(dateA);
+      });
+      
+      // Take the most recent ones
+      const recentNodes = nodesWithDate.slice(0, limit);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        nodes: recentNodes,
+        limit: limit,
+        totalAvailable: nodesWithDate.length,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (err) {
+      console.error('Memory recent API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to load recent nodes', details: err.message }));
+    }
+    return;
+  }
+
+  // Serve static files (index.html, CSS, JS, video)
+  if (req.method === 'GET') {
+    const urlPath = req.url.split('?')[0];
+    const filePath = path.join(__dirname, urlPath === '/' ? 'index.html' : urlPath);
+        
+    if (fs.existsSync(filePath) && !filePath.includes('..')) {
+      const ext = path.extname(filePath).toLowerCase();
+      const contentTypes = {
+        '.html': 'text/html',
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.json': 'application/json',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.mp4': 'video/mp4'
+      };
+            
+      // Cache control: video + images cache 1 year, HTML/JS/CSS NO CACHE (dev mode)
+      const cacheHeaders = {};
+      if (['.mp4', '.png', '.jpg', '.jpeg'].includes(ext)) {
+        cacheHeaders['Cache-Control'] = 'public, max-age=31536000'; // 1 year
+      } else if (['.html', '.js', '.css'].includes(ext)) {
+        cacheHeaders['Cache-Control'] = 'no-cache, no-store, must-revalidate'; // Dev mode - always fresh
+        cacheHeaders['Pragma'] = 'no-cache';
+        cacheHeaders['Expires'] = '0';
+      }
+            
+      // Add ETag and Last-Modified for cache validation
+      const stats = fs.statSync(filePath);
+      cacheHeaders['ETag'] = `"${stats.ino}-${stats.size}-${stats.mtimeMs}"`;
+      cacheHeaders['Last-Modified'] = stats.mtime.toUTCString();
+            
+      // Device fingerprinting on root path (index.html)
+      if (urlPath === '/') {
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        const ip = req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
+        const cleanIp = ip.replace('::ffff:', ''); // Strip IPv6 prefix
+                
+        console.log(`[Device Fingerprint] UA: ${userAgent.substring(0, 80)}..., IP: ${cleanIp}`);
+                
+        // Get MAC from ARP table
+        const mac = deviceRegistry.getMacFromArp(cleanIp);
+                
+        if (mac) {
+          const device = deviceRegistry.findOrCreateDevice(mac, userAgent, cleanIp);
+          console.log(`[Device] ${device.name} (${device.mac}) - Visit #${device.connection_count}`);
+                    
+          // Pass device info to frontend via custom headers
+          cacheHeaders['X-Device-Id'] = device.id;
+          cacheHeaders['X-Device-Name'] = device.name;
+          cacheHeaders['X-Device-Mac'] = device.mac;
+          cacheHeaders['X-Device-Last-Seen'] = device.last_seen;
+          cacheHeaders['X-Device-Connection-Count'] = String(device.connection_count);
+        } else {
+          console.log(`[Device] MAC lookup failed for IP: ${cleanIp}`);
+        }
+      }
+            
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          res.writeHead(500);
+          res.end('File read error');
+          return;
+        }
+        res.writeHead(200, { 
+          'Content-Type': contentTypes[ext] || 'text/plain',
+          ...cacheHeaders
+        });
+        res.end(data);
       });
       return;
     }
+  }
 
-    if (req.method === 'POST' && req.url === '/upload') {
-        // Rate limiting: simple per-IP counter
-        const clientIp = req.socket.remoteAddress || 'unknown';
-        const now = Date.now();
-        const RATE_LIMIT_WINDOW = 60000; // 1 minute
-        const RATE_LIMIT_MAX = 10; // max 10 uploads per minute per IP
+  // Health check - includes JARVIS process status
+  if (req.url === '/health') {
+    // Get JARVIS process info (PID 267 or find by name)
+    let jarvisPid = null;
+    let jarvisMemory = null;
+    let jarvisUptime = null;
         
-        if (!global.rateLimitCounts) global.rateLimitCounts = {};
-        if (!global.rateLimitCounts[clientIp]) {
-            global.rateLimitCounts[clientIp] = { count: 0, windowStart: now };
-        }
-        
-        const clientData = global.rateLimitCounts[clientIp];
-        if (now - clientData.windowStart > RATE_LIMIT_WINDOW) {
-            clientData.count = 0;
-            clientData.windowStart = now;
-        }
-        
-        if (clientData.count >= RATE_LIMIT_MAX) {
-            res.writeHead(429, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ ok: false, error: 'Rate limit exceeded. Max 10 uploads per minute.' }));
-            return;
-        }
-        
-        clientData.count++;
-        
-        // File size limit: 50MB max
-        const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-        let totalSize = 0;
-        
-        const chunks = [];
-        req.on('data', chunk => {
-            totalSize += chunk.length;
-            if (totalSize > MAX_FILE_SIZE) {
-                res.writeHead(413, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ ok: false, error: 'File too large. Max 50MB allowed.' }));
-                req.destroy();
-                return;
-            }
-            chunks.push(chunk);
-        });
-        req.on('end', () => {
-            const buffer = Buffer.concat(chunks);
-            const contentType = req.headers['content-type'];
+    try {
+      // Find JARVIS process by name (PID is column 2, RSS is column 6, start time is column 10)
+      const psOutput = execSync('ps aux | grep -i "JARVIS" | grep -v grep | grep -v "J.A.R.V.I.S" | head -1', { encoding: 'utf8' }).trim();
             
-            const audioData = parseMultipart(buffer, contentType);
-            
-            if (!audioData) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ ok: false, error: 'Invalid upload' }));
-                return;
-            }
-            
-            // Detect format from first bytes
-            let extension = '.webm';
-            if (audioData[0] === 0x1a && audioData[1] === 0x45) {
-                extension = '.webm';
-            } else if (audioData.toString('utf8', 0, 4) === 'OggS') {
-                extension = '.ogg';
-            } else if (audioData[0] === 0xFF && audioData[1] === 0xFB) {
-                extension = '.mp3';
-            }
-            
-            const timestamp = Date.now();
-            const filename = `recording-${timestamp}${extension}`;
-            const filepath = path.join(CONFIG.liveDir, filename);
-            
-            // Note: timestamp uses Date.now() for uniqueness, not formatDateForFilename
-
-            fs.writeFileSync(filepath, audioData);
-            console.log('📥 Received:', filename, `(${audioData.length} bytes)`, '→ live/');
-
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-                ok: true, 
-                filename, 
-                filepath,
-                message: 'Saved to live/. Processing conversation...'
-            }));
-
-            // Transcribe after saving (live conversation, not batch)
-            processRecording(filepath, extension);
-        });
-        return;
-    }
-
-    // Serve neurograph static files (supports /neural-graph, /neural-graph/, /neuro-graph, /neuro-graph/)
-    if (req.method === 'GET' && (req.url.startsWith('/neural-graph') || req.url.startsWith('/neuro-graph'))) {
-        // Strip query string and decode URL so filenames with spaces and unicode work
-        const urlWithoutQuery = req.url.split('?')[0];
-        // Support both /neural-graph and /neuro-graph prefixes (with or without trailing slash)
-        let rawPath = urlWithoutQuery.replace('/neural-graph', '').replace('/neuro-graph', '');
-        // Remove leading slash if present
-        rawPath = rawPath.replace(/^\//, '');
-        const neuroPath = decodeURIComponent(rawPath);
-        const filePath = path.join(CONFIG.neurographDir, neuroPath === '' ? 'index.html' : neuroPath);
-        
-        if (fs.existsSync(filePath) && !filePath.includes('..')) {
-            const ext = path.extname(filePath).toLowerCase();
-            const contentTypes = {
-                '.html': 'text/html',
-                '.css': 'text/css',
-                '.js': 'application/javascript',
-                '.json': 'application/json',
-                '.png': 'image/png',
-                '.jpg': 'image/jpeg',
-                '.mp4': 'video/mp4'
-            };
-            
-            const cacheHeaders = {};
-            if (['.mp4', '.png', '.jpg', '.jpeg'].includes(ext)) {
-                cacheHeaders['Cache-Control'] = 'public, max-age=31536000';
-            } else if (['.html', '.js', '.css'].includes(ext)) {
-                cacheHeaders['Cache-Control'] = 'public, max-age=3600';
-            }
-            
-            fs.readFile(filePath, (err, data) => {
-                if (err) {
-                    res.writeHead(500);
-                    res.end('File read error');
-                    return;
-                }
-                res.writeHead(200, { 
-                    'Content-Type': contentTypes[ext] || 'text/plain',
-                    ...cacheHeaders
-                });
-                res.end(data);
-            });
-            return;
-        }
-    }
-
-    // NeuroGraph data API (decoupled from frontend paths, works from any cwd)
-    // MUST be before generic static file handler
-    function resolveNeurographBrainDir(reqUrl) {
-        const base = process.env.HOME || '';
-        const defaultDir = path.join(base, 'JARVIS', 'RAW', 'memories');
-        try {
-            const parsed = new URL(reqUrl, 'http://localhost');
-            const brain = (parsed.searchParams.get('brain') || '').replace(/^\/+|\/+$/g, '');
-            if (brain === 'RAW/memories') return path.join(base, 'RAW', 'memories');
-            if (brain === 'JARVIS/RAW/memories') return defaultDir;
-            return defaultDir;
-        } catch (_) {
-            return defaultDir;
-        }
-    }
-    if (req.url.startsWith('/api/neurograph/nodes.json')) {
-        const brainDir = resolveNeurographBrainDir(req.url);
-        const nodesPath = path.join(brainDir, 'nodes.json');
-        fs.readFile(nodesPath, (err, data) => {
-            if (err) {
-                res.writeHead(500);
-                res.end(JSON.stringify({error: 'Failed to load nodes.json'}));
-                return;
-            }
-            res.writeHead(200, {'Content-Type': 'application/json'});
-            res.end(data);
-        });
-        return;
-    }
-    
-    if (req.url.startsWith('/api/neurograph/synapses.json')) {
-        const brainDir = resolveNeurographBrainDir(req.url);
-        const synapsesPath = path.join(brainDir, 'synapses.json');
-        fs.readFile(synapsesPath, (err, data) => {
-            if (err) {
-                res.writeHead(500);
-                res.end(JSON.stringify({error: 'Failed to load synapses.json'}));
-                return;
-            }
-            res.writeHead(200, {'Content-Type': 'application/json'});
-            res.end(data);
-        });
-        return;
-    }
-
-    // Serve static files (index.html, CSS, JS, video)
-    if (req.method === 'GET') {
-        const urlPath = req.url.split('?')[0];
-        const filePath = path.join(__dirname, urlPath === '/' ? 'index.html' : urlPath);
-        
-        if (fs.existsSync(filePath) && !filePath.includes('..')) {
-            const ext = path.extname(filePath).toLowerCase();
-            const contentTypes = {
-                '.html': 'text/html',
-                '.css': 'text/css',
-                '.js': 'application/javascript',
-                '.json': 'application/json',
-                '.png': 'image/png',
-                '.jpg': 'image/jpeg',
-                '.mp4': 'video/mp4'
-            };
-            
-            // Cache control: video + images cache 1 year, HTML/JS/CSS NO CACHE (dev mode)
-            const cacheHeaders = {};
-            if (['.mp4', '.png', '.jpg', '.jpeg'].includes(ext)) {
-                cacheHeaders['Cache-Control'] = 'public, max-age=31536000'; // 1 year
-            } else if (['.html', '.js', '.css'].includes(ext)) {
-                cacheHeaders['Cache-Control'] = 'no-cache, no-store, must-revalidate'; // Dev mode - always fresh
-                cacheHeaders['Pragma'] = 'no-cache';
-                cacheHeaders['Expires'] = '0';
-            }
-            
-            // Add ETag and Last-Modified for cache validation
-            const stats = fs.statSync(filePath);
-            cacheHeaders['ETag'] = `"${stats.ino}-${stats.size}-${stats.mtimeMs}"`;
-            cacheHeaders['Last-Modified'] = stats.mtime.toUTCString();
-            
-            // Device fingerprinting on root path (index.html)
-            if (urlPath === '/') {
-                const userAgent = req.headers['user-agent'] || 'Unknown';
-                const ip = req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
-                const cleanIp = ip.replace('::ffff:', ''); // Strip IPv6 prefix
+      if (psOutput) {
+        const fields = psOutput.split(/\s+/);
+        jarvisPid = parseInt(fields[1]); // PID is column 2
                 
-                console.log(`[Device Fingerprint] UA: ${userAgent.substring(0, 80)}..., IP: ${cleanIp}`);
+        // Get memory (RSS in KB, column 6)
+        const rssKB = parseInt(fields[5]);
+        jarvisMemory = Math.round(rssKB / 1024) + ' MB';
                 
-                // Get MAC from ARP table
-                const mac = deviceRegistry.getMacFromArp(cleanIp);
-                
-                if (mac) {
-                    const device = deviceRegistry.findOrCreateDevice(mac, userAgent, cleanIp);
-                    console.log(`[Device] ${device.name} (${device.mac}) - Visit #${device.connection_count}`);
-                    
-                    // Pass device info to frontend via custom headers
-                    cacheHeaders['X-Device-Id'] = device.id;
-                    cacheHeaders['X-Device-Name'] = device.name;
-                    cacheHeaders['X-Device-Mac'] = device.mac;
-                    cacheHeaders['X-Device-Last-Seen'] = device.last_seen;
-                    cacheHeaders['X-Device-Connection-Count'] = String(device.connection_count);
-                } else {
-                    console.log(`[Device] MAC lookup failed for IP: ${cleanIp}`);
-                }
-            }
-            
-            fs.readFile(filePath, (err, data) => {
-                if (err) {
-                    res.writeHead(500);
-                    res.end('File read error');
-                    return;
-                }
-                res.writeHead(200, { 
-                    'Content-Type': contentTypes[ext] || 'text/plain',
-                    ...cacheHeaders
-                });
-                res.end(data);
-            });
-            return;
-        }
+        // Start time is column 10 (e.g., "Tue08PM")
+        const startTime = fields[9] || 'unknown';
+        jarvisUptime = startTime;  // Just the time, no "Since" prefix
+      }
+    } catch (err) {
+      console.warn('Process check failed:', err.message);
     }
+        
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      status: 'ok', 
+      version: VERSION, 
+      build: BUILD_DATE,
+      inbox: CONFIG.inboxDir, 
+      model: CONFIG.whisperModel,
+      jarvis: {
+        pid: jarvisPid,
+        memory: jarvisMemory,
+        uptime: jarvisUptime,
+        alive: jarvisPid !== null
+      }
+    }));
+    return;
+  }
 
-    // Health check - includes JARVIS process status
-    if (req.url === '/health') {
-        // Get JARVIS process info (PID 267 or find by name)
-        let jarvisPid = null;
-        let jarvisMemory = null;
-        let jarvisUptime = null;
-        
-        try {
-            // Find JARVIS process by name (PID is column 2, RSS is column 6, start time is column 10)
-            const psOutput = execSync('ps aux | grep -i "JARVIS" | grep -v grep | grep -v "J.A.R.V.I.S" | head -1', { encoding: 'utf8' }).trim();
-            
-            if (psOutput) {
-                const fields = psOutput.split(/\s+/);
-                jarvisPid = parseInt(fields[1]); // PID is column 2
-                
-                // Get memory (RSS in KB, column 6)
-                const rssKB = parseInt(fields[5]);
-                jarvisMemory = Math.round(rssKB / 1024) + ' MB';
-                
-                // Start time is column 10 (e.g., "Tue08PM")
-                const startTime = fields[9] || 'unknown';
-                jarvisUptime = startTime;  // Just the time, no "Since" prefix
-            }
-        } catch (err) {
-            console.warn('Process check failed:', err.message);
-        }
-        
+  // System vitals endpoint - returns OpenClaw Gateway, Ollama, and system stats
+  if (req.url === '/api/vitals') {
+    // Use IIFE to handle async properly
+    (async () => {
+      try {
+        const vitals = await getSystemVitals();
         res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(vitals));
+      } catch (err) {
+        console.error('Vitals endpoint error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ 
-            status: 'ok', 
-            version: VERSION, 
-            build: BUILD_DATE,
-            inbox: CONFIG.inboxDir, 
-            model: CONFIG.whisperModel,
-            jarvis: {
-                pid: jarvisPid,
-                memory: jarvisMemory,
-                uptime: jarvisUptime,
-                alive: jarvisPid !== null
-            }
+          error: 'Failed to fetch vitals', 
+          details: err.message 
         }));
-        return;
-    }
+      }
+    })();
+    return;
+  }
 
-    // System vitals endpoint - returns OpenClaw Gateway, Ollama, and system stats
-    if (req.url === '/api/vitals') {
-        // Use IIFE to handle async properly
-        (async () => {
-            try {
-                const vitals = await getSystemVitals();
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify(vitals));
-            } catch (err) {
-                console.error('Vitals endpoint error:', err.message);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ 
-                    error: 'Failed to fetch vitals', 
-                    details: err.message 
-                }));
-            }
-        })();
-        return;
-    }
-
-    // Breathe trigger endpoint - simulates breath cycle
-    if (req.method === 'POST' && req.url === '/api/breathe/trigger') {
-        console.log('🔄 Breathe trigger received');
+  // Breathe trigger endpoint - simulates breath cycle
+  if (req.method === 'POST' && req.url === '/api/breathe/trigger') {
+    console.log('🔄 Breathe trigger received');
         
-        // Send SSE event or update state
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ 
-            success: true, 
-            message: 'Breath cycle triggered', 
-            timestamp: new Date().toISOString() 
-        }));
-        return;
-    }
+    // Send SSE event or update state
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      success: true, 
+      message: 'Breath cycle triggered', 
+      timestamp: new Date().toISOString() 
+    }));
+    return;
+  }
 
-    // Process inbox endpoint (auto-triggered after recording)
-    if (req.method === 'POST' && req.url === '/api/process-inbox') {
-        console.log('🔄 Processing inbox...');
+  // Process inbox endpoint (auto-triggered after recording)
+  if (req.method === 'POST' && req.url === '/api/process-inbox') {
+    console.log('🔄 Processing inbox...');
         
-        try {
-            // Get the latest transcription from archive (inbox is already empty - files moved there)
-            const today = new Date().toISOString().split('T')[0];
-            const archiveDir = path.join(CONFIG.archiveBase, today, 'audio');
+    try {
+      // Get the latest transcription from archive (inbox is already empty - files moved there)
+      const today = new Date().toISOString().split('T')[0];
+      const archiveDir = path.join(CONFIG.archiveBase, today, 'audio');
             
-            const latestTranscript = fs.readdirSync(archiveDir)
-                .filter(f => f.endsWith('.wav.txt') || f.endsWith('.txt'))
-                .sort()
-                .reverse()[0];
+      const latestTranscript = fs.readdirSync(archiveDir)
+        .filter(f => f.endsWith('.wav.txt') || f.endsWith('.txt'))
+        .sort()
+        .reverse()[0];
             
-            let userMessage = 'Inbox processed';
-            if (latestTranscript) {
-                const transcriptPath = path.join(archiveDir, latestTranscript);
-                userMessage = fs.readFileSync(transcriptPath, 'utf8').trim();
-                console.log('📝 User message:', userMessage);
-            }
+      let userMessage = 'Inbox processed';
+      if (latestTranscript) {
+        const transcriptPath = path.join(archiveDir, latestTranscript);
+        userMessage = fs.readFileSync(transcriptPath, 'utf8').trim();
+        console.log('📝 User message:', userMessage);
+      }
             
-            // Run openclaw agent asynchronously (non-blocking)
-            const timestamp = new Date().toISOString();
-            const agentStart = Date.now();
-            console.log(`[${timestamp}] ⏱️ Agent START`);
+      // Run openclaw agent asynchronously (non-blocking)
+      const timestamp = new Date().toISOString();
+      const agentStart = Date.now();
+      console.log(`[${timestamp}] ⏱️ Agent START`);
             
-            // Security fix: Use execFile instead of exec to prevent command injection
-            execFile('openclaw', ['agent', '--agent', 'jarvis', '--message', userMessage], { encoding: 'utf8', timeout: 120000 },
-                (agentErr, agentOutput) => {
-                    const agentDuration = Date.now() - agentStart;
-                    const agentTimestamp = new Date().toISOString();
+      // Security fix: Use execFile instead of exec to prevent command injection
+      execFile('openclaw', ['agent', '--agent', 'jarvis', '--message', userMessage], { encoding: 'utf8', timeout: 120000 },
+        (agentErr, agentOutput) => {
+          const agentDuration = Date.now() - agentStart;
+          const agentTimestamp = new Date().toISOString();
                     
-                    if (agentErr) {
-                        console.error(`[${agentTimestamp}] ❌ Agent failed:`, agentErr.message);
-                        res.writeHead(500, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ status: 'error', message: agentErr.message }));
-                        return;
-                    }
-                    
-                    console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
-                    
-                    // Extract response text (strip logs, get actual reply)
-                    const responseText = agentOutput.split('\n').filter(line => 
-                        !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10
-                    ).join('\n').trim();
-                    
-                    console.log(`[${agentTimestamp}] 🤖 My response: ${responseText}`);
-                    
-                    // Post to Jarvis agent session (OpenClaw)
-                    try {
-                        // Security fix: Use execFile instead of exec to prevent command injection
-                        execFile('openclaw', ['sessions', 'send', '--sessionKey', 'agent:jarvis:main', '--message', responseText], { encoding: 'utf8', timeout: 120000 },
-                            (sessionErr) => {
-                                if (sessionErr) {
-                                    console.error(`[${agentTimestamp}] ⚠️ Session send failed:`, sessionErr.message);
-                                } else {
-                                    console.log(`[${agentTimestamp}] ✅ Posted to Jarvis agent session`);
-                                }
-                            }
-                        );
-                    } catch (sessionErr) {
-                        console.error(`[${agentTimestamp}] ⚠️ Session send failed:`, sessionErr.message);
-                    }
-                    
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ 
-                        status: 'processed', 
-                        userMessage: userMessage,
-                        myResponse: responseText || 'Message processed'
-                    }));
-                }
-            );
-            return; // Exit early - response sent in callback
-        } catch (error) {
-            console.error('❌ Processing failed:', error.message);
+          if (agentErr) {
+            console.error(`[${agentTimestamp}] ❌ Agent failed:`, agentErr.message);
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ status: 'error', message: error.message }));
-        }
-        return;
-    }
-
-    // Get latest transcription status (check both live/ and archive/, return most recent)
-    if (req.url.startsWith('/transcript/status') || req.url.startsWith('/transcript/latest')) {
-        try {
-            const urlObj = new URL(req.url || '', 'http://localhost');
-            const fileParam = urlObj.searchParams.get('file');
-            const recordingBase = fileParam ? fileParam.replace(/\.[^.]+$/, '') : null;
-
-            // If client asked for a specific upload, return that recording's result from memory (no file lookup)
-            if (recordingBase && pendingResponses.has(recordingBase)) {
-                const entry = pendingResponses.get(recordingBase);
-                // Keep in map for 5 min so repeat polls still get the response (first response can be lost/raced)
-                if (entry.at && Date.now() - entry.at > 300000) {
-                    pendingResponses.delete(recordingBase);
-                }
-                res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                res.end(JSON.stringify({
-                    status: 'done',
-                    transcript: entry.transcript || '',
-                    jarvisResponse: entry.jarvisResponse ?? null,
-                    file: fileParam
-                }));
-                return;
-            }
-
-            // Scoped request but not ready yet: report status for this file only
-            if (recordingBase) {
-                const wavBase = recordingBase + '.wav';
-                const txtName = wavBase + '.txt';
-                
-                // Check both liveDir and archiveDir (files are archived immediately after transcription)
-                const today = new Date().toISOString().split('T')[0];
-                const archiveDir = path.join(CONFIG.archiveBase, today, 'audio');
-                
-                const hasWavLive = fs.existsSync(path.join(CONFIG.liveDir, wavBase));
-                const hasTxtLive = fs.existsSync(path.join(CONFIG.liveDir, txtName));
-                
-                if (lastError && (lastError.file || '').startsWith(recordingBase)) {
-                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                    res.end(JSON.stringify({
-                        status: 'error',
-                        error: lastError.message,
-                        errorType: lastError.type,
-                        errorDetails: lastError.details || '',
-                        file: lastError.file
-                    }));
-                    return;
-                }
-                if (hasTxtLive) {
-                    const transcriptPath = path.join(CONFIG.liveDir, txtName);
-                    const transcript = fs.readFileSync(transcriptPath, 'utf8').trim();
-                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                    res.end(JSON.stringify({ status: 'processing', transcript, message: 'Agent thinking...', file: fileParam }));
-                    return;
-                }
-                
-                // File not in liveDir - check archive for most recent transcript (upload filename doesn't match archive filename)
-                if (fs.existsSync(archiveDir)) {
-                    const archiveFiles = fs.readdirSync(archiveDir)
-                        .filter(f => f.endsWith('.wav.txt'))
-                        .map(f => {
-                            const fullPath = path.join(archiveDir, f);
-                            return { name: f, mtimeMs: fs.statSync(fullPath).mtimeMs, path: fullPath };
-                        })
-                        .sort((a, b) => b.mtimeMs - a.mtimeMs);
+            res.end(JSON.stringify({ status: 'error', message: agentErr.message }));
+            return;
+          }
                     
-                    if (archiveFiles.length > 0) {
-                        const latestArchived = archiveFiles[0];
-                        const transcript = fs.readFileSync(latestArchived.path, 'utf8').trim();
-                        const responsePath = latestArchived.path.replace('.wav.txt', '.response.txt');
-                        let jarvisResponse = null;
-                        if (fs.existsSync(responsePath)) {
-                            jarvisResponse = fs.readFileSync(responsePath, 'utf8').trim();
-                        }
-                        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                        res.end(JSON.stringify({ 
-                            status: jarvisResponse ? 'done' : 'processing', 
-                            transcript, 
-                            jarvisResponse,
-                            file: latestArchived.name 
-                        }));
-                        return;
-                    }
-                }
-                
-                if (hasWavLive) {
-                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                    res.end(JSON.stringify({ status: 'transcribing', message: 'Transcription in progress...', file: fileParam }));
-                    return;
-                }
-                res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                res.end(JSON.stringify({ status: 'transcribing', message: 'Waiting for file...', file: fileParam }));
-                return;
-            }
-
-            // No ?file: legacy "latest by mtime" behavior
-            const allTranscripts = [];
-            if (fs.existsSync(CONFIG.liveDir)) {
-                const liveFiles = fs.readdirSync(CONFIG.liveDir)
-                    .filter(f => f.endsWith('.wav.txt'))
-                    .map(f => {
-                        const fullPath = path.join(CONFIG.liveDir, f);
-                        const mtimeMs = fs.statSync(fullPath).mtimeMs;
-                        return { name: f, mtimeMs, dir: 'live', path: CONFIG.liveDir };
-                    });
-                allTranscripts.push(...liveFiles);
-            }
-            
-            // Get transcripts from archive/ folder (today's date)
-            const today = new Date().toISOString().split('T')[0];
-            const archiveDir = path.join(CONFIG.archiveBase, today, 'audio');
-            if (fs.existsSync(archiveDir)) {
-                const archiveFiles = fs.readdirSync(archiveDir)
-                    .filter(f => f.endsWith('.wav.txt'))
-                    .map(f => {
-                        const fullPath = path.join(archiveDir, f);
-                        const mtimeMs = fs.statSync(fullPath).mtimeMs;
-                        return { name: f, mtimeMs, dir: 'archive', path: archiveDir };
-                    });
-                allTranscripts.push(...archiveFiles);
-            }
-            
-            // Sort by file mtime (most recently modified first)
-            const latestFile = allTranscripts.sort((a, b) => b.mtimeMs - a.mtimeMs)[0];
-            
-            if (latestFile) {
-                const dirPath = latestFile.dir === 'archive' ? latestFile.path : CONFIG.liveDir;
-                const transcriptPath = path.join(dirPath, latestFile.name);
-                const transcript = fs.readFileSync(transcriptPath, 'utf8').trim();
-                const responsePath = path.join(dirPath, latestFile.name.replace('.wav.txt', '.response.txt'));
-                let jarvisResponse = null;
-                
-                // Check if response exists (server already processed this)
-                if (fs.existsSync(responsePath)) {
-                    jarvisResponse = fs.readFileSync(responsePath, 'utf8').trim();
-                }
-                
-                res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                res.end(JSON.stringify({ 
-                    status: 'done', 
-                    transcript, 
-                    jarvisResponse,
-                    file: latestFile.name,
-                    timestamp: latestFile.mtimeMs
-                }));
-            } else {
-                // No transcript yet - check for pending recordings or errors
-                const wavFiles = fs.readdirSync(CONFIG.liveDir)
-                    .filter(f => f.endsWith('.wav') && !f.endsWith('.wav.txt'))
-                    .sort().reverse()[0];
-                
-                if (lastError) {
-                    // Return error to UI
-                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                    res.end(JSON.stringify({ 
-                        status: 'error',
-                        error: lastError.message,
-                        errorType: lastError.type,
-                        errorDetails: lastError.details || '',
-                        file: lastError.file,
-                        message: 'Transcription failed. Check error details.'
-                    }));
-                } else if (wavFiles) {
-                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                    res.end(JSON.stringify({ 
-                        status: 'transcribing',
-                        message: 'Transcription in progress...',
-                        file: wavFiles
-                    }));
+          console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
+                    
+          // Extract response text (strip logs, get actual reply)
+          const responseText = agentOutput.split('\n').filter(line => 
+            !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10
+          ).join('\n').trim();
+                    
+          console.log(`[${agentTimestamp}] 🤖 My response: ${responseText}`);
+                    
+          // Post to Jarvis agent session (OpenClaw)
+          try {
+            // Security fix: Use execFile instead of exec to prevent command injection
+            execFile('openclaw', ['sessions', 'send', '--sessionKey', 'agent:jarvis:main', '--message', responseText], { encoding: 'utf8', timeout: 120000 },
+              (sessionErr) => {
+                if (sessionErr) {
+                  console.error(`[${agentTimestamp}] ⚠️ Session send failed:`, sessionErr.message);
                 } else {
-                    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-                    res.end(JSON.stringify({ status: 'idle' }));
+                  console.log(`[${agentTimestamp}] ✅ Posted to Jarvis agent session`);
                 }
-            }
-        } catch (err) {
-            console.error('❌ Transcript endpoint error:', err.message);
-            res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-            res.end(JSON.stringify({ 
-                status: 'error', 
-                error: err.message,
-                message: 'Failed to fetch transcript'
-            }));
+              }
+            );
+          } catch (sessionErr) {
+            console.error(`[${agentTimestamp}] ⚠️ Session send failed:`, sessionErr.message);
+          }
+                    
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            status: 'processed', 
+            userMessage: userMessage,
+            myResponse: responseText || 'Message processed'
+          }));
         }
-        return;
+      );
+      return; // Exit early - response sent in callback
+    } catch (error) {
+      console.error('❌ Processing failed:', error.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'error', message: error.message }));
     }
+    return;
+  }
 
-    // Get last error details (for debugging)
-    if (req.url === '/error/last') {
+  // Get latest transcription status (check both live/ and archive/, return most recent)
+  if (req.url.startsWith('/transcript/status') || req.url.startsWith('/transcript/latest')) {
+    try {
+      const urlObj = new URL(req.url || '', 'http://localhost');
+      const fileParam = urlObj.searchParams.get('file');
+      const recordingBase = fileParam ? fileParam.replace(/\.[^.]+$/, '') : null;
+
+      // If client asked for a specific upload, return that recording's result from memory (no file lookup)
+      if (recordingBase && pendingResponses.has(recordingBase)) {
+        const entry = pendingResponses.get(recordingBase);
+        // Keep in map for 5 min so repeat polls still get the response (first response can be lost/raced)
+        if (entry.at && Date.now() - entry.at > 300000) {
+          pendingResponses.delete(recordingBase);
+        }
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify(lastError || { status: 'no_error' }));
+        res.end(JSON.stringify({
+          status: 'done',
+          transcript: entry.transcript || '',
+          jarvisResponse: entry.jarvisResponse ?? null,
+          file: fileParam
+        }));
         return;
-    }
+      }
 
-    // Serve static files
-    if (req.method === 'GET') {
-        let filePath = path.join(__dirname, req.url === '/' ? 'voice-recorder-simple.html' : req.url);
-        const ext = path.extname(filePath);
-        const contentTypes = {
-            '.html': 'text/html',
-            '.js': 'application/javascript',
-            '.css': 'text/css',
-            '.json': 'application/json'
-        };
-        
-        fs.readFile(filePath, (err, data) => {
-            if (err) {
-                res.writeHead(404);
-                res.end('Not found');
-            } else {
-                res.writeHead(200, { 'Content-Type': contentTypes[ext] || 'text/plain' });
-                res.end(data);
+      // Scoped request but not ready yet: report status for this file only
+      if (recordingBase) {
+        const wavBase = recordingBase + '.wav';
+        const txtName = wavBase + '.txt';
+                
+        // Check both liveDir and archiveDir (files are archived immediately after transcription)
+        const today = new Date().toISOString().split('T')[0];
+        const archiveDir = path.join(CONFIG.archiveBase, today, 'audio');
+                
+        const hasWavLive = fs.existsSync(path.join(CONFIG.liveDir, wavBase));
+        const hasTxtLive = fs.existsSync(path.join(CONFIG.liveDir, txtName));
+                
+        if (lastError && (lastError.file || '').startsWith(recordingBase)) {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({
+            status: 'error',
+            error: lastError.message,
+            errorType: lastError.type,
+            errorDetails: lastError.details || '',
+            file: lastError.file
+          }));
+          return;
+        }
+        if (hasTxtLive) {
+          const transcriptPath = path.join(CONFIG.liveDir, txtName);
+          const transcript = fs.readFileSync(transcriptPath, 'utf8').trim();
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ status: 'processing', transcript, message: 'Agent thinking...', file: fileParam }));
+          return;
+        }
+                
+        // File not in liveDir - check archive for most recent transcript (upload filename doesn't match archive filename)
+        if (fs.existsSync(archiveDir)) {
+          const archiveFiles = fs.readdirSync(archiveDir)
+            .filter(f => f.endsWith('.wav.txt'))
+            .map(f => {
+              const fullPath = path.join(archiveDir, f);
+              return { name: f, mtimeMs: fs.statSync(fullPath).mtimeMs, path: fullPath };
+            })
+            .sort((a, b) => b.mtimeMs - a.mtimeMs);
+                    
+          if (archiveFiles.length > 0) {
+            const latestArchived = archiveFiles[0];
+            const transcript = fs.readFileSync(latestArchived.path, 'utf8').trim();
+            const responsePath = latestArchived.path.replace('.wav.txt', '.response.txt');
+            let jarvisResponse = null;
+            if (fs.existsSync(responsePath)) {
+              jarvisResponse = fs.readFileSync(responsePath, 'utf8').trim();
             }
-        });
+            res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+            res.end(JSON.stringify({ 
+              status: jarvisResponse ? 'done' : 'processing', 
+              transcript, 
+              jarvisResponse,
+              file: latestArchived.name 
+            }));
+            return;
+          }
+        }
+                
+        if (hasWavLive) {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ status: 'transcribing', message: 'Transcription in progress...', file: fileParam }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ status: 'transcribing', message: 'Waiting for file...', file: fileParam }));
         return;
-    }
+      }
 
-    res.writeHead(404);
-    res.end('Not found');
+      // No ?file: legacy "latest by mtime" behavior
+      const allTranscripts = [];
+      if (fs.existsSync(CONFIG.liveDir)) {
+        const liveFiles = fs.readdirSync(CONFIG.liveDir)
+          .filter(f => f.endsWith('.wav.txt'))
+          .map(f => {
+            const fullPath = path.join(CONFIG.liveDir, f);
+            const mtimeMs = fs.statSync(fullPath).mtimeMs;
+            return { name: f, mtimeMs, dir: 'live', path: CONFIG.liveDir };
+          });
+        allTranscripts.push(...liveFiles);
+      }
+            
+      // Get transcripts from archive/ folder (today's date)
+      const today = new Date().toISOString().split('T')[0];
+      const archiveDir = path.join(CONFIG.archiveBase, today, 'audio');
+      if (fs.existsSync(archiveDir)) {
+        const archiveFiles = fs.readdirSync(archiveDir)
+          .filter(f => f.endsWith('.wav.txt'))
+          .map(f => {
+            const fullPath = path.join(archiveDir, f);
+            const mtimeMs = fs.statSync(fullPath).mtimeMs;
+            return { name: f, mtimeMs, dir: 'archive', path: archiveDir };
+          });
+        allTranscripts.push(...archiveFiles);
+      }
+            
+      // Sort by file mtime (most recently modified first)
+      const latestFile = allTranscripts.sort((a, b) => b.mtimeMs - a.mtimeMs)[0];
+            
+      if (latestFile) {
+        const dirPath = latestFile.dir === 'archive' ? latestFile.path : CONFIG.liveDir;
+        const transcriptPath = path.join(dirPath, latestFile.name);
+        const transcript = fs.readFileSync(transcriptPath, 'utf8').trim();
+        const responsePath = path.join(dirPath, latestFile.name.replace('.wav.txt', '.response.txt'));
+        let jarvisResponse = null;
+                
+        // Check if response exists (server already processed this)
+        if (fs.existsSync(responsePath)) {
+          jarvisResponse = fs.readFileSync(responsePath, 'utf8').trim();
+        }
+                
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ 
+          status: 'done', 
+          transcript, 
+          jarvisResponse,
+          file: latestFile.name,
+          timestamp: latestFile.mtimeMs
+        }));
+      } else {
+        // No transcript yet - check for pending recordings or errors
+        const wavFiles = fs.readdirSync(CONFIG.liveDir)
+          .filter(f => f.endsWith('.wav') && !f.endsWith('.wav.txt'))
+          .sort().reverse()[0];
+                
+        if (lastError) {
+          // Return error to UI
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ 
+            status: 'error',
+            error: lastError.message,
+            errorType: lastError.type,
+            errorDetails: lastError.details || '',
+            file: lastError.file,
+            message: 'Transcription failed. Check error details.'
+          }));
+        } else if (wavFiles) {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ 
+            status: 'transcribing',
+            message: 'Transcription in progress...',
+            file: wavFiles
+          }));
+        } else {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ status: 'idle' }));
+        }
+      }
+    } catch (err) {
+      console.error('❌ Transcript endpoint error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ 
+        status: 'error', 
+        error: err.message,
+        message: 'Failed to fetch transcript'
+      }));
+    }
+    return;
+  }
+
+  // Get last error details (for debugging)
+  if (req.url === '/error/last') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(lastError || { status: 'no_error' }));
+    return;
+  }
+
+  // Serve static files
+  if (req.method === 'GET') {
+    let filePath = path.join(__dirname, req.url === '/' ? 'voice-recorder-simple.html' : req.url);
+    const ext = path.extname(filePath);
+    const contentTypes = {
+      '.html': 'text/html',
+      '.js': 'application/javascript',
+      '.css': 'text/css',
+      '.json': 'application/json'
+    };
+        
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        res.end('Not found');
+      } else {
+        res.writeHead(200, { 'Content-Type': contentTypes[ext] || 'text/plain' });
+        res.end(data);
+      }
+    });
+    return;
+  }
+
+  res.writeHead(404);
+  res.end('Not found');
 }
 
 // === Whisper Transcription ===
@@ -1155,174 +1333,174 @@ let lastError = null;
 const pendingResponses = new Map();
 
 function processRecording(filepath, extension) {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] 🎤 Transcribing: ${path.basename(filepath)}`);
-    activeTranscriptions++;
-    currentTranscription = { status: 'transcribing', file: path.basename(filepath) };
-    lastError = null; // Clear previous error
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 🎤 Transcribing: ${path.basename(filepath)}`);
+  activeTranscriptions++;
+  currentTranscription = { status: 'transcribing', file: path.basename(filepath) };
+  lastError = null; // Clear previous error
 
-    if (!fs.existsSync(modelPath)) {
-        const errMsg = '❌ Model not found: ' + modelPath;
-        console.error(`[${timestamp}] ${errMsg}`);
-        currentTranscription = { status: 'error', error: 'Model not found' };
-        lastError = { type: 'model', message: 'Model not found', file: path.basename(filepath) };
-        return;
-    }
+  if (!fs.existsSync(modelPath)) {
+    const errMsg = '❌ Model not found: ' + modelPath;
+    console.error(`[${timestamp}] ${errMsg}`);
+    currentTranscription = { status: 'error', error: 'Model not found' };
+    lastError = { type: 'model', message: 'Model not found', file: path.basename(filepath) };
+    return;
+  }
 
-    // Convert WebM to WAV for whisper.cpp reliability
-    if (extension === '.webm') {
-        const wavPath = filepath.replace('.webm', '.wav');
-        const ffmpegPath = process.env.FMPEG_PATH || 'ffmpeg'; // Configurable via env var
-        // Security fix: Use execFile instead of exec to prevent command injection
-        execFile(ffmpegPath, ['-i', filepath, '-ar', '16000', '-ac', '1', wavPath, '-y'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-            (convError, stdout, stderr) => {
-                if (convError) {
-                    const errMsg = '❌ FFmpeg conversion failed: ' + convError.message;
-                    console.error(`[${new Date().toISOString()}] ${errMsg}`);
-                    currentTranscription = { status: 'error', error: 'Conversion failed' };
-                    lastError = { 
-                        type: 'ffmpeg', 
-                        message: 'FFmpeg conversion failed', 
-                        details: convError.message,
-                        stderr: stderr || '',
-                        file: path.basename(filepath)
-                    };
-                } else {
-                    console.log(`[${new Date().toISOString()}] ✓ Converted WebM → WAV`);
-                    transcribeWithWhisper(wavPath, modelPath, '.wav');
-                }
-            }
-        );
-    } else {
-        transcribeWithWhisper(filepath, modelPath, extension);
-    }
+  // Convert WebM to WAV for whisper.cpp reliability
+  if (extension === '.webm') {
+    const wavPath = filepath.replace('.webm', '.wav');
+    const ffmpegPath = process.env.FMPEG_PATH || 'ffmpeg'; // Configurable via env var
+    // Security fix: Use execFile instead of exec to prevent command injection
+    execFile(ffmpegPath, ['-i', filepath, '-ar', '16000', '-ac', '1', wavPath, '-y'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+      (convError, stdout, stderr) => {
+        if (convError) {
+          const errMsg = '❌ FFmpeg conversion failed: ' + convError.message;
+          console.error(`[${new Date().toISOString()}] ${errMsg}`);
+          currentTranscription = { status: 'error', error: 'Conversion failed' };
+          lastError = { 
+            type: 'ffmpeg', 
+            message: 'FFmpeg conversion failed', 
+            details: convError.message,
+            stderr: stderr || '',
+            file: path.basename(filepath)
+          };
+        } else {
+          console.log(`[${new Date().toISOString()}] ✓ Converted WebM → WAV`);
+          transcribeWithWhisper(wavPath, modelPath, '.wav');
+        }
+      }
+    );
+  } else {
+    transcribeWithWhisper(filepath, modelPath, extension);
+  }
 }
 
 function transcribeWithWhisper(audioPath, modelPath, extension) {
-    const timestamp = new Date().toISOString();
-    // Security fix: Use execFile instead of exec to prevent command injection
-    execFile(CONFIG.whisperCli, ['-m', modelPath, '-otxt', audioPath], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-        (error, stdout, stderr) => {
-            const txtFile = audioPath + '.txt';
+  const timestamp = new Date().toISOString();
+  // Security fix: Use execFile instead of exec to prevent command injection
+  execFile(CONFIG.whisperCli, ['-m', modelPath, '-otxt', audioPath], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    (error, stdout, stderr) => {
+      const txtFile = audioPath + '.txt';
             
-            setTimeout(() => {
-                if (fs.existsSync(txtFile)) {
-                    const transcript = fs.readFileSync(txtFile, 'utf8').trim();
-                    console.log(`[${timestamp}] 📝 Transcript: ${transcript}`);
-                    currentTranscription = { status: 'done', transcript };
-                    handleTranscript(audioPath, transcript, extension);
-                } else {
-                    console.error(`[${timestamp}] ❌ No transcript created`);
-                    currentTranscription = { status: 'error', error: 'Transcription failed' };
-                    activeTranscriptions--;
-                }
-            }, 500);
+      setTimeout(() => {
+        if (fs.existsSync(txtFile)) {
+          const transcript = fs.readFileSync(txtFile, 'utf8').trim();
+          console.log(`[${timestamp}] 📝 Transcript: ${transcript}`);
+          currentTranscription = { status: 'done', transcript };
+          handleTranscript(audioPath, transcript, extension);
+        } else {
+          console.error(`[${timestamp}] ❌ No transcript created`);
+          currentTranscription = { status: 'error', error: 'Transcription failed' };
+          activeTranscriptions--;
         }
-    );
+      }, 500);
+    }
+  );
 }
 
 function handleTranscript(filepath, transcript, extension) {
-    console.log('🚨 handleTranscript CALLED!');
-    console.log('📁 Filepath:', filepath);
-    console.log('📝 Transcript:', transcript);
-    // Save transcript alongside audio in live/
-    const transcriptPath = filepath + '.txt';
-    fs.writeFileSync(transcriptPath, transcript.trim());
+  console.log('🚨 handleTranscript CALLED!');
+  console.log('📁 Filepath:', filepath);
+  console.log('📝 Transcript:', transcript);
+  // Save transcript alongside audio in live/
+  const transcriptPath = filepath + '.txt';
+  fs.writeFileSync(transcriptPath, transcript.trim());
     
-    console.log('💾 Saved to live/:', filepath);
-    console.log('📝 Transcript:', transcript.trim());
-    currentTranscription.transcriptPath = transcriptPath;
+  console.log('💾 Saved to live/:', filepath);
+  console.log('📝 Transcript:', transcript.trim());
+  currentTranscription.transcriptPath = transcriptPath;
     
-    // DO NOT archive yet - wait until AFTER agent responds so UI can poll successfully
-    // Archive will happen in the agent callback below
+  // DO NOT archive yet - wait until AFTER agent responds so UI can poll successfully
+  // Archive will happen in the agent callback below
 
-    // Extract user message from transcript and send it to the main agent
-    const userMessage = transcript.trim();
-    console.log('🤖 User message:', userMessage);
+  // Extract user message from transcript and send it to the main agent
+  const userMessage = transcript.trim();
+  console.log('🤖 User message:', userMessage);
 
-    // Run openclaw agent asynchronously (non-blocking)
-        console.log(`[${new Date().toISOString()}] ⏱️ Agent START (handleTranscript)`);
+  // Run openclaw agent asynchronously (non-blocking)
+  console.log(`[${new Date().toISOString()}] ⏱️ Agent START (handleTranscript)`);
     
-    // Security fix: Use spawn instead of execFile to prevent command injection
-    const agentProcess = spawn('openclaw', ['agent', '--agent', 'jarvis', '--message', userMessage], { encoding: 'utf8' });
-    let agentOutput = '';
-    let agentErr = null;
-    const agentStart = Date.now();
+  // Security fix: Use spawn instead of execFile to prevent command injection
+  const agentProcess = spawn('openclaw', ['agent', '--agent', 'jarvis', '--message', userMessage], { encoding: 'utf8' });
+  let agentOutput = '';
+  let agentErr = null;
+  const agentStart = Date.now();
     
-    agentProcess.stdout.on('data', (data) => {
-        agentOutput += data;
-    });
+  agentProcess.stdout.on('data', (data) => {
+    agentOutput += data;
+  });
     
-    agentProcess.stderr.on('data', (data) => {
-        console.error(`agent stderr: ${data}`);
-    });
+  agentProcess.stderr.on('data', (data) => {
+    console.error(`agent stderr: ${data}`);
+  });
     
-    agentProcess.on('error', (error) => {
-        agentErr = error;
-    });
+  agentProcess.on('error', (error) => {
+    agentErr = error;
+  });
     
-    agentProcess.on('close', (code) => {
-        const agentDuration = Date.now() - agentStart;
-        const agentTimestamp = new Date().toISOString();
+  agentProcess.on('close', (code) => {
+    const agentDuration = Date.now() - agentStart;
+    const agentTimestamp = new Date().toISOString();
         
-        if (code !== 0) {
-            console.error(`[${agentTimestamp}] ❌ Agent failed with code ${code}`);
-            // Still archive on error so we don't leave files in live/
-            archiveRecording(filepath, extension, transcript);
-            activeTranscriptions--;
-            return;
-        }
+    if (code !== 0) {
+      console.error(`[${agentTimestamp}] ❌ Agent failed with code ${code}`);
+      // Still archive on error so we don't leave files in live/
+      archiveRecording(filepath, extension, transcript);
+      activeTranscriptions--;
+      return;
+    }
         
-        console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
-        console.log(`[${agentTimestamp}] ✅ Sent user message to jarvis agent`);
+    console.log(`[${agentTimestamp}] ⏱️ Agent COMPLETE (${agentDuration}ms)`);
+    console.log(`[${agentTimestamp}] ✅ Sent user message to jarvis agent`);
         
-        let responseText = agentOutput.split('\n')
-            .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
-            .join('\n').trim();
+    let responseText = agentOutput.split('\n')
+      .filter(line => !line.includes('[') && !line.includes('✅') && !line.includes('❌') && line.trim().length > 10)
+      .join('\n').trim();
         
-        // Archive AFTER agent completes - transcript is now available in liveDir for UI polling
-        const responsePath = archiveRecording(filepath, extension, transcript);
+    // Archive AFTER agent completes - transcript is now available in liveDir for UI polling
+    const responsePath = archiveRecording(filepath, extension, transcript);
         
-        if (responsePath && responseText) {
-            fs.writeFileSync(responsePath, responseText);
-        }
+    if (responsePath && responseText) {
+      fs.writeFileSync(responsePath, responseText);
+    }
         
-        // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
-        const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
-        pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
-        activeTranscriptions--;
-    });
+    // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
+    const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
+    pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
+    activeTranscriptions--;
+  });
 }
 
 function archiveRecording(filepath, extension, transcript) {
-    const datePart = formatDateForArchive();
-    const archiveDir = path.join(CONFIG.archiveBase, datePart, 'audio');
-    if (!fs.existsSync(archiveDir)) {
-        fs.mkdirSync(archiveDir, { recursive: true });
-    }
+  const datePart = formatDateForArchive();
+  const archiveDir = path.join(CONFIG.archiveBase, datePart, 'audio');
+  if (!fs.existsSync(archiveDir)) {
+    fs.mkdirSync(archiveDir, { recursive: true });
+  }
     
-    const timestamp = formatDateForFilename();
-    const archivedName = `convo-jarvis-${timestamp}${extension}`;
-    const responsePath = path.join(archiveDir, archivedName.replace('.wav', '.response.txt'));
+  const timestamp = formatDateForFilename();
+  const archivedName = `convo-jarvis-${timestamp}${extension}`;
+  const responsePath = path.join(archiveDir, archivedName.replace('.wav', '.response.txt'));
 
-    // Move audio files
-    try {
-        fs.renameSync(filepath, path.join(archiveDir, archivedName));
-        fs.renameSync(filepath + '.txt', path.join(archiveDir, `${archivedName}.txt`));
+  // Move audio files
+  try {
+    fs.renameSync(filepath, path.join(archiveDir, archivedName));
+    fs.renameSync(filepath + '.txt', path.join(archiveDir, `${archivedName}.txt`));
 
-        // Also move webm if exists
-        const webmPath = filepath.replace('.wav', '.webm');
-        if (fs.existsSync(webmPath)) {
-            fs.renameSync(webmPath, path.join(archiveDir, archivedName.replace('.wav', '.webm')));
-        }
-
-        console.log('💾 Archived to:', archiveDir);
-        console.log('📁 Files:', archivedName);
-    } catch (err) {
-        console.error('⚠️ Archive failed:', err.message);
-        return null;
+    // Also move webm if exists
+    const webmPath = filepath.replace('.wav', '.webm');
+    if (fs.existsSync(webmPath)) {
+      fs.renameSync(webmPath, path.join(archiveDir, archivedName.replace('.wav', '.webm')));
     }
-    return responsePath;
+
+    console.log('💾 Archived to:', archiveDir);
+    console.log('📁 Files:', archivedName);
+  } catch (err) {
+    console.error('⚠️ Archive failed:', err.message);
+    return null;
+  }
+  return responsePath;
 }
 
 // === SYSTEM VITALS CACHING ===
@@ -1330,149 +1508,149 @@ let vitalsCache = { data: null, timestamp: 0 };
 const VITALS_CACHE_TTL = 30000; // 30 seconds
 
 async function getSystemVitals() {
-    const now = Date.now();
-    if (vitalsCache.data && (now - vitalsCache.timestamp < VITALS_CACHE_TTL)) {
-        return vitalsCache.data;
-    }
+  const now = Date.now();
+  if (vitalsCache.data && (now - vitalsCache.timestamp < VITALS_CACHE_TTL)) {
+    return vitalsCache.data;
+  }
     
-    const data = {
-        openclawGateway: { status: 'Unknown', pid: null, memoryMB: null, uptime: null },
-        ollama: { status: 'Unknown', models: 0, modelList: [], error: null },
-        system: { cpu: { usagePercent: null }, memory: { totalGB: null, usedGB: null, usedPercent: null }, disk: { total: null, used: null, usedPercent: null } }
-    };
+  const data = {
+    openclawGateway: { status: 'Unknown', pid: null, memoryMB: null, uptime: null },
+    ollama: { status: 'Unknown', models: 0, modelList: [], error: null },
+    system: { cpu: { usagePercent: null }, memory: { totalGB: null, usedGB: null, usedPercent: null }, disk: { total: null, used: null, usedPercent: null } }
+  };
     
-    // Check OpenClaw Gateway process (more robust detection)
-    try {
-        const psOutput = execSync('ps aux | grep -i "openclaw" | grep -v grep | grep -v "grep"', { encoding: 'utf8' }).trim();
-        if (psOutput) {
-            const lines = psOutput.split('\n');
-            const gatewayLine = lines.find(line => line.toLowerCase().includes('gateway'));
+  // Check OpenClaw Gateway process (more robust detection)
+  try {
+    const psOutput = execSync('ps aux | grep -i "openclaw" | grep -v grep | grep -v "grep"', { encoding: 'utf8' }).trim();
+    if (psOutput) {
+      const lines = psOutput.split('\n');
+      const gatewayLine = lines.find(line => line.toLowerCase().includes('gateway'));
             
-            if (gatewayLine) {
-                const fields = gatewayLine.split(/\s+/);
-                const pid = parseInt(fields[1]);
-                const rssKB = parseInt(fields[5]);
+      if (gatewayLine) {
+        const fields = gatewayLine.split(/\s+/);
+        const pid = parseInt(fields[1]);
+        const rssKB = parseInt(fields[5]);
                 
-                // Get process start time
-                const startTimeOutput = execSync(`ps -o lstart= -p ${pid}`, { encoding: 'utf8' }).trim();
-                const startDate = new Date(startTimeOutput);
-                const uptimeMs = Date.now() - startDate.getTime();
+        // Get process start time
+        const startTimeOutput = execSync(`ps -o lstart= -p ${pid}`, { encoding: 'utf8' }).trim();
+        const startDate = new Date(startTimeOutput);
+        const uptimeMs = Date.now() - startDate.getTime();
                 
-                data.openclawGateway = {
-                    status: 'Running',
-                    pid: pid,
-                    memoryMB: Math.round(rssKB / 1024),
-                    uptime: uptimeMs
-                };
-            }
-        }
-    } catch (err) {
-        console.log('Gateway detection error:', err.message);
+        data.openclawGateway = {
+          status: 'Running',
+          pid: pid,
+          memoryMB: Math.round(rssKB / 1024),
+          uptime: uptimeMs
+        };
+      }
     }
+  } catch (err) {
+    console.log('Gateway detection error:', err.message);
+  }
     
-    // Check Ollama connection with better error handling
-    try {
-        const ollamaCheck = execSync('curl -s --connect-timeout 3 http://localhost:11434/api/tags', { 
-            encoding: 'utf8',
-            timeout: 5000 
-        });
+  // Check Ollama connection with better error handling
+  try {
+    const ollamaCheck = execSync('curl -s --connect-timeout 3 http://localhost:11434/api/tags', { 
+      encoding: 'utf8',
+      timeout: 5000 
+    });
         
-        const modelsData = JSON.parse(ollamaCheck);
+    const modelsData = JSON.parse(ollamaCheck);
         
-        if (modelsData.models && modelsData.models.length > 0) {
-            data.ollama = {
-                status: 'Connected',
-                models: modelsData.models.length,
-                modelList: modelsData.models
-            };
-        } else {
-            data.ollama = {
-                status: 'Running (no models)',
-                models: 0,
-                modelList: []
-            };
-        }
-    } catch (err) {
-        if (err.code === 'ECONNREFUSED') {
-            data.ollama = {
-                status: 'Not Running',
-                models: 0,
-                modelList: [],
-                error: 'Ollama not running on localhost:11434'
-            };
-        } else {
-            data.ollama = {
-                status: 'Unknown',
-                models: 0,
-                modelList: [],
-                error: err.message
-            };
-        }
-        console.log('Ollama detection error:', err.message);
+    if (modelsData.models && modelsData.models.length > 0) {
+      data.ollama = {
+        status: 'Connected',
+        models: modelsData.models.length,
+        modelList: modelsData.models
+      };
+    } else {
+      data.ollama = {
+        status: 'Running (no models)',
+        models: 0,
+        modelList: []
+      };
     }
-    
-    // Get system stats - use os.totalmem() for actual RAM
-    try {
-        const totalMemBytes = os.totalmem();
-        const freeMemBytes = os.freemem();
-        const usedMemBytes = totalMemBytes - freeMemBytes;
-        
-        data.system.memory.totalGB = (totalMemBytes / 1024 / 1024 / 1024).toFixed(2);
-        data.system.memory.usedGB = (usedMemBytes / 1024 / 1024 / 1024).toFixed(2);
-        data.system.memory.usedPercent = Math.round((usedMemBytes / totalMemBytes) * 100);
-    } catch (err) {
-        console.log('Memory stats error:', err.message);
+  } catch (err) {
+    if (err.code === 'ECONNREFUSED') {
+      data.ollama = {
+        status: 'Not Running',
+        models: 0,
+        modelList: [],
+        error: 'Ollama not running on localhost:11434'
+      };
+    } else {
+      data.ollama = {
+        status: 'Unknown',
+        models: 0,
+        modelList: [],
+        error: err.message
+      };
     }
+    console.log('Ollama detection error:', err.message);
+  }
     
-    // CPU usage calculation - first sample captures baseline, second sample returns value
-    try {
-        const currentCpuInfo = os.cpus().map(cpu => cpu.times);
-        const totalIdle = currentCpuInfo.reduce((acc, cpu) => acc + cpu.idle, 0);
-        const totalTick = currentCpuInfo.reduce((acc, cpu) => 
-            acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
+  // Get system stats - use os.totalmem() for actual RAM
+  try {
+    const totalMemBytes = os.totalmem();
+    const freeMemBytes = os.freemem();
+    const usedMemBytes = totalMemBytes - freeMemBytes;
         
-        const prevTotalIdle = previousCpuInfo.reduce((acc, cpu) => acc + cpu.idle, 0);
-        const prevTotalTick = previousCpuInfo.reduce((acc, cpu) => 
-            acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
+    data.system.memory.totalGB = (totalMemBytes / 1024 / 1024 / 1024).toFixed(2);
+    data.system.memory.usedGB = (usedMemBytes / 1024 / 1024 / 1024).toFixed(2);
+    data.system.memory.usedPercent = Math.round((usedMemBytes / totalMemBytes) * 100);
+  } catch (err) {
+    console.log('Memory stats error:', err.message);
+  }
+    
+  // CPU usage calculation - first sample captures baseline, second sample returns value
+  try {
+    const currentCpuInfo = os.cpus().map(cpu => cpu.times);
+    const totalIdle = currentCpuInfo.reduce((acc, cpu) => acc + cpu.idle, 0);
+    const totalTick = currentCpuInfo.reduce((acc, cpu) => 
+      acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
         
-        const idleDelta = totalIdle - prevTotalIdle;
-        const tickDelta = totalTick - prevTotalTick;
+    const prevTotalIdle = previousCpuInfo.reduce((acc, cpu) => acc + cpu.idle, 0);
+    const prevTotalTick = previousCpuInfo.reduce((acc, cpu) => 
+      acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
         
-        if (tickDelta > 0 && idleDelta >= 0) {
-            const usagePercent = Math.round(Math.max(0, (1 - idleDelta / tickDelta) * 100));
-            data.system.cpu.usagePercent = usagePercent;
-            console.log('📊 CPU usage:', usagePercent + '%');
-        } else {
-            // First sample or edge case - return 0% as safe default
-            data.system.cpu.usagePercent = 0;
-            console.log('📊 CPU baseline captured (first sample)');
-        }
+    const idleDelta = totalIdle - prevTotalIdle;
+    const tickDelta = totalTick - prevTotalTick;
         
-        previousCpuInfo = currentCpuInfo;
-    } catch (err) {
-        console.log('CPU stats error:', err.message);
+    if (tickDelta > 0 && idleDelta >= 0) {
+      const usagePercent = Math.round(Math.max(0, (1 - idleDelta / tickDelta) * 100));
+      data.system.cpu.usagePercent = usagePercent;
+      console.log('📊 CPU usage:', usagePercent + '%');
+    } else {
+      // First sample or edge case - return 0% as safe default
+      data.system.cpu.usagePercent = 0;
+      console.log('📊 CPU baseline captured (first sample)');
     }
+        
+    previousCpuInfo = currentCpuInfo;
+  } catch (err) {
+    console.log('CPU stats error:', err.message);
+  }
     
-    // Disk usage - parse df output with GB abbreviation fix
-    try {
-        const dfOutput = execSync('df -h /', { encoding: 'utf8' }).trim();
-        const lines = dfOutput.split('\n');
-        if (lines.length >= 2) {
-            const parts = lines[1].split(/\s+/);
-            const diskTotal = parts[1].replace('Gi', 'GB').replace('Mi', 'MB');
-            const diskUsed = parts[2].replace('Gi', 'GB').replace('Mi', 'MB');
-            const usedPercent = parseInt(parts[4].replace('%', '')) || null;
+  // Disk usage - parse df output with GB abbreviation fix
+  try {
+    const dfOutput = execSync('df -h /', { encoding: 'utf8' }).trim();
+    const lines = dfOutput.split('\n');
+    if (lines.length >= 2) {
+      const parts = lines[1].split(/\s+/);
+      const diskTotal = parts[1].replace('Gi', 'GB').replace('Mi', 'MB');
+      const diskUsed = parts[2].replace('Gi', 'GB').replace('Mi', 'MB');
+      const usedPercent = parseInt(parts[4].replace('%', '')) || null;
             
-            data.system.disk.total = diskTotal;
-            data.system.disk.used = diskUsed;
-            data.system.disk.usedPercent = usedPercent;
-        }
-    } catch (err) {
-        console.log('Disk stats error:', err.message);
+      data.system.disk.total = diskTotal;
+      data.system.disk.used = diskUsed;
+      data.system.disk.usedPercent = usedPercent;
     }
+  } catch (err) {
+    console.log('Disk stats error:', err.message);
+  }
     
-    vitalsCache = { data, timestamp: now };
-    return data;
+  vitalsCache = { data, timestamp: now };
+  return data;
 }
 
 // === Start Server ===
@@ -1480,124 +1658,124 @@ const protocol = HTTPS_ENABLED ? 'https' : 'http';
 const baseUrl = `${protocol}://localhost:${CONFIG.port}`;
 
 function logStartup() {
-    console.log('\n╔═══════════════════════════════════════════════════════════╗');
-    console.log('║     🎙️  JARVIS VOICE PIPELINE RUNNING                    ║');
-    console.log('╠═══════════════════════════════════════════════════════════╣');
-    console.log(`║  Version: ${VERSION} (${BUILD_DATE})                            ║`);
-    console.log(`║  Upload URL: ${baseUrl}/upload${HTTPS_ENABLED ? '                 ' : '                  '}║`);
-    console.log('║                                                           ║');
-    console.log('║  Flow: Record → Upload → Transcribe → Respond → Archive  ║');
-    console.log('╚═══════════════════════════════════════════════════════════╝\n');
-    console.log('Config:');
-    console.log('  port:', CONFIG.port);
-    console.log('  inboxDir:', CONFIG.inboxDir);
-    console.log('  liveDir:', CONFIG.liveDir);
-    console.log('  modelDir:', CONFIG.modelDir);
-    console.log('  archiveBase:', CONFIG.archiveBase);
-    console.log('  gatewayUrl:', CONFIG.gatewayUrl);
-    console.log('  whisperModel:', CONFIG.whisperModel);
-    console.log('  whisperCli:', CONFIG.whisperCli);
-    console.log('  neurographDir:', CONFIG.neurographDir);
+  console.log('\n╔═══════════════════════════════════════════════════════════╗');
+  console.log('║     🎙️  JARVIS VOICE PIPELINE RUNNING                    ║');
+  console.log('╠═══════════════════════════════════════════════════════════╣');
+  console.log(`║  Version: ${VERSION} (${BUILD_DATE})                            ║`);
+  console.log(`║  Upload URL: ${baseUrl}/upload${HTTPS_ENABLED ? '                 ' : '                  '}║`);
+  console.log('║                                                           ║');
+  console.log('║  Flow: Record → Upload → Transcribe → Respond → Archive  ║');
+  console.log('╚═══════════════════════════════════════════════════════════╝\n');
+  console.log('Config:');
+  console.log('  port:', CONFIG.port);
+  console.log('  inboxDir:', CONFIG.inboxDir);
+  console.log('  liveDir:', CONFIG.liveDir);
+  console.log('  modelDir:', CONFIG.modelDir);
+  console.log('  archiveBase:', CONFIG.archiveBase);
+  console.log('  gatewayUrl:', CONFIG.gatewayUrl);
+  console.log('  whisperModel:', CONFIG.whisperModel);
+  console.log('  whisperCli:', CONFIG.whisperCli);
+  console.log('  neurographDir:', CONFIG.neurographDir);
     
-    // Whisper.cpp health check
-    console.log('');
-    const whisperHealthy = checkWhisperHealth();
-    if (!whisperHealthy) {
-        console.error('\n⚠️ Whisper CLI check failed - transcription will likely fail');
-        console.error('Please ensure whisper-cli is installed and accessible.');
-    }
-    console.log('');
-    console.log('Paths / URLs:');
-    console.log('  JARVIS UI:    ', baseUrl + '/');
-    console.log('  Neuro graph:  ', baseUrl + '/neuro-graph/');
-    console.log('');
-    if (HTTPS_ENABLED) {
-        console.log('🔒 HTTPS enabled (self-signed cert) — mobile mic access works');
-    }
+  // Whisper.cpp health check
+  console.log('');
+  const whisperHealthy = checkWhisperHealth();
+  if (!whisperHealthy) {
+    console.error('\n⚠️ Whisper CLI check failed - transcription will likely fail');
+    console.error('Please ensure whisper-cli is installed and accessible.');
+  }
+  console.log('');
+  console.log('Paths / URLs:');
+  console.log('  JARVIS UI:    ', baseUrl + '/');
+  console.log('  Neuro graph:  ', baseUrl + '/neuro-graph/');
+  console.log('');
+  if (HTTPS_ENABLED) {
+    console.log('🔒 HTTPS enabled (self-signed cert) — mobile mic access works');
+  }
     
-    // Initialize CPU baseline on startup so first /vitals call returns valid value
-    console.log('📊 Initializing CPU baseline...');
-    const cpuSample = os.cpus().map(cpu => cpu.times);
-    const totalIdle = cpuSample.reduce((acc, cpu) => acc + cpu.idle, 0);
-    const totalTick = cpuSample.reduce((acc, cpu) => 
-        acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
-    previousCpuInfo = cpuSample;
-    console.log('✅ CPU baseline initialized');
+  // Initialize CPU baseline on startup so first /vitals call returns valid value
+  console.log('📊 Initializing CPU baseline...');
+  const cpuSample = os.cpus().map(cpu => cpu.times);
+  const totalIdle = cpuSample.reduce((acc, cpu) => acc + cpu.idle, 0);
+  const totalTick = cpuSample.reduce((acc, cpu) => 
+    acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
+  previousCpuInfo = cpuSample;
+  console.log('✅ CPU baseline initialized');
 }
 
 const server = HTTPS_ENABLED
-    ? https.createServer(HTTPS_OPTIONS, handleRequest)
-    : http.createServer(handleRequest);
+  ? https.createServer(HTTPS_OPTIONS, handleRequest)
+  : http.createServer(handleRequest);
 server.listen(CONFIG.port, logStartup);
 
 // Archive leftovers on startup (safety net for crashed timeouts)
 function archiveLeftovers() {
-    if (!fs.existsSync(CONFIG.liveDir)) return;
-    const leftoverFiles = fs.readdirSync(CONFIG.liveDir)
-        .filter(f => f.endsWith('.wav.txt') && !f.includes('OFFLINE'));
-    if (leftoverFiles.length === 0) return;
+  if (!fs.existsSync(CONFIG.liveDir)) {return;}
+  const leftoverFiles = fs.readdirSync(CONFIG.liveDir)
+    .filter(f => f.endsWith('.wav.txt') && !f.includes('OFFLINE'));
+  if (leftoverFiles.length === 0) {return;}
     
-    console.log(`\n🔄 Found ${leftoverFiles.length} leftover files in live/ - archiving...`);
-    leftoverFiles.forEach(f => {
-        const base = f.replace('.wav.txt', '');
-        const wavPath = path.join(CONFIG.liveDir, base + '.wav');
-        const webmPath = path.join(CONFIG.liveDir, base + '.webm');
-        const txtPath = path.join(CONFIG.liveDir, f);
+  console.log(`\n🔄 Found ${leftoverFiles.length} leftover files in live/ - archiving...`);
+  leftoverFiles.forEach(f => {
+    const base = f.replace('.wav.txt', '');
+    const wavPath = path.join(CONFIG.liveDir, base + '.wav');
+    const webmPath = path.join(CONFIG.liveDir, base + '.webm');
+    const txtPath = path.join(CONFIG.liveDir, f);
         
-        // Read transcript
-        const transcript = fs.readFileSync(txtPath, 'utf8').trim();
+    // Read transcript
+    const transcript = fs.readFileSync(txtPath, 'utf8').trim();
         
-        // Archive
-        const datePart = new Date().toISOString().split('T')[0];
-        const archiveDir = path.join(CONFIG.archiveBase, datePart, 'audio');
-        if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+    // Archive
+    const datePart = new Date().toISOString().split('T')[0];
+    const archiveDir = path.join(CONFIG.archiveBase, datePart, 'audio');
+    if (!fs.existsSync(archiveDir)) {fs.mkdirSync(archiveDir, { recursive: true });}
         
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + new Date().toTimeString().split(' ')[0].replace(/:/g, '');
-        const archivedName = `convo-jarvis-${timestamp}.wav`;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + new Date().toTimeString().split(' ')[0].replace(/:/g, '');
+    const archivedName = `convo-jarvis-${timestamp}.wav`;
         
-        try {
-            if (fs.existsSync(wavPath)) fs.renameSync(wavPath, path.join(archiveDir, archivedName));
-            fs.renameSync(txtPath, path.join(archiveDir, `${archivedName}.txt`));
-            if (fs.existsSync(webmPath)) fs.renameSync(webmPath, path.join(archiveDir, archivedName.replace('.wav', '.webm')));
-            console.log(`  ✅ Archived: ${f}`);
-        } catch (err) {
-            console.error(`  ⚠️ Failed: ${f} - ${err.message}`);
-        }
-    });
-    console.log('✅ Leftover archive complete\n');
+    try {
+      if (fs.existsSync(wavPath)) {fs.renameSync(wavPath, path.join(archiveDir, archivedName));}
+      fs.renameSync(txtPath, path.join(archiveDir, `${archivedName}.txt`));
+      if (fs.existsSync(webmPath)) {fs.renameSync(webmPath, path.join(archiveDir, archivedName.replace('.wav', '.webm')));}
+      console.log(`  ✅ Archived: ${f}`);
+    } catch (err) {
+      console.error(`  ⚠️ Failed: ${f} - ${err.message}`);
+    }
+  });
+  console.log('✅ Leftover archive complete\n');
 }
 
 // === HELPER: Safe exec with timeout ===
 function safeExecWithTimeout(command, args, options = {}, timeoutMs, callback) {
-    const child = spawn(command, args, { ...options, encoding: 'utf8' });
+  const child = spawn(command, args, { ...options, encoding: 'utf8' });
     
-    let timeoutId;
-    let exited = false;
+  let timeoutId;
+  let exited = false;
     
-    const cleanup = (code, signal) => {
-        if (exited) return;
-        exited = true;
-        clearTimeout(timeoutId);
-        if (callback) callback(code, signal);
-    };
+  const cleanup = (code, signal) => {
+    if (exited) {return;}
+    exited = true;
+    clearTimeout(timeoutId);
+    if (callback) {callback(code, signal);}
+  };
     
-    child.on('exit', cleanup);
-    child.on('error', (err) => {
-        if (!exited) {
-            exited = true;
-            clearTimeout(timeoutId);
-            if (callback) callback(err.code, err.signal);
-        }
-    });
+  child.on('exit', cleanup);
+  child.on('error', (err) => {
+    if (!exited) {
+      exited = true;
+      clearTimeout(timeoutId);
+      if (callback) {callback(err.code, err.signal);}
+    }
+  });
     
-    timeoutId = setTimeout(() => {
-        if (!exited) {
-            exited = true;
-            console.warn(`⚠️ Process timeout (${timeoutMs}ms): ${command}`);
-            child.kill('SIGKILL');
-            if (callback) callback(null, 'timeout');
-        }
-    }, timeoutMs);
+  timeoutId = setTimeout(() => {
+    if (!exited) {
+      exited = true;
+      console.warn(`⚠️ Process timeout (${timeoutMs}ms): ${command}`);
+      child.kill('SIGKILL');
+      if (callback) {callback(null, 'timeout');}
+    }
+  }, timeoutMs);
 }
 
 // === HELPER: Spawn with timeout for long-running processes ===
@@ -1608,36 +1786,36 @@ let activeTranscriptions = 0;
 
 // Graceful shutdown - wait for active transcriptions to complete
 process.on('SIGINT', () => {
-    console.log('\n🛑 Shutting down...');
+  console.log('\n🛑 Shutting down...');
     
-    if (activeTranscriptions > 0) {
-        console.log(`⏳ Waiting for ${activeTranscriptions} active transcription(s) to complete...`);
-        // Wait up to 30 seconds for active transcriptions
-        const shutdownInterval = setInterval(() => {
-            if (activeTranscriptions === 0) {
-                clearInterval(shutdownInterval);
-                server.close(() => {
-                    console.log('✓ Server stopped');
-                    process.exit(0);
-                });
-            }
-        }, 500);
-        
-        // Force exit after 30 seconds
-        setTimeout(() => {
-            clearInterval(shutdownInterval);
-            console.log('⚠️ Forced shutdown after timeout');
-            server.close(() => {
-                console.log('✓ Server stopped');
-                process.exit(0);
-            });
-        }, 30000);
-    } else {
+  if (activeTranscriptions > 0) {
+    console.log(`⏳ Waiting for ${activeTranscriptions} active transcription(s) to complete...`);
+    // Wait up to 30 seconds for active transcriptions
+    const shutdownInterval = setInterval(() => {
+      if (activeTranscriptions === 0) {
+        clearInterval(shutdownInterval);
         server.close(() => {
-            console.log('✓ Server stopped');
-            process.exit(0);
+          console.log('✓ Server stopped');
+          process.exit(0);
         });
-    }
+      }
+    }, 500);
+        
+    // Force exit after 30 seconds
+    setTimeout(() => {
+      clearInterval(shutdownInterval);
+      console.log('⚠️ Forced shutdown after timeout');
+      server.close(() => {
+        console.log('✓ Server stopped');
+        process.exit(0);
+      });
+    }, 30000);
+  } else {
+    server.close(() => {
+      console.log('✓ Server stopped');
+      process.exit(0);
+    });
+  }
 });
 
 // Run leftover archive on startup
