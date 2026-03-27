@@ -12,6 +12,10 @@ const path = require('path');
 const { exec, execFile, execSync } = require('child_process');
 const QRCode = require('qrcode');
 const deviceRegistry = require('./device-registry');
+const os = require('os');
+
+// CPU usage tracking
+let previousCpuInfo = os.cpus().map(cpu => cpu.times);
 
 // === HTTPS Configuration ===
 const HTTPS_ENABLED = process.env.VOICE_HTTPS_ENABLED !== 'false';
@@ -22,8 +26,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '2.10.0';
-const BUILD_DATE = '2026-03-26';
+const VERSION = '2.10.2';
+const BUILD_DATE = '2026-03-27';
 
 // Date formatting utility for consistent date handling
 function formatDateForFilename(date = new Date()) {
@@ -1232,73 +1236,133 @@ async function getSystemVitals() {
     
     const data = {
         openclawGateway: { status: 'Unknown', pid: null, memoryMB: null, uptime: null },
-        ollama: { status: 'Unknown', models: 0, modelList: [] },
+        ollama: { status: 'Unknown', models: 0, modelList: [], error: null },
         system: { cpu: { usagePercent: null }, memory: { totalGB: null, usedGB: null, usedPercent: null }, disk: { total: null, used: null, usedPercent: null } }
     };
     
-    // Check OpenClaw Gateway process
+    // Check OpenClaw Gateway process (more robust detection)
     try {
-        const psOutput = execSync('ps aux | grep "openclaw gateway" | grep -v grep | head -1', { encoding: 'utf8' }).trim();
+        const psOutput = execSync('ps aux | grep -i "openclaw" | grep -v grep | grep -v "grep"', { encoding: 'utf8' }).trim();
         if (psOutput) {
-            const fields = psOutput.split(/\s+/);
-            const pid = parseInt(fields[1]);
-            const rssKB = parseInt(fields[5]);
-            const startTime = fields[9];
+            const lines = psOutput.split('\n');
+            const gatewayLine = lines.find(line => line.toLowerCase().includes('gateway'));
             
-            data.openclawGateway = {
-                status: 'Running',
-                pid: pid,
-                memoryMB: Math.round(rssKB / 1024),
-                uptime: Date.now() - (new Date().setTime(new Date().getTime() - ( Date.now() / 1000 - startTime )) * 1000)
-            };
-        }
-    } catch (err) {
-        // Leave as Unknown
-    }
-    
-    // Check Ollama connection
-    try {
-        const ollamaOutput = execSync('curl -s http://localhost:11434', { timeout: 5000, encoding: 'utf8' });
-        if (ollamaOutput.includes('Ollama Server is running')) {
-            data.ollama.status = 'Connected';
-            
-            // Get model list
-            const modelsOutput = execSync('curl -s http://localhost:11434/api/tags', { timeout: 5000, encoding: 'utf8' });
-            const modelsData = JSON.parse(modelsOutput);
-            if (modelsData.models && modelsData.models.length > 0) {
-                data.ollama.models = modelsData.models.length;
-                data.ollama.modelList = modelsData.models;
+            if (gatewayLine) {
+                const fields = gatewayLine.split(/\s+/);
+                const pid = parseInt(fields[1]);
+                const rssKB = parseInt(fields[5]);
+                
+                // Get process start time
+                const startTimeOutput = execSync(`ps -o lstart= -p ${pid}`, { encoding: 'utf8' }).trim();
+                const startDate = new Date(startTimeOutput);
+                const uptimeMs = Date.now() - startDate.getTime();
+                
+                data.openclawGateway = {
+                    status: 'Running',
+                    pid: pid,
+                    memoryMB: Math.round(rssKB / 1024),
+                    uptime: uptimeMs
+                };
             }
         }
     } catch (err) {
-        // Leave as Unknown
+        console.log('Gateway detection error:', err.message);
     }
     
-    // Get system stats
+    // Check Ollama connection with better error handling
     try {
-        // Memory - use node.js built-in
-        const memUsage = process.memoryUsage();
-        const totalMem = 16384 * 1024; // Approx 16GB in KB
-        const heapUsed = memUsage.heapUsed;
-        data.system.memory.usedGB = (heapUsed / 1024 / 1024 / 1024).toFixed(2);
-        data.system.memory.totalGB = (totalMem / 1024 / 1024 / 1024).toFixed(2);
-        data.system.memory.usedPercent = Math.round((heapUsed / totalMem) * 100);
+        const ollamaCheck = execSync('curl -s --connect-timeout 3 http://localhost:11434/api/tags', { 
+            encoding: 'utf8',
+            timeout: 5000 
+        });
+        
+        const modelsData = JSON.parse(ollamaCheck);
+        
+        if (modelsData.models && modelsData.models.length > 0) {
+            data.ollama = {
+                status: 'Connected',
+                models: modelsData.models.length,
+                modelList: modelsData.models
+            };
+        } else {
+            data.ollama = {
+                status: 'Running (no models)',
+                models: 0,
+                modelList: []
+            };
+        }
     } catch (err) {
-        // Leave as null
+        if (err.code === 'ECONNREFUSED') {
+            data.ollama = {
+                status: 'Not Running',
+                models: 0,
+                modelList: [],
+                error: 'Ollama not running on localhost:11434'
+            };
+        } else {
+            data.ollama = {
+                status: 'Unknown',
+                models: 0,
+                modelList: [],
+                error: err.message
+            };
+        }
+        console.log('Ollama detection error:', err.message);
     }
     
-    // Disk usage - parse df output
+    // Get system stats - use os.totalmem() for actual RAM
+    try {
+        const totalMemBytes = os.totalmem();
+        const freeMemBytes = os.freemem();
+        const usedMemBytes = totalMemBytes - freeMemBytes;
+        
+        data.system.memory.totalGB = (totalMemBytes / 1024 / 1024 / 1024).toFixed(2);
+        data.system.memory.usedGB = (usedMemBytes / 1024 / 1024 / 1024).toFixed(2);
+        data.system.memory.usedPercent = Math.round((usedMemBytes / totalMemBytes) * 100);
+    } catch (err) {
+        console.log('Memory stats error:', err.message);
+    }
+    
+    // CPU usage calculation - only available after second sample
+    try {
+        const currentCpuInfo = os.cpus().map(cpu => cpu.times);
+        const totalIdle = currentCpuInfo.reduce((acc, cpu) => acc + cpu.idle, 0);
+        const totalTick = currentCpuInfo.reduce((acc, cpu) => 
+            acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
+        
+        const prevTotalIdle = previousCpuInfo.reduce((acc, cpu) => acc + cpu.idle, 0);
+        const prevTotalTick = previousCpuInfo.reduce((acc, cpu) => 
+            acc + cpu.user + cpu.nice + cpu.sys + cpu.idle + cpu.irq + cpu.softirq, 0);
+        
+        const idleDelta = totalIdle - prevTotalIdle;
+        const tickDelta = totalTick - prevTotalTick;
+        
+        if (tickDelta > 0 && idleDelta >= 0) {
+            const usagePercent = Math.round(Math.max(0, (1 - idleDelta / tickDelta) * 100));
+            data.system.cpu.usagePercent = usagePercent;
+        }
+        
+        previousCpuInfo = currentCpuInfo;
+    } catch (err) {
+        console.log('CPU stats error:', err.message);
+    }
+    
+    // Disk usage - parse df output with GB abbreviation fix
     try {
         const dfOutput = execSync('df -h /', { encoding: 'utf8' }).trim();
         const lines = dfOutput.split('\n');
         if (lines.length >= 2) {
             const parts = lines[1].split(/\s+/);
-            data.system.disk.total = parts[1];
-            data.system.disk.used = parts[2];
-            data.system.disk.usedPercent = parseInt(parts[4].replace('%', '')) || null;
+            const diskTotal = parts[1].replace('Gi', 'GB').replace('Mi', 'MB');
+            const diskUsed = parts[2].replace('Gi', 'GB').replace('Mi', 'MB');
+            const usedPercent = parseInt(parts[4].replace('%', '')) || null;
+            
+            data.system.disk.total = diskTotal;
+            data.system.disk.used = diskUsed;
+            data.system.disk.usedPercent = usedPercent;
         }
     } catch (err) {
-        // Leave as null
+        console.log('Disk stats error:', err.message);
     }
     
     vitalsCache = { data, timestamp: now };
