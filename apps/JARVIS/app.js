@@ -1824,17 +1824,20 @@ function createNeurograph(data) {
 
     // Get max connection weight to theme node
     let themeConnectionWeight = 0;
+    let themeConnectionCount = 0;
     connections.forEach(conn => {
       if ((conn.source === themeNodeId && conn.target === node.id) ||
           (conn.target === themeNodeId && conn.source === node.id)) {
         const connWeight = conn.weight || conn.strength || 1;
         themeConnectionWeight = Math.max(themeConnectionWeight, connWeight);
+        themeConnectionCount++;
         // Debug: log the actual weight from connection
-        if (themeConnectionWeight === connWeight && connWeight > 1) {
+        if (themeConnectionWeight === connWeight) {
           console.log(`[Neurograph] Found weight=${connWeight} for connection ${conn.source} <-> ${conn.target}`);
         }
       }
     });
+    console.log(`[Neurograph] Node ${node.id}: themeConnectionWeight=${themeConnectionWeight}, connections=${themeConnectionCount}`);
 
     // Base radius: theme node is largest, connected nodes are medium, others are small
     let baseRadius;
