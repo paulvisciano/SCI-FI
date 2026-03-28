@@ -1875,6 +1875,8 @@ function createNeurograph(data) {
     nodeMap[neuron.userData.id] = neuron;
   });
 
+  console.log(`[Neurograph] Creating ${connections.length} connections from ${neurons.length} neurons`);
+
   connections.forEach(conn => {
     // Support both source/target (string IDs) and from/to (indices)
     const sourceId = conn.source || conn.from;
@@ -1885,6 +1887,12 @@ function createNeurograph(data) {
     const targetNode = nodeMap[targetId];
 
     if (sourceNode && targetNode) {
+      // Verify source and target are different nodes
+      if (sourceNode === targetNode) {
+        console.log(`[Neurograph] Skipping self-connection for ${sourceId}`);
+        return;
+      }
+      
       // Get weight for line thickness/opacity (0-100 scale)
       const weight = conn.weight || conn.strength || 1;
       const opacity = 0.3 + 0.3 * (weight / 100);
@@ -1908,6 +1916,8 @@ function createNeurograph(data) {
       
       neurographScene.add(line);
       synapses.push(line);
+    } else {
+      console.log(`[Neurograph] Connection failed: source=${conn.source}, target=${conn.target}`);
     }
   });
 
