@@ -1462,6 +1462,8 @@ function initJarvisOrb() {
     console.warn('[JarvisOrb] Container element not found');
     return;
   }
+  
+  console.log('[JarvisOrb] Container found, dimensions:', container.offsetWidth, 'x', container.offsetHeight);
 
   // Get video element
   const video = document.getElementById('jarvis-video');
