@@ -717,13 +717,14 @@
         }
 
         /* JARVIS Video ORB - Pure Neural Intelligence */
-        /* JARVIS Orb - Minimal styling, just circular mask */
+        /* JARVIS Orb - Bottom left corner */
         .jarvis-orb-container {
-            position: relative;
-            width: 242px; /* 10% larger (was 220px) */
-            height: 242px;
-            margin: 40px auto 20px;
-            flex-shrink: 0;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 60px;
+            height: 60px;
+            z-index: 100;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
@@ -739,60 +740,32 @@
             border-radius: 50%;
             overflow: hidden;
             position: relative;
-            border: 1px solid rgba(0, 255, 255, 0.15); /* Ultra-subtle border - barely visible */
+            border: 1px solid rgba(0, 255, 255, 0.2);
         }
 
         .jarvis-orb video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* No filters, no animations - pure video */
         }
 
-        /* Subtle hover glow - minimal, doesn't affect video playback */
         .jarvis-orb-container:hover .jarvis-orb {
-            border-color: rgba(0, 255, 255, 0.3);
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.15);
-        }
-
-        /* Tap feedback - subtle glow (no scale, no flash, keeps video smooth) */
-        .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
-            border-color: rgba(0, 255, 255, 0.5);
-            box-shadow: 0 0 40px rgba(0, 255, 255, 0.25);
+            border-color: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
         }
         
-        /* Recording state - subtle red glow (minimal, performance-safe) */
+        .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
+            border-color: rgba(0, 255, 255, 0.6);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+        
         .jarvis-orb.recording {
             border-color: rgba(255, 68, 68, 0.4);
-            box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
-            animation: orb-record-pulse 3s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.2);
         }
         
-        @keyframes orb-record-pulse {
-            0%, 100% { 
-                box-shadow: 0 0 30px rgba(255, 68, 68, 0.2);
-            }
-            50% { 
-                box-shadow: 0 0 45px rgba(255, 68, 68, 0.3);
-            }
-        }
-        
-        /* Minimal engaged state - no filters, no slowdowns */
-        .jarvis-orb.engaged {
-            /* Empty - pure video, no effects */
-        }
-
-        /* Version badge - static, no effects */
         .orb-version-badge {
-            position: absolute;
-            bottom: -24px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.7em;
-            color: #00ffff;
-            opacity: 0.7;
-            white-space: nowrap;
-            pointer-events: none;
+            display: none;
         }
 
         @keyframes orb-pulse {
@@ -1359,7 +1332,7 @@
     </div>
     
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
-    <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; background: transparent;"></canvas>
+    <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
     
     <div id="network-dots-container"></div>
     <script src="app.js?v=20260328164500"></script>
