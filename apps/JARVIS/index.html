@@ -640,20 +640,21 @@
 
         .title-container {
             position: fixed;
-            bottom: 80px;
-            left: 20px;
+            bottom: 50px;
+            left: 130px;
             z-index: 1000;
             display: flex;
             align-items: baseline;
             justify-content: center;
             gap: 8px;
             margin-bottom: 8px;
+            font-size: 0.7em;
         }
         
         .server-status {
             position: fixed;
-            bottom: 80px;
-            left: 220px;
+            bottom: 50px;
+            left: 130px;
             z-index: 1000;
             font-size: 0.8em;
             color: #64ffda;
@@ -665,18 +666,21 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            opacity: 1;
-            transition: opacity 1.5s ease;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
         
-        /* Fade out (applied by JS after 3 seconds) - !important to override inline styles */
-        .server-status.faded {
-            opacity: 0.15 !important;
+        /* Show on hover over parent container */
+        .title-container:hover + .server-status {
+            opacity: 1 !important;
+            pointer-events: auto;
         }
         
         /* Fade in on hover over status itself */
         .server-status:hover {
             opacity: 1 !important;
+            pointer-events: auto;
         }
         
         .server-status .indicator {
@@ -738,8 +742,8 @@
             position: fixed;
             bottom: 20px;
             left: 20px;
-            width: 60px;
-            height: 60px;
+            width: 100px;
+            height: 100px;
             z-index: 100;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
