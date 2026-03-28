@@ -1744,31 +1744,107 @@ function createNeurograph(data) {
     metalness: 0.7
   });
 
+  // Step 1: Find the most central node (theme node) based on total connection weight
+  const nodeConnectionWeights = {};
+  nodes.forEach(node => {
+    nodeConnectionWeights[node.id] = 0;
+  });
+  
+  connections.forEach(conn => {
+    const weight = conn.weight || conn.strength || 1;
+    nodeConnectionWeights[conn.source] = (nodeConnectionWeights[conn.source] || 0) + weight;
+    nodeConnectionWeights[conn.target] = (nodeConnectionWeights[conn.target] || 0) + weight;
+  });
+  
+  // Find node with highest total connection weight (the theme node)
+  let themeNodeId = null;
+  let maxWeight = -1;
+  for (const [nodeId, weight] of Object.entries(nodeConnectionWeights)) {
+    if (weight > maxWeight) {
+      maxWeight = weight;
+      themeNodeId = nodeId;
+    }
+  }
+  
+  // If no connections found, use first node as theme
+  if (!themeNodeId && nodes.length > 0) {
+    themeNodeId = nodes[0].id;
+  }
+  
+  console.log(`[Neurograph] Theme node: ${themeNodeId} with total weight: ${maxWeight}`);
+
   nodes.forEach((node, idx) => {
     // Determine if this is a temporal node (has date in moments or attributes)
     const isTemporal = node.moments && node.moments.some(m => m.date && m.date.includes('2026')) ||
                       (node.attributes && (node.attributes.created || node.attributes.sourceDocument));
     
-    // Temporal nodes are larger, regular nodes are smaller
-    const baseRadius = isTemporal ? 1.2 + Math.random() * 0.3 : 0.5 + Math.random() * 0.3;
+    // Determine if this node is directly connected to theme (orbiting node)
+    const isConnectedToTheme = connections.some(conn => 
+      (conn.source === themeNodeId && conn.target === node.id) ||
+      (conn.target === themeNodeId && conn.source === node.id)
+    );
+    
+    // Get max connection weight to theme node
+    let themeConnectionWeight = 0;
+    connections.forEach(conn => {
+      if ((conn.source === themeNodeId && conn.target === node.id) ||
+          (conn.target === themeNodeId && conn.source === node.id)) {
+        themeConnectionWeight = Math.max(themeConnectionWeight, conn.weight || conn.strength || 1);
+      }
+    });
+    
+    // Base radius: theme node is largest, connected nodes are medium, others are small
+    let baseRadius;
+    if (node.id === themeNodeId) {
+      baseRadius = 2.0; // Theme node is largest
+    } else if (isConnectedToTheme) {
+      baseRadius = 1.0 + (themeConnectionWeight / 200); // Connected nodes: 1.0-1.5 radius
+    } else {
+      baseRadius = isTemporal ? 0.8 + Math.random() * 0.3 : 0.5 + Math.random() * 0.3;
+    }
+    
     const geometry = new THREE.SphereGeometry(baseRadius, 32, 32);
     const neuron = new THREE.Mesh(geometry, nodeMaterial.clone());
     
-    // Position node in sphere pattern around origin
-    const angle = (idx / nodes.length) * Math.PI * 2;
-    const radiusPos = 20 + Math.random() * 10;
-    neuron.position.set(
-      Math.cos(angle) * radiusPos,
-      (Math.random() - 0.5) * 20,
-      Math.sin(angle) * radiusPos
-    );
+    // Position nodes in molecule-like structure:
+    // - Theme node at center (0, 0, 0)
+    // - Connected nodes in orbiting planes around theme
+    // - Other nodes in outer orbits
+    
+    if (node.id === themeNodeId) {
+      // Theme node at center
+      neuron.position.set(0, 0, 0);
+    } else if (isConnectedToTheme) {
+      // Orbiting nodes - arrange in orbital planes around center
+      const orbitRadius = 8 + (themeConnectionWeight / 20); // 8-13 units from center
+      const planeAngle = (idx % 4) * (Math.PI / 2); // 4 orbital planes: 0, 90, 180, 270 degrees
+      
+      // Calculate position in orbital plane
+      const angle = (idx / 4) * (Math.PI * 2); // Distribute nodes in each plane
+      const x = Math.cos(angle) * orbitRadius;
+      const z = Math.sin(angle) * orbitRadius;
+      const y = Math.sin(planeAngle) * (orbitRadius * 0.3); // Slight tilt for 3D effect
+      
+      neuron.position.set(x, y, z);
+    } else {
+      // Other nodes - in outer orbits
+      const orbitRadius = 18 + (maxWeight / 100); // Outer orbit
+      const angle = (idx / (nodes.length || 1)) * Math.PI * 2;
+      neuron.position.set(
+        Math.cos(angle) * orbitRadius,
+        (Math.random() - 0.5) * 10,
+        Math.sin(angle) * orbitRadius
+      );
+    }
     
     neuron.userData = {
       id: node.id || idx,
       label: node.label || `Node ${idx}`,
       position: neuron.position.clone(),
-      rawData: node, // Store full node data for hover labels
-      isTemporal: isTemporal
+      rawData: node,
+      isTemporal: isTemporal,
+      isConnectedToTheme: isConnectedToTheme,
+      themeConnectionWeight: themeConnectionWeight
     };
     
     neurographScene.add(neuron);
