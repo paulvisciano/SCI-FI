@@ -1696,19 +1696,10 @@ function animateNeurograph() {
 }
 
 // Initialize neurograph when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Neurograph] DOM loaded, initializing...');
-    initJarvisOrb();
-    initNeurograph();
-    animateNeurograph();
-  });
-} else {
-  console.log('[Neurograph] DOM already ready, initializing...');
-  initJarvisOrb();
-  initNeurograph();
-  animateNeurograph();
-}
+console.log('[Neurograph] DOM loaded, initializing...');
+initJarvisOrb();
+initNeurograph();
+animateNeurograph();
 
 // Handle window resize
 function onNeurographWindowResize() {
