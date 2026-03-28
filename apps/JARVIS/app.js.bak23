@@ -1525,7 +1525,7 @@ function animateNeurograph() {
     neurographControls.update();
   }
 
-  // Repulsion between spheres - prevents overlapping, creates natural spacing
+  //   // Repulsion between spheres - prevents overlapping, creates natural spacing
   //   if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
   //     const repulsionStrength = 0.3;
   //     

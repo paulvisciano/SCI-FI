@@ -1526,60 +1526,60 @@ function animateNeurograph() {
   }
 
   // Repulsion between spheres - prevents overlapping, creates natural spacing
-  //   if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
-  //     const repulsionStrength = 0.3;
-  //     
-  //     for (let i = 0; i < neurons.length; i++) {
-  //       for (let j = i + 1; j < neurons.length; j++) {
-  //         const a = neurons[i].position;
-  //         const b = neurons[j].position;
-  //         const dx = a.x - b.x;
-  //         const dy = a.y - b.y;
-  //         const dz = a.z - b.z;
-  //         const distSq = dx*dx + dy*dy + dz*dz;
-  //         const minDist = 3.0; // Minimum distance between spheres
-  //         
-  //         if (distSq < minDist * minDist && distSq > 0.001) {
-  //           const dist = Math.sqrt(distSq);
-  //           const force = repulsionStrength * (minDist - dist) / dist;
-  //           
-  //           const nx = (dx / dist) * force;
-  //           const ny = (dy / dist) * force;
-  //           const nz = (dz / dist) * force;
-  //           
-  //           neurons[i].position.x += nx;
-  //           neurons[i].position.y += ny;
-  //           neurons[i].position.z += nz;
-  //           neurons[j].position.x -= nx;
-  //           neurons[j].position.y -= ny;
-  //           neurons[j].position.z -= nz;
-  //         }
-  //       }
-  //     }
-  //   }
-  // 
-  //   // Idle rotation - slow spin when no interaction
-  //   if (neurographScene && neurons.length > 0 && isNeurographLoaded) {
-  //     idleRotation += 0.0002;
-  //     
-  //     neurons.forEach((neuron, idx) => {
-  //       neuron.position.x = neuron.position.x * Math.cos(idleRotation) - 
-  //                          neuron.position.z * Math.sin(idleRotation);
-  //       neuron.position.z = neuron.position.x * Math.sin(idleRotation) + 
-  //                          neuron.position.z * Math.cos(idleRotation);
-  //     });
-  //     
-  //     // Gentle fade in/out effect for neurons - subtle breathing (4.2s cycle)
-  //     const baseOpacity = 0.7 + 0.2 * Math.sin(Date.now() * 0.0015);
-  //     neurons.forEach((neuron, idx) => {
-  //       if (neuron.material && neuron.material.opacity !== undefined) {
-  //         neuron.material.opacity = baseOpacity;
-  //         neuron.material.transparent = true;
-  //       }
-  //     });
-  //   }
-  // 
-  //   // Update synapse pulsation
+  if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
+    const repulsionStrength = 0.3;
+    
+    for (let i = 0; i < neurons.length; i++) {
+      for (let j = i + 1; j < neurons.length; j++) {
+        const a = neurons[i].position;
+        const b = neurons[j].position;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dz = a.z - b.z;
+        const distSq = dx*dx + dy*dy + dz*dz;
+        const minDist = 3.0; // Minimum distance between spheres
+        
+        if (distSq < minDist * minDist && distSq > 0.001) {
+          const dist = Math.sqrt(distSq);
+          const force = repulsionStrength * (minDist - dist) / dist;
+          
+          const nx = (dx / dist) * force;
+          const ny = (dy / dist) * force;
+          const nz = (dz / dist) * force;
+          
+          neurons[i].position.x += nx;
+          neurons[i].position.y += ny;
+          neurons[i].position.z += nz;
+          neurons[j].position.x -= nx;
+          neurons[j].position.y -= ny;
+          neurons[j].position.z -= nz;
+        }
+      }
+    }
+  }
+
+  // Idle rotation - slow spin when no interaction
+  if (neurographScene && neurons.length > 0 && isNeurographLoaded) {
+    idleRotation += 0.0002;
+    
+    neurons.forEach((neuron, idx) => {
+      neuron.position.x = neuron.position.x * Math.cos(idleRotation) - 
+                         neuron.position.z * Math.sin(idleRotation);
+      neuron.position.z = neuron.position.x * Math.sin(idleRotation) + 
+                         neuron.position.z * Math.cos(idleRotation);
+    });
+    
+    // Gentle fade in/out effect for neurons - subtle breathing (4.2s cycle)
+    const baseOpacity = 0.7 + 0.2 * Math.sin(Date.now() * 0.0015);
+    neurons.forEach((neuron, idx) => {
+      if (neuron.material && neuron.material.opacity !== undefined) {
+        neuron.material.opacity = baseOpacity;
+        neuron.material.transparent = true;
+      }
+    });
+  }
+
+  // Update synapse pulsation
   if (synapses.length > 0 && isNeurographLoaded) {
     const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
     synapses.forEach((synapse, idx) => {

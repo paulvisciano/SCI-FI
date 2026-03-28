@@ -1525,7 +1525,7 @@ function animateNeurograph() {
     neurographControls.update();
   }
 
-  // Repulsion between spheres - prevents overlapping, creates natural spacing
+  //   // Repulsion between spheres - prevents overlapping, creates natural spacing
   //   if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
   //     const repulsionStrength = 0.3;
   //     
@@ -1558,7 +1558,7 @@ function animateNeurograph() {
   //     }
   //   }
   // 
-  //   // Idle rotation - slow spin when no interaction
+  //   //   // Idle rotation - slow spin when no interaction
   //   if (neurographScene && neurons.length > 0 && isNeurographLoaded) {
   //     idleRotation += 0.0002;
   //     
