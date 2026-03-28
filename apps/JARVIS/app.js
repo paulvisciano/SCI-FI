@@ -185,6 +185,20 @@ jarvisOrb.addEventListener('dblclick', async (e) => {
 
 async function startRecording() {
   try {
+    // Clear current transcription state before starting new recording
+    try {
+      await fetch(`${API_BASE}/transcript/clear`, { method: 'POST' });
+    } catch (clearErr) {
+      console.log('[startRecording] Clear endpoint not available, continuing...');
+    }
+
+    // Clear thinking timer if active
+    if (thinkingTimer) {
+      clearInterval(thinkingTimer);
+      thinkingTimer = null;
+    }
+    agentWaitStart = null;
+
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
     const options = { mimeType: 'audio/webm;codecs=opus' };
@@ -236,7 +250,10 @@ async function startRecording() {
     }
 
     transcript.classList.add('visible');
-    transcriptText.textContent = 'Listening...';
+    // Clear transcript immediately and show "Recording..." to prevent showing old transcript
+    transcriptText.innerHTML = '<span style="color: #00ffff;">🎤 Recording...</span>';
+    // Clear the response area as well
+    responseText.innerHTML = '';
     jarvisResponse.style.display = 'none';
   } catch (err) {
     status.textContent = '❌ Microphone access denied';
@@ -1442,6 +1459,7 @@ if (document.readyState === 'loading') {
 })();
 
 // === Three.js Global Variables ===
+console.log('[JARVIS] Three.js setup starting...');
 let neurons = [];
 let synapses = [];
 let neurographData = null;

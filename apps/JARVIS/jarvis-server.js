@@ -1107,6 +1107,17 @@ function handleRequest(req, res) {
     return;
   }
 
+  // Clear current transcription state
+  if (req.method === 'POST' && req.url === '/transcript/clear') {
+    console.log('🚨 /transcript/clear - Clearing current transcription state');
+    currentTranscription.transcriptPath = null;
+    currentTranscription.transcript = '';
+    pendingResponses.clear();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   // Get latest transcription status (check both live/ and archive/, return most recent)
   if (req.url.startsWith('/transcript/status') || req.url.startsWith('/transcript/latest')) {
     try {
