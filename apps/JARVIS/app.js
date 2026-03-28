@@ -1457,7 +1457,9 @@ let jarvisOrbRotation = 0;
 
 // Initialize JARVIS Orb Three.js scene
 function initJarvisOrb() {
+  console.log('[JarvisOrb] initJarvisOrb() called, checking DOM...');
   const container = document.getElementById('jarvis-orb-container');
+  console.log('[JarvisOrb] Container element:', container);
   if (!container) {
     console.warn('[JarvisOrb] Container element not found');
     return;
@@ -1467,6 +1469,7 @@ function initJarvisOrb() {
 
   // Get video element
   const video = document.getElementById('jarvis-video');
+  console.log('[JarvisOrb] Video element:', video);
   if (!video) {
     console.warn('[JarvisOrb] Video element not found');
     return;
