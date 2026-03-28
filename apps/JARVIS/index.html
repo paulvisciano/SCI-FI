@@ -638,7 +638,23 @@
             to { text-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.5); }
         }
 
+        .title-container {
+            position: fixed;
+            bottom: 80px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
         .server-status {
+            position: fixed;
+            bottom: 80px;
+            left: 220px;
+            z-index: 1000;
             font-size: 0.8em;
             color: #64ffda;
             margin-bottom: 10px;
@@ -1112,13 +1128,13 @@
     <!-- Orb centered vertically -->
     <div class="container">
         <!-- Title with client version inline (top right) -->
-        <div class="title-container" style="display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-bottom: 8px;">
+        <div class="title-container">
             <h1 class="futuristic-title" style="margin: 0; font-size: 3.1em;">J.A.R.V.I.S</h1>
             <span id="client-version-inline" style="font-size: 0.75em; color: #64ffda; opacity: 0.7;">v2.9.26</span>
         </div>
         
         <!-- Server status under title (all server info) -->
-        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; margin-bottom: 20px; cursor: pointer; transition: all 0.2s ease; border: 1px solid rgba(0,255,255,0.2); padding: 8px 16px; border-radius: 6px; width: min(640px, calc(100vw - 40px));" title="Click to view system vitals">
+        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; cursor: pointer; transition: all 0.2s ease; border: 1px solid rgba(0,255,255,0.2); padding: 8px 16px; border-radius: 6px; width: min(640px, calc(100vw - 40px));" title="Click to view system vitals">
             <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px;"></span>
             <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
         </div>
