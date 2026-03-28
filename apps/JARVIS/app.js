@@ -1513,8 +1513,7 @@ function initNeurograph() {
   console.log('[Neurograph] Initialized');
 }
 
-// Animation loop - disabled for now
-/*
+// Animation loop
 function animateNeurograph() {
   requestAnimationFrame(animateNeurograph);
 
@@ -1544,7 +1543,6 @@ function animateNeurograph() {
 
   neurographRenderer.render(neurographScene, neurographCamera);
 }
-*/
 
 // Initialize neurograph when DOM is ready
 if (document.readyState === 'loading') {
