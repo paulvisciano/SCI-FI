@@ -1896,6 +1896,12 @@ function createNeurograph(data) {
     const sourceId = conn.source || conn.from;
     const targetId = conn.target || conn.to;
     
+    // Skip connections with empty source or target
+    if (!sourceId || !targetId) {
+      console.log(`[Neurograph] Skipping connection: source=${sourceId}, target=${targetId}`);
+      return;
+    }
+    
     // Use the nodeMap to find neurons by ID
     console.log(`[Neurograph] Looking up connection: sourceId=${sourceId}, targetId=${targetId}`);
     const sourceNode = nodeMap[sourceId];
@@ -1934,7 +1940,8 @@ function createNeurograph(data) {
       neurographScene.add(line);
       synapses.push(line);
     } else {
-      console.log(`[Neurograph] Connection failed: source=${sourceId}, target=${targetId}`);
+      // Connection failed because source or target not found in nodeMap
+      // This is expected - some nodes in synapses might be outside our 1000-node limit
     }
   });
 
