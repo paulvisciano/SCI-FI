@@ -1449,7 +1449,7 @@ let neurons = [];
 let synapses = [];
 let neurographData = null;
 let idleRotation = 0;
-
+let orbOrbit = null; // Reference to the center orb sphere
 let isNeurographLoaded = false;
 
 // Initialize Three.js scene
@@ -1564,15 +1564,6 @@ function animateNeurograph() {
                          neuron.position.z * Math.sin(idleRotation);
       neuron.position.z = neuron.position.x * Math.sin(idleRotation) + 
                          neuron.position.z * Math.cos(idleRotation);
-    });
-    
-    // Gentle fade in/out effect for neurons - subtle breathing (4.2s cycle)
-    const baseOpacity = 0.7 + 0.2 * Math.sin(Date.now() * 0.0015);
-    neurons.forEach((neuron, idx) => {
-      if (neuron.material && neuron.material.opacity !== undefined) {
-        neuron.material.opacity = baseOpacity;
-        neuron.material.transparent = true;
-      }
     });
   }
 
@@ -1735,6 +1726,9 @@ function createNeurograph(data) {
   // Node labels removed - causing "weird bubbles" effect with 9549 nodes
   // The neurograph is now clean with just nodes and connections
   // Labels can be re-added later if needed with proper filtering/limiting
+  orb.userData = { id: 'jarvis-orb', label: 'Jarvis', type: 'orb' };
+  orbOrbit = orb; // Store reference for animation
+
 }
 
 // Create fallback neurograph when API fails

@@ -1449,7 +1449,7 @@ let neurons = [];
 let synapses = [];
 let neurographData = null;
 let idleRotation = 0;
-
+let orbOrbit = null; // Reference to the center orb sphere
 let isNeurographLoaded = false;
 
 // Initialize Three.js scene
@@ -1735,6 +1735,9 @@ function createNeurograph(data) {
   // Node labels removed - causing "weird bubbles" effect with 9549 nodes
   // The neurograph is now clean with just nodes and connections
   // Labels can be re-added later if needed with proper filtering/limiting
+  orb.userData = { id: 'jarvis-orb', label: 'Jarvis', type: 'orb' };
+  orbOrbit = orb; // Store reference for animation
+
 }
 
 // Create fallback neurograph when API fails
