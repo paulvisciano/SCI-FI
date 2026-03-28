@@ -1441,16 +1441,118 @@ if (document.readyState === 'loading') {
 
 })();
 
-// === Three.js Neurograph Rendering ===
-// Load neurograph data and render 3D visualization
+// === Three.js JARVIS Orb Rendering ===
+// Create 3D sphere with video texture for the JARVIS orb
 
-let neurographScene, neurographCamera, neurographRenderer, neurographControls;
-let neurons = [];
-let synapses = [];
-let neurographData = null;
-let idleRotation = 0;
+let jarvisOrbScene, jarvisOrbCamera, jarvisOrbRenderer;
+let jarvisOrbMesh, jarvisOrbVideo;
+let jarvisOrbRotation = 0;
 
-let isNeurographLoaded = false;
+// Initialize JARVIS Orb Three.js scene
+function initJarvisOrb() {
+  const container = document.getElementById('jarvis-orb-container');
+  if (!container) {
+    console.warn('[JarvisOrb] Container element not found');
+    return;
+  }
+
+  // Get video element
+  const video = document.getElementById('jarvis-video');
+  if (!video) {
+    console.warn('[JarvisOrb] Video element not found');
+    return;
+  }
+
+  // Create video texture
+  const videoTexture = new THREE.VideoTexture(video);
+  videoTexture.minFilter = THREE.LinearFilter;
+  videoTexture.magFilter = THREE.LinearFilter;
+  videoTexture.colorSpace = THREE.SRGBColorSpace;
+
+  // Create scene
+  jarvisOrbScene = new THREE.Scene();
+  jarvisOrbScene.background = new THREE.Color(0x000000);
+
+  // Create camera
+  jarvisOrbCamera = new THREE.PerspectiveCamera(
+    75,
+    1, // Square aspect ratio for container
+    0.1,
+    1000
+  );
+  jarvisOrbCamera.position.z = 3;
+
+  // Create renderer
+  const rect = container.getBoundingClientRect();
+  const size = Math.min(rect.width, rect.height);
+  jarvisOrbRenderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+  });
+  jarvisOrbRenderer.setSize(size, size);
+  jarvisOrbRenderer.setPixelRatio(window.devicePixelRatio);
+  container.appendChild(jarvisOrbRenderer.domElement);
+
+  // Create sphere with video texture
+  const geometry = new THREE.SphereGeometry(1, 64, 64);
+  const material = new THREE.MeshStandardMaterial({
+    map: videoTexture,
+    roughness: 0.3,
+    metalness: 0.7,
+    emissive: 0x00ffff,
+    emissiveIntensity: 0.3
+  });
+  jarvisOrbMesh = new THREE.Mesh(geometry, material);
+  jarvisOrbScene.add(jarvisOrbMesh);
+
+  // Add lighting
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+  jarvisOrbScene.add(ambientLight);
+
+  const pointLight = new THREE.PointLight(0x00ffff, 1, 10);
+  pointLight.position.set(2, 2, 2);
+  jarvisOrbScene.add(pointLight);
+
+  // Add hover effect
+  container.addEventListener('mouseenter', () => {
+    if (jarvisOrbMesh) {
+      jarvisOrbMesh.material.emissiveIntensity = 0.5;
+      jarvisOrbMesh.material.color.setHex(0x00ffff);
+    }
+  });
+
+  container.addEventListener('mouseleave', () => {
+    if (jarvisOrbMesh) {
+      jarvisOrbMesh.material.emissiveIntensity = 0.3;
+      jarvisOrbMesh.material.color.setHex(0xffffff);
+    }
+  });
+
+  // Add animation loop
+  function animateOrb() {
+    requestAnimationFrame(animateOrb);
+
+    // Slow rotation of the sphere
+    if (jarvisOrbMesh) {
+      jarvisOrbMesh.rotation.y += 0.005;
+      jarvisOrbMesh.rotation.x += 0.002;
+    }
+
+    jarvisOrbRenderer.render(jarvisOrbScene, jarvisOrbCamera);
+  }
+  animateOrb();
+
+  // Handle resize
+  function resizeOrb() {
+    const rect = container.getBoundingClientRect();
+    const size = Math.min(rect.width, rect.height);
+    jarvisOrbRenderer.setSize(size, size);
+  }
+  window.addEventListener('resize', resizeOrb);
+  resizeOrb();
+
+  console.log('[JarvisOrb] Three.js sphere with video texture initialized');
+}
 
 // Initialize Three.js scene
 function initNeurograph() {
@@ -1585,11 +1687,13 @@ function animateNeurograph() {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     console.log('[Neurograph] DOM loaded, initializing...');
+    initJarvisOrb();
     initNeurograph();
     animateNeurograph();
   });
 } else {
   console.log('[Neurograph] DOM already ready, initializing...');
+  initJarvisOrb();
   initNeurograph();
   animateNeurograph();
 }
