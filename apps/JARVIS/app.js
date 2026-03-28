@@ -1817,10 +1817,13 @@ function createNeurograph(data) {
     let baseRadius;
     if (node.id === themeNodeId) {
       baseRadius = 2.0; // Theme node is largest
+      console.log(`[Neurograph] Theme node ${node.id} radius: ${baseRadius}`);
     } else if (isConnectedToTheme) {
       baseRadius = 1.0 + (themeConnectionWeight / 200); // Connected nodes: 1.0-1.5 radius
+      console.log(`[Neurograph] Connected node ${node.id} weight=${themeConnectionWeight} radius=${baseRadius.toFixed(2)}`);
     } else {
       baseRadius = isTemporal ? 0.8 + Math.random() * 0.3 : 0.5 + Math.random() * 0.3;
+      console.log(`[Neurograph] Other node ${node.id} temporal=${isTemporal} radius=${baseRadius.toFixed(2)}`);
     }
     
     const geometry = new THREE.SphereGeometry(baseRadius, 32, 32);
