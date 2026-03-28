@@ -1462,8 +1462,8 @@ function initNeurograph() {
 
   // Create scene
   neurographScene = new THREE.Scene();
-  neurographScene.background = new THREE.Color(0x000000);
-  neurographScene.fog = new THREE.FogExp2(0x000000, 0.002);
+  neurographScene.background = new THREE.Color(0x050510);
+  neurographScene.fog = new THREE.FogExp2(0x050510, 0.002);
 
   // Create camera
   neurographCamera = new THREE.PerspectiveCamera(
@@ -1472,7 +1472,7 @@ function initNeurograph() {
     0.1,
     1000
   );
-  neurographCamera.position.z = 50;
+  neurographCamera.position.set(0, 25, 100);
 
   // Create renderer
   neurographRenderer = new THREE.WebGLRenderer({
@@ -1487,8 +1487,8 @@ function initNeurograph() {
   neurographControls = new THREE.OrbitControls(neurographCamera, neurographRenderer.domElement);
   neurographControls.enableDamping = true;
   neurographControls.dampingFactor = 0.05;
-  neurographControls.minDistance = 10;
-  neurographControls.maxDistance = 200;
+  neurographControls.minDistance = 50;
+  neurographControls.maxDistance = 800;
 
   // Add lighting
   const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
@@ -1512,6 +1512,9 @@ function initNeurograph() {
   // Load neurograph data
   loadNeurographData();
   console.log('[Neurograph] Initialized');
+  
+  // Add starfield to background
+  createStarfield();
 }
 
 // Animation loop
@@ -1650,8 +1653,8 @@ function createNeurograph(data) {
 
   // Create nodes with Jarvis theme colors
   const nodeMaterial = new THREE.MeshStandardMaterial({
-    color: 0x00ffff,
-    emissive: 0x0088ff,
+    color: 0x1a4d8f,
+    emissive: 0x0066cc,
     emissiveIntensity: 0.3,
     roughness: 0.3,
     metalness: 0.7
@@ -1748,8 +1751,8 @@ function createFallbackNeurograph() {
     const radius = 0.5 + Math.random() * 0.5;
     const geometry = new THREE.SphereGeometry(radius, 32, 32);
     const material = new THREE.MeshStandardMaterial({
-      color: 0x00ffff,
-      emissive: 0x0088ff,
+      color: 0x1a4d8f,
+      emissive: 0x0066cc,
       emissiveIntensity: 0.3
     });
     const neuron = new THREE.Mesh(geometry, material);
@@ -1811,48 +1814,31 @@ function createFallbackNeurograph() {
 
 // NOTE: Neurograph animation loop disabled - causing WebGL errors with 9549 nodes
 // The UI should remain clean without a cluttered neural graph
-/*
-// Animation loop
-function animateNeurograph() {
-  requestAnimationFrame(animateNeurograph);
 
-  if (neurographControls) {
-    neurographControls.update();
+// Create starfield background
+function createStarfield() {
+  const starCount = 500;
+  const starGeometry = new THREE.BufferGeometry();
+  const starPositions = [];
+  
+  for (let i = 0; i < starCount; i++) {
+    const x = (Math.random() - 0.5) * 800;
+    const y = (Math.random() - 0.5) * 800;
+    const z = (Math.random() - 0.5) * 1000;
+    starPositions.push(x, y, z);
   }
-
-  // Idle rotation - slow spin when no interaction
-  if (neurographScene && neurons.length > 0 && isNeurographLoaded) {
-    idleRotation += 0.002;
-    
-    neurons.forEach((neuron, idx) => {
-      neuron.position.x = neuron.position.x * Math.cos(idleRotation) - 
-                         neuron.position.z * Math.sin(idleRotation);
-      neuron.position.z = neuron.position.x * Math.sin(idleRotation) + 
-                         neuron.position.z * Math.cos(idleRotation);
-    });
-  }
-
-  // Update synapse pulsation
-  if (synapses.length > 0 && isNeurographLoaded) {
-    const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
-    synapses.forEach((synapse, idx) => {
-      synapse.material.opacity = 0.3 + 0.3 * pulse;
-    });
-  }
-
-  neurographRenderer.render(neurographScene, neurographCamera);
-}
-
-// Initialize neurograph when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('[Neurograph] DOM loaded, initializing...');
-    initNeurograph();
-    animateNeurograph();
+  
+  starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+  
+  const starMaterial = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 0.5,
+    transparent: true,
+    opacity: 0.8
   });
-} else {
-  console.log('[Neurograph] DOM already ready, initializing...');
-  initNeurograph();
-  animateNeurograph();
+  
+  const starfield = new THREE.Points(starGeometry, starMaterial);
+  neurographScene.add(starfield);
+  
+  console.log('[Neurograph] Starfield created with', starCount, 'stars');
 }
-*/
