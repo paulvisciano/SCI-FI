@@ -1831,13 +1831,8 @@ function createNeurograph(data) {
         const connWeight = conn.weight || conn.strength || 1;
         themeConnectionWeight = Math.max(themeConnectionWeight, connWeight);
         themeConnectionCount++;
-        // Debug: log the actual weight from connection
-        if (themeConnectionWeight === connWeight) {
-          console.log(`[Neurograph] Found weight=${connWeight} for connection ${conn.source} <-> ${conn.target}`);
-        }
       }
     });
-    console.log(`[Neurograph] Node ${node.id}: themeConnectionWeight=${themeConnectionWeight}, connections=${themeConnectionCount}`);
 
     // Base radius: theme node is largest, connected nodes are medium, others are small
     let baseRadius;
@@ -1917,9 +1912,7 @@ function createNeurograph(data) {
   console.log(`[Neurograph] Creating ${connections.length} connections from ${neurons.length} neurons`);
 
   // Debug: show first 5 connections with their weights
-  connections.slice(0, 5).forEach(conn => {
-    console.log(`[Neurograph] Connection sample: ${conn.source} -> ${conn.target}, weight=${conn.weight || conn.strength || 0}, type=${conn.type || 'related'}`);
-  });
+  // Commented out - removed for clarity
 
   connections.forEach(conn => {
     // Support both source/target (string IDs) and from/to (indices)
