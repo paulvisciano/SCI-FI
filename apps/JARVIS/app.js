@@ -1466,6 +1466,13 @@ let neurographData = null;
 let idleRotation = 0;
 let isNeurographLoaded = false;
 
+// Voice recording state
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let thinkingTimer = null;
+let agentWaitStart = null;
+
 // === Three.js JARVIS Orb Rendering ===
 // Create 3D sphere with video texture for the JARVIS orb
 
