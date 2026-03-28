@@ -1811,6 +1811,10 @@ function createNeurograph(data) {
 
   console.log(`[Neurograph] Theme node: ${themeNodeId} with total weight: ${maxWeight}`);
 
+  // Check if theme node is in selected nodes
+  const themeNodeInSelection = nodes.find(n => n.id === themeNodeId);
+  console.log(`[Neurograph] Theme node in selection: ${!!themeNodeInSelection}`);
+
   nodes.forEach((node, idx) => {
     // Determine if this is a temporal node (has date in moments or attributes)
     const isTemporal = node.moments && node.moments.some(m => m.date && m.date.includes('2026')) ||
