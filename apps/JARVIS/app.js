@@ -1781,19 +1781,21 @@ function createNeurograph(data) {
     transparent: true,
     opacity: 0.6
   });
+  
+  // Create a map of node IDs to neuron indices for quick lookup
+  const nodeMap = {};
+  neurons.forEach((neuron, idx) => {
+    nodeMap[neuron.userData.id] = neuron;
+  });
 
   connections.forEach(conn => {
     // Support both source/target (string IDs) and from/to (indices)
     const sourceId = conn.source || conn.from;
     const targetId = conn.target || conn.to;
     
-    // Find neurons by ID if source/target strings, or by index if from/to
-    const sourceNode = neurons[sourceId] || neurons[sourceId] || 
-                      neurons[sourceId % neurons.length] || 
-                      neurons.find(n => n.userData.id === sourceId);
-    const targetNode = neurons[targetId] || neurons[targetId] || 
-                      neurons[targetId % neurons.length] || 
-                      neurons.find(n => n.userData.id === targetId);
+    // Use the nodeMap to find neurons by ID
+    const sourceNode = nodeMap[sourceId];
+    const targetNode = nodeMap[targetId];
 
     if (sourceNode && targetNode) {
       // Get weight for line thickness/opacity (0-100 scale)
