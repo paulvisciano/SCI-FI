@@ -1913,6 +1913,11 @@ function createNeurograph(data) {
 
   console.log(`[Neurograph] Creating ${connections.length} connections from ${neurons.length} neurons`);
 
+  // Debug: show first 5 connections with their weights
+  connections.slice(0, 5).forEach(conn => {
+    console.log(`[Neurograph] Connection sample: ${conn.source} -> ${conn.target}, weight=${conn.weight || conn.strength || 0}, type=${conn.type || 'related'}`);
+  });
+
   connections.forEach(conn => {
     // Support both source/target (string IDs) and from/to (indices)
     const sourceId = conn.source || conn.from;
