@@ -92,9 +92,6 @@ const jarvisOrb = document.getElementById('jarvis-orb');
 const jarvisOrbContainer = document.getElementById('jarvis-orb-container');
 const jarvisVideo = document.getElementById('jarvis-video');
 
-let mediaRecorder;
-let audioChunks = [];
-let isRecording = false;
 let isOrbEngaged = false;
 
 // Live streaming transcription
