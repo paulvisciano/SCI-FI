@@ -1525,9 +1525,9 @@ function animateNeurograph() {
     neurographControls.update();
   }
 
-  // Repulsion between spheres - makes them spread out in space (increased from 0.3 to 0.8, minDist from 3.0 to 15.0)
+  // Repulsion between spheres - makes them spread out in space (increased from 0.3 to 2.0, minDist from 3.0 to 30.0)
   if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
-    const repulsionStrength = 0.8;
+    const repulsionStrength = 2.0; // Stronger repulsion
     
     for (let i = 0; i < neurons.length; i++) {
       for (let j = i + 1; j < neurons.length; j++) {
@@ -1537,7 +1537,7 @@ function animateNeurograph() {
         const dy = a.y - b.y;
         const dz = a.z - b.z;
         const distSq = dx*dx + dy*dy + dz*dz;
-        const minDist = 15.0; // Increased from 3.0
+        const minDist = 30.0; // Much increased for better spreading
         
         if (distSq < minDist * minDist && distSq > 0.001) {
           const dist = Math.sqrt(distSq);
@@ -1861,11 +1861,12 @@ function createNeurograph(data) {
     neurons.push(neuron);
   });
 
-  // Create connection lines (synapses)
+  // Create connection lines (synapses) - straight lines between nodes
   const lineMaterial = new THREE.LineBasicMaterial({
     color: 0x00bfff,
     transparent: true,
-    opacity: 0.6
+    opacity: 0.8,
+    linewidth: 2 // Thicker lines for better visibility
   });
   
   // Create a map of node IDs to neuron indices for quick lookup
@@ -1888,13 +1889,9 @@ function createNeurograph(data) {
       const weight = conn.weight || conn.strength || 1;
       const opacity = 0.3 + 0.3 * (weight / 100);
       
+      // Straight line between source and target nodes (synapse = connection)
       const points = [
         sourceNode.userData.position.clone(),
-        new THREE.Vector3(
-          (sourceNode.userData.position.x + targetNode.userData.position.x) / 2,
-          (Math.random() - 0.5) * 10,
-          (sourceNode.userData.position.z + targetNode.userData.position.z) / 2
-        ),
         targetNode.userData.position.clone()
       ];
 
