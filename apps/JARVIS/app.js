@@ -1745,8 +1745,13 @@ function createNeurograph(data) {
   });
 
   nodes.forEach((node, idx) => {
-    const radius = 0.5 + Math.random() * 0.5; // Random radius 0.5-1.0
-    const geometry = new THREE.SphereGeometry(radius, 32, 32);
+    // Determine if this is a temporal node (has date in moments or attributes)
+    const isTemporal = node.moments && node.moments.some(m => m.date && m.date.includes('2026')) ||
+                      (node.attributes && (node.attributes.created || node.attributes.sourceDocument));
+    
+    // Temporal nodes are larger, regular nodes are smaller
+    const baseRadius = isTemporal ? 1.2 + Math.random() * 0.3 : 0.5 + Math.random() * 0.3;
+    const geometry = new THREE.SphereGeometry(baseRadius, 32, 32);
     const neuron = new THREE.Mesh(geometry, nodeMaterial.clone());
     
     // Position node in sphere pattern around origin
@@ -1762,7 +1767,8 @@ function createNeurograph(data) {
       id: node.id || idx,
       label: node.label || `Node ${idx}`,
       position: neuron.position.clone(),
-      rawData: node // Store full node data for hover labels
+      rawData: node, // Store full node data for hover labels
+      isTemporal: isTemporal
     };
     
     neurographScene.add(neuron);
