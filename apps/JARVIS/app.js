@@ -1441,6 +1441,13 @@ if (document.readyState === 'loading') {
 
 })();
 
+// === Three.js Global Variables ===
+let neurons = [];
+let synapses = [];
+let neurographData = null;
+let idleRotation = 0;
+let isNeurographLoaded = false;
+
 // === Three.js JARVIS Orb Rendering ===
 // Create 3D sphere with video texture for the JARVIS orb
 
