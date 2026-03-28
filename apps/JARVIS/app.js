@@ -1451,8 +1451,16 @@ let neurographData = null;
 let idleRotation = 0;
 let isNeurographLoaded = false;
 
+// NOTE: Neurograph initialization disabled for now - causes WebGL shader errors with 9549 nodes
+// The UI should remain clean without a cluttered neural graph
+/*
 // Initialize Three.js scene
 function initNeurograph() {
+  // DISABLED: Neurograph causes WebGL errors with 9549 nodes
+  // The UI should remain clean without a cluttered neural graph
+  console.log('[Neurograph] initNeurograph() - DISABLED (too many nodes causing WebGL errors)');
+  return;
+  
   const canvas = document.getElementById('neurograph-canvas');
   if (!canvas) {
     console.warn('[Neurograph] Canvas element not found');
@@ -1508,9 +1516,60 @@ function initNeurograph() {
   // Event listeners
   window.addEventListener('resize', onNeurographWindowResize);
 
-  // Load neurograph data
-  loadNeurographData();
+  // NOTE: Neurograph data loading disabled for now - causes WebGL shader errors with 9549 nodes
+  // The UI should remain clean without a cluttered neural graph
+  // loadNeurographData();
+  console.log('[Neurograph] Data loading disabled - too many nodes (9549) causing WebGL errors');
 }
+*/
+
+// Animation loop - disabled for now
+/*
+function animateNeurograph() {
+  requestAnimationFrame(animateNeurograph);
+
+  if (neurographControls) {
+    neurographControls.update();
+  }
+
+  // Idle rotation - slow spin when no interaction
+  if (neurographScene && neurons.length > 0 && isNeurographLoaded) {
+    idleRotation += 0.002;
+    
+    neurons.forEach((neuron, idx) => {
+      neuron.position.x = neuron.position.x * Math.cos(idleRotation) - 
+                         neuron.position.z * Math.sin(idleRotation);
+      neuron.position.z = neuron.position.x * Math.sin(idleRotation) + 
+                         neuron.position.z * Math.cos(idleRotation);
+    });
+  }
+
+  // Update synapse pulsation
+  if (synapses.length > 0 && isNeurographLoaded) {
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
+    synapses.forEach((synapse, idx) => {
+      synapse.material.opacity = 0.3 + 0.3 * pulse;
+    });
+  }
+
+  neurographRenderer.render(neurographScene, neurographCamera);
+}
+*/
+
+// Initialize neurograph when DOM is ready
+/*
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[Neurograph] DOM loaded, initializing...');
+    initNeurograph();
+    animateNeurograph();
+  });
+} else {
+  console.log('[Neurograph] DOM already ready, initializing...');
+  initNeurograph();
+  animateNeurograph();
+}
+*/
 
 // Handle window resize
 function onNeurographWindowResize() {
@@ -1627,30 +1686,10 @@ function createNeurograph(data) {
     }
   });
 
-  // Add node labels as text sprites
-  neurons.forEach((neuron, idx) => {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = 256;
-    canvas.height = 64;
-    
-    context.fillStyle = '#000000';
-    context.fillRect(0, 0, 256, 64);
-    
-    context.fillStyle = '#00ffff';
-    context.font = 'bold 12px Arial, sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(neuron.userData.label, 128, 32);
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.9 });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(6, 2, 1);
-    sprite.position.copy(neuron.position).add(new THREE.Vector3(0, 2.5, 0));
-    
-    neurographScene.add(sprite);
-  });
+  // Node labels removed - causing "weird bubbles" effect with 9549 nodes
+  // The neurograph is now clean with just nodes and connections
+  // Labels can be re-added later if needed with proper filtering/limiting
+
 }
 
 // Create fallback neurograph when API fails
@@ -1725,6 +1764,9 @@ function createFallbackNeurograph() {
   console.log('[Neurograph] Fallback neurograph created:', nodeCount, 'nodes');
 }
 
+// NOTE: Neurograph animation loop disabled - causing WebGL errors with 9549 nodes
+// The UI should remain clean without a cluttered neural graph
+/*
 // Animation loop
 function animateNeurograph() {
   requestAnimationFrame(animateNeurograph);
@@ -1768,3 +1810,4 @@ if (document.readyState === 'loading') {
   initNeurograph();
   animateNeurograph();
 }
+*/
