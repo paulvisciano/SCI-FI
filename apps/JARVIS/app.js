@@ -1451,16 +1451,8 @@ let neurographData = null;
 let idleRotation = 0;
 let isNeurographLoaded = false;
 
-// NOTE: Neurograph initialization disabled for now - causes WebGL shader errors with 9549 nodes
-// The UI should remain clean without a cluttered neural graph
-/*
 // Initialize Three.js scene
 function initNeurograph() {
-  // DISABLED: Neurograph causes WebGL errors with 9549 nodes
-  // The UI should remain clean without a cluttered neural graph
-  console.log('[Neurograph] initNeurograph() - DISABLED (too many nodes causing WebGL errors)');
-  return;
-  
   const canvas = document.getElementById('neurograph-canvas');
   if (!canvas) {
     console.warn('[Neurograph] Canvas element not found');
@@ -1516,12 +1508,10 @@ function initNeurograph() {
   // Event listeners
   window.addEventListener('resize', onNeurographWindowResize);
 
-  // NOTE: Neurograph data loading disabled for now - causes WebGL shader errors with 9549 nodes
-  // The UI should remain clean without a cluttered neural graph
-  // loadNeurographData();
-  console.log('[Neurograph] Data loading disabled - too many nodes (9549) causing WebGL errors');
+  // Load neurograph data
+  loadNeurographData();
+  console.log('[Neurograph] Initialized');
 }
-*/
 
 // Animation loop - disabled for now
 /*
