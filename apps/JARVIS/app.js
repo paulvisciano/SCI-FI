@@ -1732,8 +1732,30 @@ function createNeurograph(data) {
   // Create nodes as spheres
   // Limit to 1000 nodes to prevent WebGL errors (too many objects)
   const MAX_NODES = 1000;
-  const nodes = (data.nodes || []).slice(0, MAX_NODES);
-  const connections = (data.synapses || data.connections || []).slice(0, MAX_NODES * 2);
+  const allNodes = data.nodes || [];
+  const allConnections = data.synapses || data.connections || [];
+  
+  // Calculate connection weights for ALL nodes (before limiting)
+  const nodeConnectionWeights = {};
+  allNodes.forEach(node => {
+    nodeConnectionWeights[node.id] = 0;
+  });
+  allConnections.forEach(conn => {
+    const weight = conn.weight || conn.strength || 1;
+    nodeConnectionWeights[conn.source] = (nodeConnectionWeights[conn.source] || 0) + weight;
+    nodeConnectionWeights[conn.target] = (nodeConnectionWeights[conn.target] || 0) + weight;
+  });
+  
+  // Sort nodes by total connection weight and take top 1000 (most connected)
+  const sortedNodes = allNodes.sort((a, b) => 
+    (nodeConnectionWeights[b.id] || 0) - (nodeConnectionWeights[a.id] || 0)
+  );
+  const nodes = sortedNodes.slice(0, MAX_NODES);
+  
+  // Only keep connections that connect nodes within our selected set
+  const connections = allConnections.filter(conn => 
+    nodes.some(n => n.id === conn.source) && nodes.some(n => n.id === conn.target)
+  );
 
   // Create nodes with Jarvis theme colors
   const nodeMaterial = new THREE.MeshStandardMaterial({
@@ -1744,19 +1766,7 @@ function createNeurograph(data) {
     metalness: 0.7
   });
 
-  // Step 1: Find the most central node (theme node) based on total connection weight
-  const nodeConnectionWeights = {};
-  nodes.forEach(node => {
-    nodeConnectionWeights[node.id] = 0;
-  });
-  
-  connections.forEach(conn => {
-    const weight = conn.weight || conn.strength || 1;
-    nodeConnectionWeights[conn.source] = (nodeConnectionWeights[conn.source] || 0) + weight;
-    nodeConnectionWeights[conn.target] = (nodeConnectionWeights[conn.target] || 0) + weight;
-  });
-  
-  // Find node with highest total connection weight (the theme node)
+  // Theme node was already found above in nodeConnectionWeights
   let themeNodeId = null;
   let maxWeight = -1;
   for (const [nodeId, weight] of Object.entries(nodeConnectionWeights)) {
