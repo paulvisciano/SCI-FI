@@ -1884,15 +1884,9 @@ function createNeurograph(data) {
   
   // Create a map of node IDs to neuron indices for quick lookup
   const nodeMap = {};
-  console.log(`[Neurograph] Building nodeMap with ${neurons.length} neurons`);
   neurons.forEach((neuron, idx) => {
     nodeMap[neuron.userData.id] = neuron;
-    if (idx < 5) {
-      console.log(`[Neurograph] nodeMap[${neuron.userData.id}] = neuron ${idx}`);
-    }
   });
-
-  console.log(`[Neurograph] Creating ${connections.length} connections from ${neurons.length} neurons`);
 
   connections.forEach(conn => {
     // Support both source/target (string IDs) and from/to (indices)
@@ -1901,21 +1895,16 @@ function createNeurograph(data) {
     
     // Skip connections with empty source or target
     if (!sourceId || !targetId) {
-      console.log(`[Neurograph] Skipping connection: source=${sourceId}, target=${targetId}`);
       return;
     }
     
     // Use the nodeMap to find neurons by ID
-    console.log(`[Neurograph] Looking up connection: sourceId=${sourceId}, targetId=${targetId}`);
     const sourceNode = nodeMap[sourceId];
     const targetNode = nodeMap[targetId];
-
-    console.log(`[Neurograph] Found: sourceNode=${!!sourceNode}, targetNode=${!!targetNode}`);
 
     if (sourceNode && targetNode) {
       // Verify source and target are different nodes
       if (sourceNode === targetNode) {
-        console.log(`[Neurograph] Skipping self-connection for ${sourceId}`);
         return;
       }
       
