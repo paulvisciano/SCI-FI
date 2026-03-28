@@ -9,37 +9,37 @@ let fadeTimer;
 function setupServerStatusFade() {
   const serverStatus = document.getElementById('server-status');
   const titleContainer = document.querySelector('.title-container');
-    
+
   if (!serverStatus || !titleContainer) {return;}
-    
+
   const DEBUG = false; // Set to true for development logging
-    
+
   // Fade out after 3 seconds
   fadeTimer = setTimeout(() => {
     serverStatus.classList.add('faded');
     if (DEBUG) {console.log('[UI] Server status faded out');}
   }, 3000);
-    
+
   // Fade in on hover over title container or status
   titleContainer.addEventListener('mouseenter', () => {
     serverStatus.classList.remove('faded');
     clearTimeout(fadeTimer);
     if (DEBUG) {console.log('[UI] Server status faded in (title hover)');}
   });
-    
+
   titleContainer.addEventListener('mouseleave', () => {
     fadeTimer = setTimeout(() => {
       serverStatus.classList.add('faded');
       if (DEBUG) {console.log('[UI] Server status faded out (title leave)');}
     }, 2000);
   });
-    
+
   serverStatus.addEventListener('mouseenter', () => {
     serverStatus.classList.remove('faded');
     clearTimeout(fadeTimer);
     if (DEBUG) {console.log('[UI] Server status faded in (status hover)');}
   });
-    
+
   serverStatus.addEventListener('mouseleave', () => {
     fadeTimer = setTimeout(() => {
       serverStatus.classList.add('faded');
@@ -64,11 +64,11 @@ function toggleTranscriptPath() {
 function toggleTranscriptFullscreen() {
   const transcriptEl = document.getElementById('transcript');
   const expandBtn = document.querySelector('.transcript-expand-btn');
-    
+
   if (!transcriptEl || !expandBtn) {return;}
-    
+
   transcriptEl.classList.toggle('fullscreen');
-    
+
   if (transcriptEl.classList.contains('fullscreen')) {
     expandBtn.textContent = '⛶ Collapse';
     expandBtn.classList.add('expanded');
@@ -225,16 +225,16 @@ async function startRecording() {
 
     // Recording state - subtle red glow (CSS-only, no video reflow)
     jarvisOrb.classList.add('recording');
-        
+
     // Update status text
     status.textContent = '🔴 Recording...';
-        
+
     // Update recording hint
     const hint = document.getElementById('recording-hint');
     if (hint) {
       hint.textContent = 'Press Space to stop recording';
     }
-        
+
     transcript.classList.add('visible');
     transcriptText.textContent = 'Listening...';
     jarvisResponse.style.display = 'none';
@@ -259,13 +259,13 @@ async function stopRecording() {
 
   // Remove recording state
   jarvisOrb.classList.remove('recording');
-    
+
   // Restore recording hint
   const hint = document.getElementById('recording-hint');
   if (hint) {
     hint.textContent = 'Press Space to record';
   }
-    
+
   status.textContent = 'Uploading...';
   status.style.color = '#ffd700';
   status.style.textShadow = '0 0 30px rgba(255, 215, 0, 0.6)';
@@ -276,7 +276,7 @@ async function sendToServer() {
   console.log('sendToServer: audioChunks length =', audioChunks.length);
   const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
   console.log('sendToServer: audioBlob size =', audioBlob.size, 'type =', audioBlob.type);
-    
+
   if (audioBlob.size === 0) {
     console.error('sendToServer: audioBlob is empty!');
     status.textContent = '❌ Empty recording - try again';
@@ -294,7 +294,7 @@ async function sendToServer() {
     });
 
     console.log('Upload response status:', response.status);
-        
+
     if (!response.ok) {
       throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
     }
@@ -434,7 +434,7 @@ async function pollForTranscript(uploadFilename) {
             responseText.innerHTML = formatResponseText(data.jarvisResponse);
             jarvisResponse.style.display = 'block';
           } else {
-            // Agent didn't return a response (failed or empty) – stop polling and show message
+            // Agent didn't return a response (failed or empty) - stop polling and show message
             clearInterval(pollInterval);
             clearThinkingTimer();
             transcript.classList.remove('pulsate');
@@ -456,7 +456,7 @@ async function pollForTranscript(uploadFilename) {
         } else if (data.status === 'done' && data.jarvisResponse && !data.transcript) {
           /* Server sent done + response but no transcript (edge case): still show response and clear "Transcribing..." */
           if (transcriptText.textContent === '' || transcriptText.innerHTML.includes('Transcribing') || transcriptText.innerHTML.includes('Processing')) {
-            transcriptText.textContent = '—';
+            transcriptText.textContent = '-';
           }
           clearInterval(pollInterval);
           clearThinkingTimer();
@@ -505,14 +505,14 @@ function checkServerStatus() {
   const indicator = document.getElementById('server-indicator');
   const statusText = document.getElementById('server-status-text');
   console.log('[checkServerStatus] Elements:', { indicator: !!indicator, statusText: !!statusText });
-    
+
   fetch(`${API_BASE}/health`)
     .then(res => res.json())
     .then(data => {
       console.log('[checkServerStatus] Health response:', data);
       const indicator = document.getElementById('server-indicator');
       const statusText = document.getElementById('server-status-text');
-            
+
       // Check if JARVIS process is alive (from /health endpoint)
       // Response: { status: 'ok', version: VERSION, build: BUILD_DATE, jarvis: { pid, memory, uptime } }
       if (data.status === 'ok') {
@@ -523,25 +523,25 @@ function checkServerStatus() {
         const pid = data.jarvis?.pid || '?';
         const memory = data.jarvis?.memory || '?';
         const uptime = data.jarvis?.uptime || '?';
-                
+
         // Show server info underneath title (version, PID, memory, uptime)
         const statusEl = document.getElementById('server-status');
         const statusTextEl = document.getElementById('server-status-text');
         const wasFaded = statusEl?.classList.contains('faded'); // Preserve fade state
-                
+
         statusTextEl.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
-                
+
         // Client version inline next to J.A.R.V.I.S title (top right)
         document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
         statusText.style.color = '#00ffff';
-            
+
         console.log('[checkServerStatus] Status text updated:', statusText.textContent);
-                
+
         // Restore faded state after updating text (polling doesn't break fade)
         if (wasFaded && statusEl) {
           statusEl.classList.add('faded');
         }
-                
+
         // Setup fade-in-out logic on first successful health check
         if (!window.serverStatusFadeSetup) {
           setupServerStatusFade();
@@ -641,7 +641,7 @@ if (document.readyState === 'loading') {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-        
+
     if (diffMins < 1) {return 'Just now';}
     if (diffMins < 60) {return `${diffMins}m ago`;}
     if (diffHours < 24) {return `${diffHours}h ago`;}
@@ -673,7 +673,7 @@ if (document.readyState === 'loading') {
       // Look up device in registry
       const macKey = device.mac.toUpperCase();
       const registeredDevice = deviceRegistry[macKey];
-            
+
       const displayName = registeredDevice ? registeredDevice.name : device.manufacturer;
       const owner = registeredDevice ? registeredDevice.owner : 'unknown';
       const lastSeen = registeredDevice ? formatLastSeen(registeredDevice.last_seen) : 'First seen';
@@ -693,7 +693,7 @@ if (document.readyState === 'loading') {
 
       const tooltip = document.createElement('div');
       tooltip.className = 'network-dot-tooltip';
-            
+
       console.log('[QR] Rendering tooltip for device:', device);
       if (registeredDevice) {
         // Show friendly name from registry
@@ -737,12 +737,12 @@ if (document.readyState === 'loading') {
     const ownerInput = document.getElementById(`reg-owner-${idx}`);
     const name = nameInput.value.trim();
     const owner = ownerInput.value.trim().toLowerCase();
-        
+
     if (!name) {
       alert('Please enter a device name');
       return;
     }
-        
+
     try {
       const res = await fetch(`${API_BASE_NET}/api/register-device`, {
         method: 'POST',
@@ -786,7 +786,7 @@ if (document.readyState === 'loading') {
     modal.querySelector('.qr-status').textContent = 'Generating...';
     modal.querySelector('.qr-image').style.display = 'none';
     modal.querySelector('.qr-spinner').style.display = 'block';
-        
+
     console.log('[QR] Fetching QR code for', ip);
 
     // Fetch QR code from server
@@ -824,7 +824,7 @@ if (document.readyState === 'loading') {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(renderDots, 100);
   });
-    
+
   loadDevices();
   setInterval(loadDevices, 30000);
 
@@ -840,14 +840,14 @@ if (document.readyState === 'loading') {
     const vitalRefreshBtn = document.getElementById('vital-refresh-btn');
     const vitalCloseBtn = document.getElementById('vitals-close');
     const vitalsOverlay = document.getElementById('vitals-overlay');
-  
+
     try {
       const response = await fetch(`${API_BASE}/api/vitals`);
       console.log('Vitals API response:', response.status, response.ok);
       if (!response.ok) {throw new Error(`Vitals API error: ${response.status}`);}
       const vitals = await response.json();
       console.log('Vitals API data:', vitals);
-            
+
       if (vitals.openclawGateway) {
         gatewayStatusEl.textContent = vitals.openclawGateway.status;
         gatewayStatusEl.style.color = vitals.openclawGateway.status === 'Running' ? '#00ff88' : '#ff4444';
@@ -860,17 +860,17 @@ if (document.readyState === 'loading') {
           gatewayUptimeEl.textContent = 'N/A';
         }
       }
-            
+
       // Update Ollama vitals
       const ollamaStatusEl = document.getElementById('vital-ollama-status');
       const ollamaModelsEl = document.getElementById('vital-ollama-models');
       const ollamaModelListEl = document.getElementById('vital-ollama-model-list');
-            
+
       if (vitals.ollama) {
         ollamaStatusEl.textContent = vitals.ollama.status;
         ollamaStatusEl.style.color = vitals.ollama.status === 'Connected' ? '#00ff88' : '#ff4444';
         ollamaModelsEl.textContent = (vitals.ollama.models || 0) + ' models loaded';
-        
+
         // Display model list with names, sizes, and types
         if (vitals.ollama.modelList && vitals.ollama.modelList.length > 0) {
           const modelStr = vitals.ollama.modelList.map(m => {
@@ -884,7 +884,7 @@ if (document.readyState === 'loading') {
           ollamaModelListEl.textContent = 'No models loaded';
         }
       }
-            
+
       // Update system vitals
       if (vitals.system) {
         if (vitals.system.memory && vitals.system.memory.totalGB > 0) {
@@ -905,29 +905,29 @@ if (document.readyState === 'loading') {
           sysDiskEl.textContent = 'N/A';
         }
       }
-            
+
       // Update last updated timestamp
       const lastUpdatedEl = document.getElementById('vitals-last-updated');
       if (lastUpdatedEl) {
         lastUpdatedEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
       }
-            
+
       // Clear error states (use already-declared variables)
       // gatewayStatusEl, gatewayPidEl, etc. already declared above
-            
+
       // Only update elements if we have valid data
       if (vitals.openclawGateway && vitals.openclawGateway.pid) {
         gatewayPidEl.textContent = vitals.openclawGateway.pid;
       } else {
         gatewayPidEl.textContent = 'N/A';
       }
-            
+
       if (vitals.openclawGateway && vitals.openclawGateway.memoryMB !== 0) {
         gatewayMemEl.textContent = `${vitals.openclawGateway.memoryMB} MB`;
       } else {
         gatewayMemEl.textContent = 'N/A';
       }
-            
+
       if (vitals.openclawGateway && vitals.openclawGateway.uptime) {
         const uptimeMin = Math.round(vitals.openclawGateway.uptime / 60000);
         gatewayUptimeEl.textContent = `${uptimeMin} min`;
@@ -936,7 +936,7 @@ if (document.readyState === 'loading') {
       }
     } catch (err) {
       console.error('Failed to refresh vitals:', err);
-            
+
       // Clear all elements on error (use already-declared variables)
       if (typeof gatewayStatusEl !== 'undefined') {
         gatewayStatusEl.textContent = 'Error';
@@ -949,11 +949,11 @@ if (document.readyState === 'loading') {
       sysCpuEl.textContent = 'N/A';
     }
   }
-    
+
   // Initial vitals refresh and set interval
   refreshVitals();
   setInterval(refreshVitals, 30000);
-    
+
   // Make refreshVitals globally accessible for onclick
   window.refreshVitals = refreshVitals;
 
@@ -964,7 +964,7 @@ if (document.readyState === 'loading') {
       const body = document.getElementById('vitals-body');
       const chevron = document.getElementById('vitals-chevron');
       const isExpanded = body.style.display === 'block' || body.style.display === '';
-            
+
       if (isExpanded) {
         body.style.display = 'none';
         vitalsToggle.setAttribute('aria-expanded', 'false');
@@ -1010,19 +1010,19 @@ if (document.readyState === 'loading') {
 
   // Make refreshVitals globally accessible for onclick
   window.refreshVitals = refreshVitals;
-    
+
   // === Settings Modal Functions ===
-  
+
   // Modal references
   const settingsModal = document.getElementById('settings-modal');
   const desktopArchivingToggle = document.getElementById('desktop-archiving-toggle');
-  
+
   // Load settings from OpenClaw config
   async function loadSettings() {
     try {
       const response = await fetch('/api/config');
       const data = await response.json();
-      
+
       if (desktopArchivingToggle) {
         desktopArchivingToggle.checked = data.desktopArchiving?.enabled === true;
       }
@@ -1030,11 +1030,11 @@ if (document.readyState === 'loading') {
       console.error('Failed to load settings:', err);
     }
   }
-  
+
   // Save settings to OpenClaw config
   async function saveSettings() {
     const enabled = desktopArchivingToggle.checked;
-    
+
     try {
       const response = await fetch('/api/config', {
         method: 'POST',
@@ -1043,9 +1043,9 @@ if (document.readyState === 'loading') {
           desktopArchiving: { enabled }
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         // Show toast notification
         showToast(`Desktop archiving ${enabled ? 'enabled' : 'disabled'}`);
@@ -1058,7 +1058,7 @@ if (document.readyState === 'loading') {
       showToast('Connection error', 'error');
     }
   }
-  
+
   // Modal functions
   function openSettingsModal() {
     if (settingsModal) {
@@ -1066,13 +1066,13 @@ if (document.readyState === 'loading') {
       loadSettings();
     }
   }
-  
+
   function closeSettingsModal() {
     if (settingsModal) {
       settingsModal.style.display = 'none';
     }
   }
-  
+
   // Close modal on outside click
   if (settingsModal) {
     window.onclick = function(event) {
@@ -1081,7 +1081,7 @@ if (document.readyState === 'loading') {
       }
     };
   }
-  
+
   // Toast notification function
   function showToast(message, type = 'success') {
     // Create toast container if not exists
@@ -1092,13 +1092,13 @@ if (document.readyState === 'loading') {
       toastContainer.style.cssText = 'position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; gap: 10px; pointer-events: none;';
       document.body.appendChild(toastContainer);
     }
-    
+
     // Create toast
     const toast = document.createElement('div');
     toast.style.cssText = `background: rgba(0,0,0,0.9); border: 1px solid ${type === 'success' ? '#22c55e' : '#ef4444'}; padding: 12px 20px; border-radius: 8px; color: #fff; font-size: 0.9em; animation: fadeIn 0.3s ease; pointer-events: auto;`;
     toast.textContent = message;
     toastContainer.appendChild(toast);
-    
+
     // Auto remove after 3 seconds
     setTimeout(() => {
       if (toast.parentNode) {
@@ -1107,14 +1107,14 @@ if (document.readyState === 'loading') {
       }
     }, 3000);
   }
-  
+
   // Add global functions
   window.openSettingsModal = openSettingsModal;
   window.closeSettingsModal = closeSettingsModal;
   window.saveSettings = saveSettings;
-    
+
   // === Breathe / Relaxation Functions ===
-  
+
   // Breathe cycle state
   let breathState = {
     isAnimating: false,
@@ -1123,41 +1123,41 @@ if (document.readyState === 'loading') {
     startTime: null,
     elapsedTime: 0
   };
-  
+
   // Heartbeat state
   let heartbeatState = {
     bpm: 60,
     lastBeat: null,
     steady: true
   };
-  
+
   // Update heartbeat display
   function updateHeartbeatDisplay() {
     const rhythmEl = document.getElementById('heartbeat-rhythm');
     const statusEl = document.getElementById('heartbeat-status');
     const lastBeatEl = document.getElementById('heartbeat-last-beat');
     const heartbeatPulse = document.getElementById('heartbeat-pulse');
-    
+
     if (rhythmEl) {
       rhythmEl.textContent = `${heartbeatState.bpm} BPM`;
     }
-    
+
     if (statusEl) {
       statusEl.textContent = heartbeatState.steady ? 'Steady' : 'Irregular';
     }
-    
+
     if (lastBeatEl) {
       const now = new Date();
-      lastBeatEl.textContent = heartbeatState.lastBeat 
-        ? now.toLocaleTimeString() 
+      lastBeatEl.textContent = heartbeatState.lastBeat
+        ? now.toLocaleTimeString()
         : '--';
     }
-    
+
     // Toggle heartbeat pulse class (new CSS classes)
     if (heartbeatPulse) {
       // Reset all classes first
       heartbeatPulse.classList.remove('steady', 'irregular', 'stopped');
-      
+
       if (heartbeatState.steady) {
         heartbeatPulse.classList.add('steady');
       } else {
@@ -1165,14 +1165,14 @@ if (document.readyState === 'loading') {
       }
     }
   }
-  
+
   // Update breath display
   function updateBreathDisplay() {
     const cycleEl = document.getElementById('breath-cycle');
     const phaseEl = document.getElementById('breath-phase');
     const depthEl = document.getElementById('breath-depth');
     const breathCircle = document.getElementById('breath-circle');
-    
+
     if (cycleEl) {
       let cycleTime = 8; // Default 8s cycle
       if (breathState.depth === 'shallow') {cycleTime = 6;}
@@ -1180,15 +1180,15 @@ if (document.readyState === 'loading') {
       if (breathState.depth === 'hold') {cycleTime = 4;}
       cycleEl.textContent = `${cycleTime}s cycle`;
     }
-    
+
     if (phaseEl) {
       phaseEl.textContent = breathState.phase.charAt(0).toUpperCase() + breathState.phase.slice(1);
     }
-    
+
     if (depthEl) {
       depthEl.textContent = breathState.depth.charAt(0).toUpperCase() + breathState.depth.slice(1);
     }
-    
+
     // Update breath circle animation
     if (breathCircle) {
       if (breathState.isAnimating) {
@@ -1199,7 +1199,7 @@ if (document.readyState === 'loading') {
       }
     }
   }
-  
+
   // Trigger breath cycle via API
   async function triggerBreathe() {
     try {
@@ -1208,34 +1208,34 @@ if (document.readyState === 'loading') {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('[Breathe] API response:', data);
-        
+
         // Start animation
         startBreathCycle();
-        
+
         return { success: true, timestamp: data.timestamp };
       } else {
         throw new Error(`Breathe API error: ${response.status}`);
       }
     } catch (err) {
       console.error('[Breathe] Trigger failed:', err);
-      
+
       // Still start animation even if API fails
       startBreathCycle();
-      
+
       return { success: false, error: err.message };
     }
   }
-  
+
   // Start breath cycle animation
   function startBreathCycle() {
     breathState.isAnimating = true;
     breathState.phase = 'inhale';
     breathState.startTime = Date.now();
-    
+
     // Reset circle animation
     const breathCircle = document.getElementById('breath-circle');
     if (breathCircle) {
@@ -1243,25 +1243,25 @@ if (document.readyState === 'loading') {
       void breathCircle.offsetWidth; // Trigger reflow
       breathCircle.style.animation = 'breathe-full 8s linear infinite';
     }
-    
+
     updateBreathDisplay();
-    
+
     console.log('[Breathe] Animation started');
   }
-  
+
   // Manual breath control (for UI interaction)
   function manualBreatheControl() {
     const btn = document.getElementById('take-a-breath-btn');
-    
+
     if (!btn) {return;}
-    
+
     // Check if already animating
     if (breathState.isAnimating) {
       // Pause
       breathState.isAnimating = false;
       btn.textContent = '✨ Take a Breath';
       btn.classList.remove('active');
-      
+
       // Pause animation
       const breathCircle = document.getElementById('breath-circle');
       if (breathCircle) {
@@ -1277,7 +1277,7 @@ if (document.readyState === 'loading') {
       });
     }
   }
-  
+
   // Initialize breath circle element
   function initBreathCircle() {
     const breathCircle = document.getElementById('breath-circle');
@@ -1291,7 +1291,7 @@ if (document.readyState === 'loading') {
         box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
       `;
     }
-    
+
     // Setup breathe depth select
     const depthSelect = document.getElementById('breath-depth-select');
     if (depthSelect) {
@@ -1300,43 +1300,43 @@ if (document.readyState === 'loading') {
         updateBreathDisplay();
       });
     }
-    
+
     // Setup "Take a Breath" button
     const takeBreathBtn = document.getElementById('take-a-breath-btn');
     if (takeBreathBtn) {
       takeBreathBtn.addEventListener('click', manualBreatheControl);
     }
-    
+
     // Initial display update
     updateBreathDisplay();
   }
-  
+
   // Initialize heartbeat
   function initHeartbeat() {
     // Simulate heartbeat rhythm
     heartbeatState.bpm = 60;
     heartbeatState.steady = true;
     heartbeatState.lastBeat = new Date();
-    
+
     // Simulate beats
     setInterval(() => {
       heartbeatState.lastBeat = new Date();
       updateHeartbeatDisplay();
     }, 5000); // Update every 5 seconds
   }
-  
+
   // Initialize breathe UI with CSS classes
   function initBreathCircleEnhanced() {
     const breathCircle = document.getElementById('breath-circle');
     const depthSelect = document.getElementById('breath-depth-select');
     const takeBreathBtn = document.getElementById('take-a-breath-btn');
-    
+
     // Initialize breath circle with CSS class-based animation
     if (breathCircle) {
       // Apply CSS classes based on depth
       updateBreathCSS(breathState.depth);
     }
-    
+
     // Setup depth selector to update CSS classes
     if (depthSelect) {
       depthSelect.addEventListener('change', (e) => {
@@ -1347,7 +1347,7 @@ if (document.readyState === 'loading') {
         updateBreathDisplay();
       });
     }
-    
+
     // Setup "Take a Breath" button with enhanced functionality
     if (takeBreathBtn) {
       takeBreathBtn.addEventListener('click', () => {
@@ -1357,7 +1357,7 @@ if (document.readyState === 'loading') {
           takeBreathBtn.innerHTML = '✨ Take a Breath';
           takeBreathBtn.style.background = 'rgba(255, 215, 0, 0.15)';
           takeBreathBtn.style.borderColor = 'rgba(255, 215, 0, 0.3)';
-          
+
           // Pause animation
           if (breathCircle) {
             breathCircle.style.animationPlayState = 'paused';
@@ -1371,19 +1371,19 @@ if (document.readyState === 'loading') {
         }
       });
     }
-    
+
     // Initial display update
     updateBreathDisplay();
   }
-  
+
   // Update breath circle with CSS classes
   function updateBreathCSS(depth) {
     const breathCircle = document.getElementById('breath-circle');
     if (!breathCircle) {return;}
-    
+
     // Reset all depth classes
     breathCircle.classList.remove('shallow', 'normal', 'deep', 'hold');
-    
+
     // Add current depth class
     if (depth === 'shallow') {
       breathCircle.classList.add('shallow');
@@ -1394,19 +1394,19 @@ if (document.readyState === 'loading') {
     } else if (depth === 'hold') {
       breathCircle.classList.add('hold');
     }
-    
+
     // If animating, ensure animation is running
     if (breathState.isAnimating) {
       breathCircle.style.animationPlayState = 'running';
     }
   }
-  
+
   // Initialize heartbeat with CSS classes
   function initHeartbeatEnhanced() {
     const heartbeatPulse = document.getElementById('heartbeat-pulse');
     const heartbeatRhythmEl = document.getElementById('heartbeat-rhythm');
     const heartbeatStatusEl = document.getElementById('heartbeat-status');
-    
+
     // Apply CSS class based on rhythm state
     if (heartbeatPulse) {
       if (heartbeatState.steady) {
@@ -1417,28 +1417,28 @@ if (document.readyState === 'loading') {
         heartbeatPulse.classList.remove('steady', 'stopped');
       }
     }
-    
+
     // Update display text
     if (heartbeatRhythmEl) {
       heartbeatRhythmEl.textContent = `${heartbeatState.bpm} BPM`;
     }
-    
+
     if (heartbeatStatusEl) {
       heartbeatStatusEl.textContent = heartbeatState.steady ? 'Steady' : 'Irregular';
       heartbeatStatusEl.style.color = heartbeatState.steady ? '#00ff88' : '#ffd700';
     }
-    
+
     // Simulate heartbeat rhythm updates
     setInterval(() => {
       heartbeatState.lastBeat = new Date();
       updateHeartbeatDisplay();
     }, 5000);
   }
-  
+
   // Initialize enhanced UI components
   initBreathCircleEnhanced();
   initHeartbeatEnhanced();
-    
+
 })();
 
 // === Three.js Neurograph Rendering ===
@@ -1512,7 +1512,7 @@ function initNeurograph() {
   // Load neurograph data
   loadNeurographData();
   console.log('[Neurograph] Initialized');
-  
+
   // Add starfield to background
   createStarfield();
 }
@@ -1528,7 +1528,7 @@ function animateNeurograph() {
   // Repulsion between spheres - makes them spread out in space (increased from 0.3 to 2.0, minDist from 3.0 to 30.0)
   if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
     const repulsionStrength = 2.0; // Stronger repulsion
-    
+
     for (let i = 0; i < neurons.length; i++) {
       for (let j = i + 1; j < neurons.length; j++) {
         const a = neurons[i].position;
@@ -1538,15 +1538,15 @@ function animateNeurograph() {
         const dz = a.z - b.z;
         const distSq = dx*dx + dy*dy + dz*dz;
         const minDist = 30.0; // Much increased for better spreading
-        
+
         if (distSq < minDist * minDist && distSq > 0.001) {
           const dist = Math.sqrt(distSq);
           const force = repulsionStrength * (minDist - dist) / dist;
-          
+
           const nx = (dx / dist) * force;
           const ny = (dy / dist) * force;
           const nz = (dz / dist) * force;
-          
+
           neurons[i].position.x += nx;
           neurons[i].position.y += ny;
           neurons[i].position.z += nz;
@@ -1563,13 +1563,13 @@ function animateNeurograph() {
   //   idleRotation += 0.0002;
   //   ...
   // }
-  // 
+  //
   // // Idle rotation - slow spin when no interaction
   // if (neurographScene && neurons.length > 0 && isNeurographLoaded) {
   //   idleRotation += 0.0002;
   //   ...
   // }
-  // 
+  //
   //   // Update synapse pulsation
   if (synapses.length > 0 && isNeurographLoaded) {
     const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
@@ -1623,20 +1623,20 @@ function setupNeurographHover() {
   labelDiv.style.maxWidth = '300px';
   labelDiv.style.wordBreak = 'break-all';
   document.body.appendChild(labelDiv);
-  
+
   // Mouse move handler for neurograph
   document.addEventListener('mousemove', (e) => {
     if (!neurographScene) return;
-    
+
     // Calculate mouse position in normalized device coordinates
     const rect = neurographRenderer.domElement.getBoundingClientRect();
     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    
+
     // Update raycaster
     raycaster.setFromCamera(mouse, neurographCamera);
     const intersects = raycaster.intersectObjects(neurons);
-    
+
     if (intersects.length > 0) {
       const intersected = intersects[0].object;
       if (intersected !== hoveredNode) {
@@ -1671,14 +1671,14 @@ function createNodeLabel(nodeData) {
   if (!nodeData || !nodeData.rawData) {
     return `<strong>Node:</strong> ${nodeData.id || 'Unknown'}`;
   }
-  
+
   const node = nodeData.rawData;
   let html = `<div style="border-bottom: 1px solid #0088ff; padding-bottom: 8px; margin-bottom: 8px;">`;
   html += `<strong>${node.label || node.id}</strong>`;
   html += ` <span style="color: #888; font-size: 10px;">(${node.id})</span>`;
   html += `<br><span style="color: #00ffff; opacity: 0.7;">${node.category || 'unknown'} - ${node.type || 'unknown'}</span>`;
   html += `</div>`;
-  
+
   if (node.attributes) {
     if (node.attributes.description) {
       html += `<div style="margin: 5px 0; color: #ddd;">${node.attributes.description.substring(0, 150)}${node.attributes.description.length > 150 ? '...' : ''}</div>`;
@@ -1687,12 +1687,12 @@ function createNodeLabel(nodeData) {
       html += `<div style="margin: 5px 0;"><span style="display: inline-block; width: 10px; height: 10px; background: ${node.attributes.color}; border-radius: 2px; vertical-align: middle; margin-right: 5px; box-shadow: 0 0 5px ${node.attributes.color};"></span>Color: ${node.attributes.color}</div>`;
     }
   }
-  
+
   if (node.moments && node.moments.length > 0) {
     const recentMoment = node.moments[0];
     html += `<div style="margin: 5px 0; font-size: 10px; color: #aaa;">Updated: ${recentMoment.date || 'Unknown'}</div>`;
   }
-  
+
   return html;
 }
 
@@ -1709,14 +1709,14 @@ function loadNeurographData() {
       console.log('[Neurograph] Raw data loaded:', data);
       console.log('[Neurograph] Nodes count:', (data.nodes || []).length);
       console.log('[Neurograph] Synapses count:', (data.synapses || data.connections || []).length);
-      
+
       // Check for undefined sources in synapses
       const synapses = data.synapses || data.connections || [];
       const undefinedSources = synapses.filter(s => !s.source).length;
       const undefinedTargets = synapses.filter(s => !s.target).length;
       console.log('[Neurograph] Synapses with undefined source:', undefinedSources);
       console.log('[Neurograph] Synapses with undefined target:', undefinedTargets);
-      
+
       neurographData = data;
       createNeurograph(data);
       isNeurographLoaded = true;
@@ -1744,28 +1744,46 @@ function createNeurograph(data) {
   const MAX_NODES = 1000;
   const allNodes = data.nodes || [];
   const allConnections = data.synapses || data.connections || [];
-  
+
+  // Create a Set of valid node IDs for quick lookup
+  const allNodeIds = new Set(allNodes.map(n => n.id));
+
   // Calculate connection weights for ALL nodes (before limiting)
   const nodeConnectionWeights = {};
   allNodes.forEach(node => {
     nodeConnectionWeights[node.id] = 0;
   });
   allConnections.forEach(conn => {
+    // Skip connections with empty source/target
+    if (!conn.source || !conn.target) return;
     const weight = conn.weight || conn.strength || 1;
     nodeConnectionWeights[conn.source] = (nodeConnectionWeights[conn.source] || 0) + weight;
     nodeConnectionWeights[conn.target] = (nodeConnectionWeights[conn.target] || 0) + weight;
   });
-  
+
+  // Filter connections to only include those with valid node IDs
+  const validConnections = allConnections.filter(conn =>
+    allNodeIds.has(conn.source) && allNodeIds.has(conn.target) &&
+    conn.source && conn.target
+  );
+
+  console.log(`[Neurograph] Total nodes: ${allNodes.length}, Total connections: ${allConnections.length}, Valid connections: ${validConnections.length}`);
+
   // Sort nodes by total connection weight and take top 1000 (most connected)
-  const sortedNodes = allNodes.sort((a, b) => 
+  const sortedNodes = allNodes.sort((a, b) =>
     (nodeConnectionWeights[b.id] || 0) - (nodeConnectionWeights[a.id] || 0)
   );
   const nodes = sortedNodes.slice(0, MAX_NODES);
-  
-  // Only keep connections that connect nodes within our selected set
-  const connections = allConnections.filter(conn => 
-    nodes.some(n => n.id === conn.source) && nodes.some(n => n.id === conn.target)
+
+  // Create node IDs Set for quick lookup
+  const nodeIds = new Set(nodes.map(n => n.id));
+
+  // Filter connections to only include those where BOTH nodes are in our selected set
+  const connections = validConnections.filter(conn =>
+    nodeIds.has(conn.source) && nodeIds.has(conn.target)
   );
+
+  console.log(`[Neurograph] Selected ${nodes.length} nodes by weight, ${connections.length} connections remain`);
 
   // Create nodes with Jarvis theme colors
   const nodeMaterial = new THREE.MeshStandardMaterial({
@@ -1785,25 +1803,25 @@ function createNeurograph(data) {
       themeNodeId = nodeId;
     }
   }
-  
+
   // If no connections found, use first node as theme
   if (!themeNodeId && nodes.length > 0) {
     themeNodeId = nodes[0].id;
   }
-  
+
   console.log(`[Neurograph] Theme node: ${themeNodeId} with total weight: ${maxWeight}`);
 
   nodes.forEach((node, idx) => {
     // Determine if this is a temporal node (has date in moments or attributes)
     const isTemporal = node.moments && node.moments.some(m => m.date && m.date.includes('2026')) ||
                       (node.attributes && (node.attributes.created || node.attributes.sourceDocument));
-    
+
     // Determine if this node is directly connected to theme (orbiting node)
-    const isConnectedToTheme = connections.some(conn => 
+    const isConnectedToTheme = connections.some(conn =>
       (conn.source === themeNodeId && conn.target === node.id) ||
       (conn.target === themeNodeId && conn.source === node.id)
     );
-    
+
     // Get max connection weight to theme node
     let themeConnectionWeight = 0;
     connections.forEach(conn => {
@@ -1812,7 +1830,7 @@ function createNeurograph(data) {
         themeConnectionWeight = Math.max(themeConnectionWeight, conn.weight || conn.strength || 1);
       }
     });
-    
+
     // Base radius: theme node is largest, connected nodes are medium, others are small
     let baseRadius;
     if (node.id === themeNodeId) {
@@ -1825,15 +1843,15 @@ function createNeurograph(data) {
       baseRadius = isTemporal ? 0.8 + Math.random() * 0.3 : 0.5 + Math.random() * 0.3;
       console.log(`[Neurograph] Other node ${node.id} temporal=${isTemporal} radius=${baseRadius.toFixed(2)}`);
     }
-    
+
     const geometry = new THREE.SphereGeometry(baseRadius, 32, 32);
     const neuron = new THREE.Mesh(geometry, nodeMaterial.clone());
-    
+
     // Position nodes in molecule-like structure:
     // - Theme node at center (0, 0, 0)
     // - Connected nodes in orbiting planes around theme
     // - Other nodes in outer orbits
-    
+
     if (node.id === themeNodeId) {
       // Theme node at center
       neuron.position.set(0, 0, 0);
@@ -1841,13 +1859,13 @@ function createNeurograph(data) {
       // Orbiting nodes - arrange in orbital planes around center
       const orbitRadius = 8 + (themeConnectionWeight / 20); // 8-13 units from center
       const planeAngle = (idx % 4) * (Math.PI / 2); // 4 orbital planes: 0, 90, 180, 270 degrees
-      
+
       // Calculate position in orbital plane
       const angle = (idx / 4) * (Math.PI * 2); // Distribute nodes in each plane
       const x = Math.cos(angle) * orbitRadius;
       const z = Math.sin(angle) * orbitRadius;
       const y = Math.sin(planeAngle) * (orbitRadius * 0.3); // Slight tilt for 3D effect
-      
+
       neuron.position.set(x, y, z);
     } else {
       // Other nodes - in outer orbits
@@ -1859,7 +1877,7 @@ function createNeurograph(data) {
         Math.sin(angle) * orbitRadius
       );
     }
-    
+
     neuron.userData = {
       id: node.id || idx,
       label: node.label || `Node ${idx}`,
@@ -1869,7 +1887,7 @@ function createNeurograph(data) {
       isConnectedToTheme: isConnectedToTheme,
       themeConnectionWeight: themeConnectionWeight
     };
-    
+
     neurographScene.add(neuron);
     neurons.push(neuron);
   });
@@ -1881,12 +1899,14 @@ function createNeurograph(data) {
     opacity: 0.8,
     linewidth: 2 // Thicker lines for better visibility
   });
-  
+
   // Create a map of node IDs to neuron indices for quick lookup
   const nodeMap = {};
   neurons.forEach((neuron, idx) => {
     nodeMap[neuron.userData.id] = neuron;
   });
+
+  console.log(`[Neurograph] Creating ${connections.length} connections from ${neurons.length} neurons`);
 
   connections.forEach(conn => {
     // Support both source/target (string IDs) and from/to (indices)
@@ -1895,6 +1915,7 @@ function createNeurograph(data) {
     
     // Skip connections with empty source or target
     if (!sourceId || !targetId) {
+      console.warn(`[Neurograph] Skipping connection with empty source/target`);
       return;
     }
     
@@ -1907,11 +1928,11 @@ function createNeurograph(data) {
       if (sourceNode === targetNode) {
         return;
       }
-      
+
       // Get weight for line thickness/opacity (0-100 scale)
       const weight = conn.weight || conn.strength || 1;
       const opacity = 0.3 + 0.3 * (weight / 100);
-      
+
       // Straight line between source and target nodes (synapse = connection)
       const points = [
         sourceNode.userData.position.clone(),
@@ -1920,7 +1941,7 @@ function createNeurograph(data) {
 
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const line = new THREE.Line(geometry, lineMaterial.clone());
-      
+
       line.userData = {
         source: sourceId,
         target: targetId,
@@ -1928,12 +1949,11 @@ function createNeurograph(data) {
         type: conn.type || 'connection',
         label: conn.label || `Link ${sourceId} -> ${targetId}`
       };
-      
+
       neurographScene.add(line);
       synapses.push(line);
     } else {
-      // Connection failed because source or target not found in nodeMap
-      // This is expected - some nodes in synapses might be outside our 1000-node limit
+      console.warn(`[Neurograph] Connection failed: source=${sourceId}, target=${targetId} - not found in nodeMap`);
     }
   });
 
@@ -2022,25 +2042,25 @@ function createStarfield() {
   const starCount = 500;
   const starGeometry = new THREE.BufferGeometry();
   const starPositions = [];
-  
+
   for (let i = 0; i < starCount; i++) {
     const x = (Math.random() - 0.5) * 800;
     const y = (Math.random() - 0.5) * 800;
     const z = (Math.random() - 0.5) * 1000;
     starPositions.push(x, y, z);
   }
-  
+
   starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
-  
+
   const starMaterial = new THREE.PointsMaterial({
     color: 0xffffff,
     size: 0.5,
     transparent: true,
     opacity: 0.8
   });
-  
+
   const starfield = new THREE.Points(starGeometry, starMaterial);
   neurographScene.add(starfield);
-  
+
   console.log('[Neurograph] Starfield created with', starCount, 'stars');
 }
