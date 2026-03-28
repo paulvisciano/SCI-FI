@@ -1733,7 +1733,7 @@ function createNeurograph(data) {
   // Limit to 1000 nodes to prevent WebGL errors (too many objects)
   const MAX_NODES = 1000;
   const nodes = (data.nodes || []).slice(0, MAX_NODES);
-  const connections = (data.connections || []).slice(0, MAX_NODES * 2);
+  const connections = (data.synapses || data.connections || []).slice(0, MAX_NODES * 2);
 
   // Create nodes with Jarvis theme colors
   const nodeMaterial = new THREE.MeshStandardMaterial({
