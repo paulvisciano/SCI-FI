@@ -1449,6 +1449,7 @@ let neurons = [];
 let synapses = [];
 let neurographData = null;
 let idleRotation = 0;
+let orbOrbit = null; // Reference to the center orb sphere
 let isNeurographLoaded = false;
 
 // Initialize Three.js scene
@@ -1519,6 +1520,39 @@ function animateNeurograph() {
 
   if (neurographControls) {
     neurographControls.update();
+  }
+
+  // Repulsion between spheres - prevents overlapping, creates natural spacing
+  if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
+    const repulsionStrength = 0.3;
+    
+    for (let i = 0; i < neurons.length; i++) {
+      for (let j = i + 1; j < neurons.length; j++) {
+        const a = neurons[i].position;
+        const b = neurons[j].position;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dz = a.z - b.z;
+        const distSq = dx*dx + dy*dy + dz*dz;
+        const minDist = 3.0; // Minimum distance between spheres
+        
+        if (distSq < minDist * minDist && distSq > 0.001) {
+          const dist = Math.sqrt(distSq);
+          const force = repulsionStrength * (minDist - dist) / dist;
+          
+          const nx = (dx / dist) * force;
+          const ny = (dy / dist) * force;
+          const nz = (dz / dist) * force;
+          
+          neurons[i].position.x += nx;
+          neurons[i].position.y += ny;
+          neurons[i].position.z += nz;
+          neurons[j].position.x -= nx;
+          neurons[j].position.y -= ny;
+          neurons[j].position.z -= nz;
+        }
+      }
+    }
   }
 
   // Idle rotation - slow spin when no interaction
@@ -1646,27 +1680,42 @@ function createNeurograph(data) {
   });
 
   connections.forEach(conn => {
-    const sourceNode = neurons[conn.from] || neurons[conn.from % neurons.length];
-    const targetNode = neurons[conn.to] || neurons[conn.to % neurons.length];
+    // Support both source/target (string IDs) and from/to (indices)
+    const sourceId = conn.source || conn.from;
+    const targetId = conn.target || conn.to;
+    
+    // Find neurons by ID if source/target strings, or by index if from/to
+    const sourceNode = neurons[sourceId] || neurons[sourceId] || 
+                      neurons[sourceId % neurons.length] || 
+                      neurons.find(n => n.userData.id === sourceId);
+    const targetNode = neurons[targetId] || neurons[targetId] || 
+                      neurons[targetId % neurons.length] || 
+                      neurons.find(n => n.userData.id === targetId);
 
     if (sourceNode && targetNode) {
+      // Get weight for line thickness/opacity (0-100 scale)
+      const weight = conn.weight || conn.strength || 1;
+      const opacity = 0.3 + 0.3 * (weight / 100);
+      
       const points = [
-        sourceNode.userData.position,
+        sourceNode.userData.position.clone(),
         new THREE.Vector3(
           (sourceNode.userData.position.x + targetNode.userData.position.x) / 2,
           (Math.random() - 0.5) * 10,
           (sourceNode.userData.position.z + targetNode.userData.position.z) / 2
         ),
-        targetNode.userData.position
+        targetNode.userData.position.clone()
       ];
 
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const line = new THREE.Line(geometry, lineMaterial.clone());
       
       line.userData = {
-        from: conn.from,
-        to: conn.to,
-        strength: conn.strength || 1
+        source: sourceId,
+        target: targetId,
+        weight: weight,
+        type: conn.type || 'connection',
+        label: conn.label || `Link ${sourceId} -> ${targetId}`
       };
       
       neurographScene.add(line);
@@ -1677,6 +1726,21 @@ function createNeurograph(data) {
   // Node labels removed - causing "weird bubbles" effect with 9549 nodes
   // The neurograph is now clean with just nodes and connections
   // Labels can be re-added later if needed with proper filtering/limiting
+  
+  // Create the orb (center sphere) - represents Jarvis
+  const orbRadius = 2;
+  const orbGeometry = new THREE.SphereGeometry(orbRadius, 64, 64);
+  const orbMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffd700,
+    emissive: 0xff8c00,
+    emissiveIntensity: 0.5,
+    roughness: 0.2,
+    metalness: 0.8
+  });
+  const orb = new THREE.Mesh(orbGeometry, orbMaterial);
+  neurographScene.add(orb);
+  orb.userData = { id: 'jarvis-orb', label: 'Jarvis', type: 'orb' };
+  orbOrbit = orb; // Store reference for animation
 
 }
 
