@@ -1706,7 +1706,17 @@ function loadNeurographData() {
       return res.json();
     })
     .then(data => {
-      console.log('[Neurograph] Data loaded:', data);
+      console.log('[Neurograph] Raw data loaded:', data);
+      console.log('[Neurograph] Nodes count:', (data.nodes || []).length);
+      console.log('[Neurograph] Synapses count:', (data.synapses || data.connections || []).length);
+      
+      // Check for undefined sources in synapses
+      const synapses = data.synapses || data.connections || [];
+      const undefinedSources = synapses.filter(s => !s.source).length;
+      const undefinedTargets = synapses.filter(s => !s.target).length;
+      console.log('[Neurograph] Synapses with undefined source:', undefinedSources);
+      console.log('[Neurograph] Synapses with undefined target:', undefinedTargets);
+      
       neurographData = data;
       createNeurograph(data);
       isNeurographLoaded = true;
