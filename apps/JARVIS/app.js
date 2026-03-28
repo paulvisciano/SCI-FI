@@ -1645,12 +1645,13 @@ function setupNeurographHover() {
           labelDiv.style.display = 'none';
         }
         hoveredNode = intersected;
-        // Show label
-        const label = hoveredNode.userData.label || hoveredNode.userData.id || 'Node';
-        labelDiv.textContent = label;
+        // Show full node info
+        const nodeData = hoveredNode.userData;
+        labelDiv.innerHTML = createNodeLabel(nodeData);
         labelDiv.style.display = 'block';
-        labelDiv.style.left = (rect.left + intersects[0].point.x + 20) + 'px';
-        labelDiv.style.top = (rect.top + intersects[0].point.y - 20) + 'px';
+        // Position label near the hovered point
+        labelDiv.style.left = (e.clientX + 15) + 'px';
+        labelDiv.style.top = (e.clientY - 15) + 'px';
       }
     } else {
       // No node hovered
@@ -1664,6 +1665,36 @@ function setupNeurographHover() {
 
 // Call setupNeurographHover when DOM is ready
 setupNeurographHover();
+
+// Create HTML label for node data
+function createNodeLabel(nodeData) {
+  if (!nodeData || !nodeData.rawData) {
+    return `<strong>Node:</strong> ${nodeData.id || 'Unknown'}`;
+  }
+  
+  const node = nodeData.rawData;
+  let html = `<div style="border-bottom: 1px solid #0088ff; padding-bottom: 8px; margin-bottom: 8px;">`;
+  html += `<strong>${node.label || node.id}</strong>`;
+  html += ` <span style="color: #888; font-size: 10px;">(${node.id})</span>`;
+  html += `<br><span style="color: #00ffff; opacity: 0.7;">${node.category || 'unknown'} - ${node.type || 'unknown'}</span>`;
+  html += `</div>`;
+  
+  if (node.attributes) {
+    if (node.attributes.description) {
+      html += `<div style="margin: 5px 0; color: #ddd;">${node.attributes.description.substring(0, 150)}${node.attributes.description.length > 150 ? '...' : ''}</div>`;
+    }
+    if (node.attributes.color) {
+      html += `<div style="margin: 5px 0;"><span style="display: inline-block; width: 10px; height: 10px; background: ${node.attributes.color}; border-radius: 2px; vertical-align: middle; margin-right: 5px; box-shadow: 0 0 5px ${node.attributes.color};"></span>Color: ${node.attributes.color}</div>`;
+    }
+  }
+  
+  if (node.moments && node.moments.length > 0) {
+    const recentMoment = node.moments[0];
+    html += `<div style="margin: 5px 0; font-size: 10px; color: #aaa;">Updated: ${recentMoment.date || 'Unknown'}</div>`;
+  }
+  
+  return html;
+}
 
 // Load neurograph data from API
 function loadNeurographData() {
@@ -1730,7 +1761,8 @@ function createNeurograph(data) {
     neuron.userData = {
       id: node.id || idx,
       label: node.label || `Node ${idx}`,
-      position: neuron.position.clone()
+      position: neuron.position.clone(),
+      rawData: node // Store full node data for hover labels
     };
     
     neurographScene.add(neuron);
