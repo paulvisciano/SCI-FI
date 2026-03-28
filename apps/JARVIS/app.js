@@ -1547,7 +1547,6 @@ function animateNeurograph() {
 */
 
 // Initialize neurograph when DOM is ready
-/*
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     console.log('[Neurograph] DOM loaded, initializing...');
@@ -1559,7 +1558,6 @@ if (document.readyState === 'loading') {
   initNeurograph();
   animateNeurograph();
 }
-*/
 
 // Handle window resize
 function onNeurographWindowResize() {
