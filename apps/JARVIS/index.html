@@ -38,84 +38,141 @@
             padding: 20px;
         }
 
-        /* Futuristic Vitals Overlay */
+        /* System Vitals — full-screen scrim + glass panel (matches neuro info panel) */
         .vitals-overlay {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scale(0.95);
-            width: min(720px, calc(100vw - 40px));
-            max-height: 80vh;
-            z-index: 100;
+            inset: 0;
+            z-index: 4500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+                max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+            box-sizing: border-box;
+            background: rgba(4, 8, 18, 0.62);
+            backdrop-filter: blur(8px) saturate(1.1);
+            -webkit-backdrop-filter: blur(8px) saturate(1.1);
             opacity: 0;
             pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .vitals-overlay.active {
             opacity: 1;
             pointer-events: auto;
-            transform: translate(-50%, -50%) scale(1);
-            box-shadow: 0 0 60px rgba(0, 255, 255, 0.15), 0 0 120px rgba(0, 255, 255, 0.08);
         }
 
-        .vitals-content {
-            background: rgba(10, 17, 40, 0.96);
-            border: 1px solid rgba(0, 255, 255, 0.35);
-            border-radius: 12px;
-            backdrop-filter: blur(15px) saturate(1.3);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 255, 255, 0.1);
+        .vitals-panel {
+            position: relative;
+            box-sizing: border-box;
+            width: min(760px, 100%);
+            max-width: min(760px, calc(100vw - 32px));
+            max-height: min(88vh, 860px);
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
-            animation: vitalsFloat 6s ease-in-out infinite;
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(12, 22, 48, 0.88) 0%, rgba(6, 12, 28, 0.94) 100%);
+            backdrop-filter: blur(16px) saturate(1.25);
+            -webkit-backdrop-filter: blur(16px) saturate(1.25);
+            border: 1px solid rgba(0, 220, 255, 0.28);
+            box-shadow:
+                0 0 0 1px rgba(0, 255, 255, 0.06) inset,
+                0 16px 48px rgba(0, 0, 0, 0.6),
+                0 0 56px rgba(0, 180, 255, 0.12);
+            color: #c8e8f0;
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            transform: scale(0.97);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease;
         }
 
-        @keyframes vitalsFloat {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-3px); }
+        .vitals-overlay.active .vitals-panel {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .vitals-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.35), rgba(100, 80, 255, 0.15), transparent 60%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .vitals-panel > * {
+            position: relative;
+            z-index: 1;
         }
 
         .vitals-header-overlay {
+            flex-shrink: 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 20px;
-            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
-            background: rgba(0, 0, 0, 0.3);
+            padding: 14px 18px 12px;
+            border-bottom: 1px solid rgba(0, 200, 255, 0.15);
+            background: linear-gradient(180deg, rgba(0, 40, 60, 0.4) 0%, transparent 100%);
         }
 
         .vitals-header-overlay span {
-            color: #00ffff;
-            font-weight: 600;
-            font-size: 1em;
-            letter-spacing: 1px;
+            color: #e8fbff;
+            font-weight: 700;
+            font-size: 1.05em;
+            letter-spacing: 0.06em;
+            text-shadow: 0 0 20px rgba(0, 200, 255, 0.2);
         }
 
         .close-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: #00ffff;
-            font-size: 1.1em;
-            width: 30px;
-            height: 30px;
-            border-radius: 6px;
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.28);
+            color: #7eefff;
+            font-size: 1.05em;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
+            transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
         }
 
         .close-btn:hover {
-            background: rgba(255, 87, 87, 0.2);
-            color: #ff5757;
+            background: rgba(255, 87, 87, 0.18);
+            border-color: rgba(255, 120, 120, 0.45);
+            color: #ffb4b4;
             transform: rotate(90deg);
         }
 
         .vitals-grid {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            padding: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+            padding: 16px 18px 10px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 212, 255, 0.35) transparent;
+        }
+
+        .vitals-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .vitals-grid::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.35);
+            border-radius: 4px;
         }
 
         /* Heartbeat Pulse Animation (60 BPM - 1 beat per second) */
@@ -304,30 +361,6 @@
             color: #00ff88;
         }
 
-        /* Heartbeat Pulse Animation */
-        .heartbeat-pulse {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .heartbeat-pulse::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,68,68,0.2) 0%, rgba(255,68,68,0.1) 40%, transparent 70%);
-            animation: heartbeat 1.2s ease-in-out infinite;
-        }
-
         /* Irregular heartbeat for more organic feel */
         .heartbeat-irregular {
             position: absolute;
@@ -385,46 +418,263 @@
         }
 
         .vitals-card {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(0,255,255,0.2);
-            border-radius: 8px;
-            padding: 12px;
+            background: rgba(0, 24, 48, 0.45);
+            border: 1px solid rgba(0, 212, 255, 0.18);
+            border-radius: 12px;
+            padding: 14px 14px 12px;
+            box-shadow: 0 0 0 1px rgba(0, 255, 255, 0.04) inset;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .vitals-header {
-            color: #00ffff;
+        .vitals-card:hover {
+            border-color: rgba(0, 212, 255, 0.32);
+            box-shadow: 0 0 20px rgba(0, 180, 255, 0.06);
+        }
+
+        .vitals-card--network {
+            grid-column: 1 / -1;
+            border-color: rgba(0, 217, 255, 0.28);
+            background: rgba(0, 28, 52, 0.5);
+        }
+
+        .vitals-card--network .vitals-card__title {
+            color: #66dfff;
+        }
+
+        .vitals-card--settings {
+            border-color: rgba(140, 120, 255, 0.28);
+            background: linear-gradient(145deg, rgba(22, 18, 48, 0.55) 0%, rgba(12, 14, 36, 0.5) 100%);
+            box-shadow: 0 0 24px rgba(120, 100, 255, 0.06);
+        }
+
+        .vitals-card--settings .vitals-card__title {
+            color: #c4b8ff;
+        }
+
+        .vitals-card--settings .vitals-card__hint {
+            margin-top: 4px;
+        }
+
+        .vitals-settings-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .vitals-settings-gear {
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: linear-gradient(145deg, rgba(100, 80, 200, 0.35) 0%, rgba(60, 40, 120, 0.25) 100%);
+            border: 1px solid rgba(160, 140, 255, 0.35);
+            font-size: 1.35rem;
+            line-height: 1;
+            box-shadow: 0 0 20px rgba(120, 90, 255, 0.15);
+        }
+
+        .vitals-settings-cta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 14px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(160, 140, 255, 0.4);
+            background: rgba(80, 60, 160, 0.2);
+            color: #e8e0ff;
+            font-size: 0.88em;
             font-weight: 600;
-            font-size: 0.8em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
         }
 
-        .vitals-content {
-            margin-top: 8px;
+        .vitals-settings-cta:hover {
+            background: rgba(100, 80, 200, 0.32);
+            border-color: rgba(180, 160, 255, 0.55);
+            box-shadow: 0 0 24px rgba(130, 100, 255, 0.18);
+        }
+
+        .vitals-settings-cta:active {
+            transform: scale(0.99);
+        }
+
+        .vitals-settings-cta-chevron {
+            font-size: 1.25em;
+            font-weight: 300;
+            opacity: 0.85;
+            line-height: 1;
+        }
+
+        .vitals-card--heartbeat {
+            border-color: rgba(255, 100, 100, 0.25);
+            background: rgba(40, 12, 16, 0.35);
+        }
+
+        .vitals-card--breath {
+            border-color: rgba(0, 200, 255, 0.22);
+            background: rgba(0, 32, 48, 0.45);
+        }
+
+        .vitals-card--relax {
+            border-color: rgba(255, 200, 80, 0.22);
+            background: rgba(36, 28, 8, 0.35);
+        }
+
+        .vitals-card--accent-red .vitals-card__title {
+            color: #ff8a8a;
+        }
+
+        .vitals-card--accent-cyan .vitals-card__title {
+            color: #66dfff;
+        }
+
+        .vitals-card--accent-gold .vitals-card__title {
+            color: #ffd78a;
+        }
+
+        .vitals-card__title {
+            color: #7eefff;
+            font-weight: 700;
+            font-size: 0.7em;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 2px;
+        }
+
+        .vitals-card__body {
+            margin-top: 10px;
+        }
+
+        .vitals-card__hint {
+            margin: 8px 0 0;
+            font-size: 0.68em;
+            color: rgba(160, 190, 210, 0.85);
+            line-height: 1.4;
         }
 
         .vital-row {
             display: flex;
             justify-content: space-between;
             align-items: baseline;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .vital-row:first-child {
+            margin-top: 0;
         }
 
         .vital-label {
-            color: #94a3b8;
-            font-size: 0.7em;
+            color: rgba(160, 180, 200, 0.88);
+            font-size: 0.68em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .vital-value {
-            color: #ffffff;
+            color: #f0f8ff;
             font-weight: 600;
+            font-size: 0.88em;
+            text-align: right;
+        }
+
+        .vitals-btn {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.35);
+            color: #7eefff;
+            padding: 9px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.88em;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .vitals-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: rgba(0, 212, 255, 0.55);
+            box-shadow: 0 0 16px rgba(0, 200, 255, 0.12);
+        }
+
+        .vitals-btn--gold {
+            width: 100%;
+            background: rgba(255, 200, 80, 0.1);
+            border-color: rgba(255, 200, 80, 0.35);
+            color: #ffd78a;
+        }
+
+        .vitals-btn--gold:hover {
+            background: rgba(255, 200, 80, 0.18);
+            border-color: rgba(255, 215, 0, 0.5);
+            box-shadow: 0 0 20px rgba(255, 200, 80, 0.12);
+        }
+
+        .vitals-select {
+            flex: 1;
+            background: rgba(0, 217, 255, 0.08);
+            border: 1px solid rgba(0, 217, 255, 0.28);
+            color: #b8ecff;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 0.78em;
+            cursor: pointer;
         }
 
         .vitals-footer {
+            flex-shrink: 0;
             text-align: center;
+            padding: 12px 16px 14px;
+            font-size: 0.72em;
+            color: rgba(0, 220, 255, 0.65);
+            border-top: 1px solid rgba(0, 200, 255, 0.12);
+            background: linear-gradient(0deg, rgba(0, 20, 40, 0.35) 0%, transparent 100%);
+        }
+
+        .vitals-footer-refresh {
+            cursor: pointer;
+            color: #7eefff;
+            font-weight: 600;
+            font-size: 1.05em;
+            margin-left: 4px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .vitals-footer-refresh:hover {
+            background: rgba(0, 212, 255, 0.12);
+            color: #b8f4ff;
+        }
+
+        .vitals-row-inline {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .vitals-row-inline--stack {
+            flex-direction: column;
+            margin-top: 0;
+            align-items: stretch;
+        }
+
+        .vitals-heartbeat-wrap,
+        .vitals-breath-visual {
+            position: relative;
             margin-top: 12px;
-            font-size: 0.7em;
-            color: #00ffff;
-            opacity: 0.6;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Network device map (lives inside System Vitals overlay) */
@@ -1578,147 +1828,151 @@
         <div class="recording-hint" id="recording-hint" style="font-size: 0.7em; opacity: 0.6; color: #00ffff; margin-bottom: 12px;">Press Space to record</div>
     </div>
     
-    <!-- Futuristic Vitals Overlay - click server status to reveal -->
-    <div id="vitals-overlay" class="vitals-overlay" role="dialog" aria-modal="true" aria-label="System Vitals" onclick="event.stopPropagation()">
-        <div class="vitals-content">
+    <!-- System Vitals — full-screen scrim + glass panel (matches neuro info styling) -->
+    <div id="vitals-overlay" class="vitals-overlay" role="dialog" aria-modal="true" aria-label="System Vitals">
+        <div class="vitals-panel">
             <div class="vitals-header-overlay">
                 <span>🧠 System Vitals</span>
                 <button type="button" class="close-btn" id="vitals-close" aria-label="Close vitals">✕</button>
             </div>
-            <div class="vitals-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 16px;">
+            <div class="vitals-grid">
+                <!-- LAN devices (ring map) — first -->
+                <div class="vitals-card vitals-card--network vitals-network-card">
+                    <div class="vitals-card__title">Network devices</div>
+                    <p class="vitals-card__hint">Detected on your LAN. Hover or click a dot for details and QR.</p>
+                    <div id="network-dots-container"></div>
+                </div>
+
                 <!-- OpenClaw Gateway Status -->
-                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
-                    <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">OpenClaw Gateway</div>
-                    <div class="vitals-content" style="margin-top: 8px;">
+                <div class="vitals-card">
+                    <div class="vitals-card__title">OpenClaw Gateway</div>
+                    <div class="vitals-card__body">
                         <div class="vital-row">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Status:</span>
-                            <span id="vital-gateway-status" class="vital-value" style="color: #00ff88; font-weight: 600;">Loading...</span>
+                            <span class="vital-label">Status</span>
+                            <span id="vital-gateway-status" class="vital-value" style="color: #00ff88;">Loading...</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">PID:</span>
-                            <span id="vital-gateway-pid" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                        <div class="vital-row">
+                            <span class="vital-label">PID</span>
+                            <span id="vital-gateway-pid" class="vital-value">-</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Memory:</span>
-                            <span id="vital-gateway-mem" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Memory</span>
+                            <span id="vital-gateway-mem" class="vital-value">-</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Uptime:</span>
-                            <span id="vital-gateway-uptime" class="vital-value" style="color: #ffffff; font-weight: 600;">-</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Uptime</span>
+                            <span id="vital-gateway-uptime" class="vital-value">-</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Ollama Health -->
-                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
-                    <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Ollama Health</div>
-                    <div class="vitals-content" style="margin-top: 8px;">
+                <div class="vitals-card">
+                    <div class="vitals-card__title">Ollama Health</div>
+                    <div class="vitals-card__body">
                         <div class="vital-row">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Status:</span>
-                            <span id="vital-ollama-status" class="vital-value" style="color: #00ff88; font-weight: 600;">Loading...</span>
+                            <span class="vital-label">Status</span>
+                            <span id="vital-ollama-status" class="vital-value" style="color: #00ff88;">Loading...</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Models:</span>
-                            <span id="vital-ollama-models" class="vital-value" style="color: #ffffff; font-weight: 600;">0 models loaded</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Models</span>
+                            <span id="vital-ollama-models" class="vital-value">0 models loaded</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Models List:</span>
-                            <span id="vital-ollama-model-list" class="vital-value" style="color: #cbd5e1; font-size: 0.65em;">--</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Models List</span>
+                            <span id="vital-ollama-model-list" class="vital-value" style="color: #cbd5e1; font-size: 0.72em;">--</span>
                         </div>
-
                     </div>
                 </div>
 
                 <!-- System Resources -->
-                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
-                    <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">System Resources</div>
-                    <div class="vitals-content" style="margin-top: 8px;">
+                <div class="vitals-card">
+                    <div class="vitals-card__title">System Resources</div>
+                    <div class="vitals-card__body">
                         <div class="vital-row">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Memory:</span>
-                            <span id="vital-system-mem" class="vital-value" style="color: #ffffff; font-weight: 600;">0 GB / 0 GB</span>
+                            <span class="vital-label">Memory</span>
+                            <span id="vital-system-mem" class="vital-value">0 GB / 0 GB</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">CPU:</span>
-                            <span id="vital-system-cpu" class="vital-value" style="color: #ffffff; font-weight: 600;">0%</span>
+                        <div class="vital-row">
+                            <span class="vital-label">CPU</span>
+                            <span id="vital-system-cpu" class="vital-value">0%</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Disk:</span>
-                            <span id="vital-system-disk" class="vital-value" style="color: #ffffff; font-weight: 600;">0 GB / 0 GB</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Disk</span>
+                            <span id="vital-system-disk" class="vital-value">0 GB / 0 GB</span>
                         </div>
                     </div>
-                </div>
-
-                <!-- LAN devices (ring map) -->
-                <div class="vitals-card vitals-network-card" style="grid-column: 1 / -1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,217,255,0.25); border-radius: 8px; padding: 12px;">
-                    <div class="vitals-header" style="color: #00d9ff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Network devices</div>
-                    <p style="margin: 6px 0 0; font-size: 0.65em; color: #94a3b8; line-height: 1.35;">Detected on your LAN. Hover or click a dot for details and QR.</p>
-                    <div id="network-dots-container"></div>
                 </div>
 
                 <!-- Settings -->
-                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,255,0.2); border-radius: 8px; padding: 12px;">
-                    <div class="vitals-header" style="color: #00ffff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Settings</div>
-                    <div class="vitals-content" style="margin-top: 8px;">
-                        <button onclick="openSettingsModal()" style="background: rgba(0,255,255,0.1); border: 1px solid rgba(0,255,255,0.3); color: #00ffff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.2s;">Configure</button>
+                <div class="vitals-card vitals-card--settings">
+                    <div class="vitals-settings-head">
+                        <div class="vitals-settings-gear" aria-hidden="true">⚙</div>
+                        <div>
+                            <div class="vitals-card__title">Settings</div>
+                            <p class="vitals-card__hint">Desktop archiving, toggles, and app preferences.</p>
+                        </div>
                     </div>
+                    <button type="button" class="vitals-settings-cta" onclick="openSettingsModal()">
+                        <span>Open configuration</span>
+                        <span class="vitals-settings-cta-chevron" aria-hidden="true">›</span>
+                    </button>
                 </div>
 
                 <!-- Heartbeat Visualization -->
-                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255, 68, 68, 0.2); border-radius: 8px; padding: 12px; position: relative;">
-                    <div class="vitals-header" style="color: #ff4444; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Heartbeat</div>
-                    <div class="vitals-content" style="margin-top: 8px;">
+                <div class="vitals-card vitals-card--heartbeat vitals-card--accent-red">
+                    <div class="vitals-card__title">Heartbeat</div>
+                    <div class="vitals-card__body">
                         <div class="vital-row">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Rhythm:</span>
-                            <span id="heartbeat-rhythm" class="vital-value" style="color: #00ff88; font-weight: 600;">60 BPM</span>
+                            <span class="vital-label">Rhythm</span>
+                            <span id="heartbeat-rhythm" class="vital-value" style="color: #00ff88;">60 BPM</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Status:</span>
-                            <span id="heartbeat-status" class="vital-value" style="color: #ffffff; font-weight: 600;">Steady</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Status</span>
+                            <span id="heartbeat-status" class="vital-value">Steady</span>
                         </div>
-                        <div class="heartbeat-visual" style="margin-top: 12px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <div class="vitals-heartbeat-wrap">
                             <div id="heartbeat-pulse" class="heartbeat-pulse"></div>
                         </div>
-                        <div class="vital-row" style="margin-top: 8px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Last Beat:</span>
-                            <span id="heartbeat-last-beat" class="vital-value" style="color: #64ffda; font-size: 0.7em;">--</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Last Beat</span>
+                            <span id="heartbeat-last-beat" class="vital-value" style="color: #64ffda; font-size: 0.8em;">--</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Breath Cycle Visualization -->
-                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0, 217, 255, 0.2); border-radius: 8px; padding: 12px; position: relative;">
-                    <div class="vitals-header" style="color: #00d9ff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Breath Cycle</div>
-                    <div class="vitals-content" style="margin-top: 8px;">
+                <div class="vitals-card vitals-card--breath vitals-card--accent-cyan">
+                    <div class="vitals-card__title">Breath Cycle</div>
+                    <div class="vitals-card__body">
                         <div class="vital-row">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Cycle:</span>
-                            <span id="breath-cycle" class="vital-value" style="color: #00ff88; font-weight: 600;">8s</span>
+                            <span class="vital-label">Cycle</span>
+                            <span id="breath-cycle" class="vital-value" style="color: #00ff88;">8s</span>
                         </div>
-                        <div class="vital-row" style="margin-top: 4px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Phase:</span>
-                            <span id="breath-phase" class="vital-value" style="color: #ffffff; font-weight: 600;">Ready</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Phase</span>
+                            <span id="breath-phase" class="vital-value">Ready</span>
                         </div>
-                        <div class="breath-visual" style="margin-top: 12px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <div class="vitals-breath-visual breath-visual">
                             <div id="breath-circle" class="breath-circle"></div>
                         </div>
-                        <div class="vital-row" style="margin-top: 8px;">
-                            <span class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Depth:</span>
-                            <span id="breath-depth" class="vital-value" style="color: #64ffda; font-size: 0.7em;">Normal</span>
+                        <div class="vital-row">
+                            <span class="vital-label">Depth</span>
+                            <span id="breath-depth" class="vital-value" style="color: #64ffda; font-size: 0.8em;">Normal</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Take a Breath Control -->
-                <div class="vitals-card" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255, 215, 0, 0.2); border-radius: 8px; padding: 12px; position: relative;">
-                    <div class="vitals-header" style="color: #ffd700; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Relaxation</div>
-                    <div class="vitals-content" style="margin-top: 8px;">
-                        <div style="margin-bottom: 12px;">
-                            <button id="take-a-breath-btn" style="width: 100%; background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.3); color: #ffd700; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: all 0.2s; font-weight: 600;">
-                                ✨ Take a Breath
-                            </button>
+                <div class="vitals-card vitals-card--relax vitals-card--accent-gold">
+                    <div class="vitals-card__title">Relaxation</div>
+                    <div class="vitals-card__body">
+                        <div class="vitals-row-inline vitals-row-inline--stack">
+                            <button type="button" id="take-a-breath-btn" class="vitals-btn vitals-btn--gold">✨ Take a Breath</button>
                         </div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <label class="vital-label" style="color: #94a3b8; font-size: 0.7em;">Depth:</label>
-                            <select id="breath-depth-select" style="flex: 1; background: rgba(0, 217, 255, 0.1); border: 1px solid rgba(0, 217, 255, 0.3); color: #00ffff; padding: 6px 8px; border-radius: 4px; font-size: 0.7em; cursor: pointer;">
+                        <div class="vitals-row-inline">
+                            <label class="vital-label" for="breath-depth-select">Depth</label>
+                            <select id="breath-depth-select" class="vitals-select">
                                 <option value="shallow">Shallow</option>
                                 <option value="normal" selected>Normal</option>
                                 <option value="deep">Deep</option>
@@ -1728,8 +1982,9 @@
                     </div>
                 </div>
             </div>
-            <div class="vitals-footer" style="text-align: center; margin-top: 12px; font-size: 0.7em; color: #00ffff; opacity: 0.6;">
-                <span id="vitals-last-updated">Last updated: —</span> | <span style="cursor: pointer;" onclick="refreshVitals()">↺ Refresh</span>
+            <div class="vitals-footer">
+                <span id="vitals-last-updated">Last updated: —</span>
+                <span class="vitals-footer-refresh" onclick="refreshVitals()" role="button" tabindex="0" title="Refresh vitals">↺ Refresh</span>
             </div>
         </div>
     </div>
@@ -1782,4 +2037,4 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
     
-    <script src="app.js?v=20260329205500"></script>
+    <script src="app.js?v=20260329220000"></script>
