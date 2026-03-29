@@ -666,9 +666,19 @@ if (document.readyState === 'loading') {
     container.innerHTML = '';
     dotElements = [];
 
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const ringRadius = Math.min(window.innerWidth, window.innerHeight) * 0.35;
+    const cs = getComputedStyle(container);
+    const pl = parseFloat(cs.paddingLeft) || 0;
+    const pr = parseFloat(cs.paddingRight) || 0;
+    const pt = parseFloat(cs.paddingTop) || 0;
+    const pb = parseFloat(cs.paddingBottom) || 0;
+    const innerW = container.clientWidth - pl - pr;
+    const innerH = container.clientHeight - pt - pb;
+    if (innerW < 24 || innerH < 24) {return;}
+
+    const centerX = pl + innerW / 2;
+    const centerY = pt + innerH / 2;
+    const ringRadius = Math.min(innerW, innerH) * 0.36;
+    const dotHalf = container.closest('.vitals-network-card') ? 6 : 8;
 
     devices.forEach((device, idx) => {
       const angle = (idx / devices.length) * Math.PI * 2;
@@ -677,8 +687,8 @@ if (document.readyState === 'loading') {
 
       const dot = document.createElement('div');
       dot.className = `network-dot ${device.isGateway ? 'gateway' : ''}`;
-      dot.style.left = `${x - 8}px`;
-      dot.style.top = `${y - 8}px`;
+      dot.style.left = `${x - dotHalf}px`;
+      dot.style.top = `${y - dotHalf}px`;
       dot.style.animationDelay = `${idx * 0.5}s`;
 
       // Look up device in registry
@@ -735,11 +745,13 @@ if (document.readyState === 'loading') {
         dotElements.forEach(d => d.classList.remove('selected'));
         dot.classList.add('selected');
       });
-
-      document.addEventListener('click', () => {
-        dotElements.forEach(d => d.classList.remove('selected'));
-      });
     });
+
+    container.onclick = (e) => {
+      if (!e.target.closest('.network-dot')) {
+        dotElements.forEach(d => d.classList.remove('selected'));
+      }
+    };
   }
 
   // Register unknown device
@@ -945,6 +957,8 @@ if (document.readyState === 'loading') {
       } else {
         gatewayUptimeEl.textContent = 'N/A';
       }
+
+      requestAnimationFrame(() => { renderDots(); });
     } catch (err) {
       console.error('Failed to refresh vitals:', err);
 
@@ -1847,6 +1861,18 @@ function initNeurograph() {
 
 // Raycaster + floating label (hover + click-to-focus)
 let hoveredNode = null;
+let neuroHoverHighlightedMesh = null;
+let neuroHoverDesiredMesh = null;
+let neuroHoverAnimMesh = null;
+let neuroHoverBlend = 0;
+let neurographHoverLastTime = null;
+let neuroFocusStyledMesh = null;
+const NEURO_HOVER_EMISSIVE_TINT = new THREE.Color(0x4a7088);
+const NEURO_HOVER_DIFFUSE_TINT = new THREE.Color(0xa8c8d8);
+const _neuroHoverEm0 = new THREE.Color();
+const _neuroHoverEm1 = new THREE.Color();
+const _neuroHoverCol0 = new THREE.Color();
+const _neuroHoverCol1 = new THREE.Color();
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const labelDiv = document.createElement('div');
@@ -1858,7 +1884,6 @@ const neurographFocusDir = new THREE.Vector3(0, 0, 1);
 const NEUROGRAPH_FOCUS_DISTANCE = 44;
 const NEUROGRAPH_FLY_DURATION_MS = 3400;
 const _neuroDesiredCam = new THREE.Vector3();
-const _neuroProj = new THREE.Vector3();
 const neurographFlyFromCam = new THREE.Vector3();
 const neurographFlyFromTarget = new THREE.Vector3();
 let neurographFlyStartTime = 0;
@@ -1867,17 +1892,71 @@ function easeInOutCubicNeuro(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-function updateNeurographFocusLabelPosition() {
-  if (!neurographFocusTarget || !neurographRenderer || !neurographCamera ||
-      !neurographRenderer.domElement) {return;}
-  _neuroProj.copy(neurographFocusTarget.position).project(neurographCamera);
-  const rect = neurographRenderer.domElement.getBoundingClientRect();
-  let x = (_neuroProj.x * 0.5 + 0.5) * rect.width + rect.left;
-  let y = (-_neuroProj.y * 0.5 + 0.5) * rect.height + rect.top;
-  x = Math.max(8, Math.min(x, window.innerWidth - 312));
-  y = Math.max(8, Math.min(y, window.innerHeight - 200));
-  labelDiv.style.left = `${x + 14}px`;
-  labelDiv.style.top = `${y + 14}px`;
+function captureNeurographMaterialBase(mesh) {
+  if (!mesh || !mesh.material || mesh.userData._neuroMatBase) {return;}
+  const m = mesh.material;
+  mesh.userData._neuroMatBase = {
+    emissive: m.emissive.getHex(),
+    emissiveIntensity: m.emissiveIntensity,
+    color: m.color.getHex()
+  };
+}
+
+function restoreNeurographSphereMaterial(mesh) {
+  if (!mesh || !mesh.material || !mesh.userData._neuroMatBase) {return;}
+  const m = mesh.material;
+  const b = mesh.userData._neuroMatBase;
+  m.emissive.setHex(b.emissive);
+  m.emissiveIntensity = b.emissiveIntensity;
+  m.color.setHex(b.color);
+  mesh.scale.set(1, 1, 1);
+}
+
+/** Smooth hover look: larger scale, gentle emissive + tint (strength driven by u 0..1). */
+function applyNeurographHoverLerp(mesh, u) {
+  if (!mesh || !mesh.material) {return;}
+  captureNeurographMaterialBase(mesh);
+  const m = mesh.material;
+  const b = mesh.userData._neuroMatBase;
+  _neuroHoverEm0.setHex(b.emissive);
+  _neuroHoverEm1.copy(_neuroHoverEm0).lerp(NEURO_HOVER_EMISSIVE_TINT, 0.42);
+  m.emissive.copy(_neuroHoverEm0).lerp(_neuroHoverEm1, u);
+  const i0 = b.emissiveIntensity;
+  const i1 = Math.min(1.12, i0 + 0.32);
+  m.emissiveIntensity = THREE.MathUtils.lerp(i0, i1, u);
+  _neuroHoverCol0.setHex(b.color);
+  _neuroHoverCol1.copy(_neuroHoverCol0).lerp(NEURO_HOVER_DIFFUSE_TINT, 0.18);
+  m.color.copy(_neuroHoverCol0).lerp(_neuroHoverCol1, u);
+  const hoverScale = 1.2;
+  mesh.scale.setScalar(THREE.MathUtils.lerp(1, hoverScale, u));
+}
+
+function setNeurographSphereFocusVisual(mesh, on) {
+  if (!mesh || !mesh.material) {return;}
+  captureNeurographMaterialBase(mesh);
+  const m = mesh.material;
+  const b = mesh.userData._neuroMatBase;
+  if (on) {
+    m.emissive.setHex(0x88ffff);
+    m.emissiveIntensity = Math.min(2.85, b.emissiveIntensity + 1.4);
+    m.color.copy(new THREE.Color(b.color)).lerp(new THREE.Color(0xffffff), 0.52);
+    mesh.scale.setScalar(1.26);
+  } else {
+    restoreNeurographSphereMaterial(mesh);
+  }
+}
+
+function clearNeurographHoverVisual() {
+  neuroHoverDesiredMesh = null;
+  neuroHoverHighlightedMesh = null;
+}
+
+function applyNeurographHoverVisual(mesh) {
+  if (!mesh || neurographFocusTarget) {return;}
+  neuroHoverDesiredMesh = mesh;
+  if (neuroHoverHighlightedMesh !== mesh) {
+    neuroHoverHighlightedMesh = mesh;
+  }
 }
 
 function clearNeurographNodeFocus() {
@@ -1889,10 +1968,25 @@ function clearNeurographNodeFocus() {
   labelDiv.style.display = 'none';
   labelDiv.style.zIndex = '1000';
   hoveredNode = null;
+  if (neuroFocusStyledMesh) {
+    setNeurographSphereFocusVisual(neuroFocusStyledMesh, false);
+    neuroFocusStyledMesh = null;
+  }
+  clearNeurographHoverVisual();
 }
 
 function focusNeurographNode(neuron) {
   if (!neuron || !neurographCamera || !neurographControls) {return;}
+  clearNeurographHoverVisual();
+  if (neuroHoverAnimMesh) {
+    restoreNeurographSphereMaterial(neuroHoverAnimMesh);
+    neuroHoverAnimMesh = null;
+    neuroHoverBlend = 0;
+  }
+  if (neuroFocusStyledMesh && neuroFocusStyledMesh !== neuron) {
+    setNeurographSphereFocusVisual(neuroFocusStyledMesh, false);
+    neuroFocusStyledMesh = null;
+  }
   neurographFocusTarget = neuron;
   neurographFlyActive = true;
   neurographFlyFromCam.copy(neurographCamera.position);
@@ -1904,10 +1998,11 @@ function focusNeurographNode(neuron) {
   }
   neurographFocusDir.copy(_neuroDesiredCam.normalize());
   hoveredNode = neuron;
+  setNeurographSphereFocusVisual(neuron, true);
+  neuroFocusStyledMesh = neuron;
   labelDiv.innerHTML = createNodeLabel(neuron.userData);
-  labelDiv.style.display = 'block';
+  labelDiv.style.display = 'flex';
   labelDiv.style.zIndex = '6000';
-  updateNeurographFocusLabelPosition();
 }
 
 // Animation loop
@@ -1988,8 +2083,39 @@ function animateNeurograph() {
     });
   }
 
+  // Smooth hover: ease scale + material (avoids abrupt pop)
+  const now = performance.now();
+  const dt = neurographHoverLastTime === null
+    ? 0
+    : Math.min(0.08, (now - neurographHoverLastTime) / 1000);
+  neurographHoverLastTime = now;
   if (neurographFocusTarget) {
-    updateNeurographFocusLabelPosition();
+    neuroHoverDesiredMesh = null;
+  }
+  if (dt > 0 && neurographScene && neurons.length > 0) {
+    const speedIn = 5.2;
+    const speedOut = 4.2;
+    if (neuroHoverDesiredMesh) {
+      if (neuroHoverAnimMesh !== neuroHoverDesiredMesh) {
+        if (neuroHoverAnimMesh) {
+          restoreNeurographSphereMaterial(neuroHoverAnimMesh);
+        }
+        neuroHoverAnimMesh = neuroHoverDesiredMesh;
+        captureNeurographMaterialBase(neuroHoverAnimMesh);
+        neuroHoverBlend = 0;
+      }
+      neuroHoverBlend = Math.min(1, neuroHoverBlend + speedIn * dt);
+    } else {
+      neuroHoverBlend = Math.max(0, neuroHoverBlend - speedOut * dt);
+      if (neuroHoverBlend === 0 && neuroHoverAnimMesh) {
+        restoreNeurographSphereMaterial(neuroHoverAnimMesh);
+        neuroHoverAnimMesh = null;
+      }
+    }
+    if (neuroHoverAnimMesh && neuroHoverBlend > 0 && !neurographFocusTarget) {
+      const u = easeInOutCubicNeuro(neuroHoverBlend);
+      applyNeurographHoverLerp(neuroHoverAnimMesh, u);
+    }
   }
 
   neurographRenderer.render(neurographScene, neurographCamera);
@@ -2011,18 +2137,14 @@ function onNeurographWindowResize() {
 }
 
 function setupNeurographHover() {
-  // Style & mount label div (element created above)
-  labelDiv.style.position = 'absolute';
-  labelDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-  labelDiv.style.color = '#00ffff';
-  labelDiv.style.padding = '5px 10px';
-  labelDiv.style.borderRadius = '4px';
-  labelDiv.style.fontSize = '12px';
-  labelDiv.style.pointerEvents = 'none';
+  labelDiv.className = 'neuro-node-floating';
+  labelDiv.style.position = '';
+  labelDiv.style.left = '';
+  labelDiv.style.top = '';
+  labelDiv.style.transform = '';
+  labelDiv.style.pointerEvents = '';
   labelDiv.style.zIndex = '1000';
   labelDiv.style.display = 'none';
-  labelDiv.style.maxWidth = '300px';
-  labelDiv.style.wordBreak = 'break-all';
   document.body.appendChild(labelDiv);
 
   neurographRenderer.domElement.addEventListener('click', (e) => {
@@ -2061,6 +2183,7 @@ function setupNeurographHover() {
 
     if (intersects.length > 0) {
       const intersected = intersects[0].object;
+      applyNeurographHoverVisual(intersected);
       if (intersected !== hoveredNode) {
         // New node hovered
         if (hoveredNode) {
@@ -2070,12 +2193,10 @@ function setupNeurographHover() {
         // Show full node info
         const nodeData = hoveredNode.userData;
         labelDiv.innerHTML = createNodeLabel(nodeData);
-        labelDiv.style.display = 'block';
-        // Position label near the hovered point
-        labelDiv.style.left = (e.clientX + 15) + 'px';
-        labelDiv.style.top = (e.clientY - 15) + 'px';
+        labelDiv.style.display = 'flex';
       }
     } else {
+      clearNeurographHoverVisual();
       if (hoveredNode) {
         labelDiv.style.display = 'none';
         hoveredNode = null;
@@ -2087,34 +2208,180 @@ function setupNeurographHover() {
 // Call setupNeurographHover when DOM is ready
 setupNeurographHover();
 
-// Create HTML label for node data
+function escapeHtmlNeuro(s) {
+  if (s === null || s === undefined) {return '';}
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function formatNeuroFieldValue(v) {
+  if (v === null || v === undefined) {
+    return '<span class="neuro-node-panel__muted">—</span>';
+  }
+  if (typeof v === 'object') {
+    const j = JSON.stringify(v, null, 2);
+    return `<pre class="neuro-node-panel__json">${escapeHtmlNeuro(j)}</pre>`;
+  }
+  return `<span>${escapeHtmlNeuro(v)}</span>`;
+}
+
+function formatNeuroAttrCell(_key, val) {
+  if (typeof val === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(val)) {
+    const c = escapeHtmlNeuro(val);
+    return `<span class="neuro-swatch" style="background:${c};box-shadow:0 0 12px ${c}"></span><code>${c}</code>`;
+  }
+  return formatNeuroFieldValue(val);
+}
+
+function neuroPanelRow(label, valueHtml) {
+  return `<div class="neuro-node-panel__row"><span class="neuro-node-panel__k">${escapeHtmlNeuro(label)}</span><span class="neuro-node-panel__v">${valueHtml}</span></div>`;
+}
+
+function getNeuroEdgesForNode(nodeId) {
+  if (!neurographData || !nodeId) {return [];}
+  const syn = neurographData.synapses || neurographData.connections || [];
+  return syn.filter(s => {
+    const src = s.source ?? s.from;
+    const tgt = s.target ?? s.to;
+    return src === nodeId || tgt === nodeId;
+  });
+}
+
+function neuroEdgePeerId(edge, nodeId) {
+  const s = edge.source ?? edge.from;
+  const t = edge.target ?? edge.to;
+  if (s === nodeId) {return t;}
+  if (t === nodeId) {return s;}
+  return '?';
+}
+
 function createNodeLabel(nodeData) {
-  if (!nodeData || !nodeData.rawData) {
-    return `<strong>Node:</strong> ${nodeData.id || 'Unknown'}`;
+  const esc = escapeHtmlNeuro;
+
+  if (!nodeData) {
+    return '<div class="neuro-node-panel"><div class="neuro-node-panel__head"><div class="neuro-node-panel__empty">No node selected</div></div></div>';
+  }
+
+  if (!nodeData.rawData) {
+    const id = nodeData.id || 'Unknown';
+    return `<div class="neuro-node-panel"><div class="neuro-node-panel__head"><h3 class="neuro-node-panel__title">${esc(id)}</h3><div class="neuro-node-panel__id">${esc(id)}</div></div></div>`;
   }
 
   const node = nodeData.rawData;
-  let html = `<div style="border-bottom: 1px solid #0088ff; padding-bottom: 8px; margin-bottom: 8px;">`;
-  html += `<strong>${node.label || node.id}</strong>`;
-  html += ` <span style="color: #888; font-size: 10px;">(${node.id})</span>`;
-  html += `<br><span style="color: #00ffff; opacity: 0.7;">${node.category || 'unknown'} - ${node.type || 'unknown'}</span>`;
-  html += `</div>`;
+  const id = node.id || nodeData.id || '';
+  const title = node.label || id || 'Node';
+  const edges = getNeuroEdgesForNode(id);
+  const parts = [];
 
-  if (node.attributes) {
-    if (node.attributes.description) {
-      html += `<div style="margin: 5px 0; color: #ddd;">${node.attributes.description.substring(0, 150)}${node.attributes.description.length > 150 ? '...' : ''}</div>`;
-    }
-    if (node.attributes.color) {
-      html += `<div style="margin: 5px 0;"><span style="display: inline-block; width: 10px; height: 10px; background: ${node.attributes.color}; border-radius: 2px; vertical-align: middle; margin-right: 5px; box-shadow: 0 0 5px ${node.attributes.color};"></span>Color: ${node.attributes.color}</div>`;
-    }
+  parts.push('<div class="neuro-node-panel">');
+  parts.push('<div class="neuro-node-panel__head">');
+  parts.push('<div class="neuro-node-panel__chips">');
+  if (node.category) {
+    parts.push(`<span class="neuro-chip">${esc(node.category)}</span>`);
+  }
+  if (node.type) {
+    parts.push(`<span class="neuro-chip neuro-chip--dim">${esc(node.type)}</span>`);
+  }
+  if (nodeData.isTemporal) {
+    parts.push('<span class="neuro-chip neuro-chip--accent">temporal</span>');
+  }
+  if (nodeData.isConnectedToTheme) {
+    parts.push('<span class="neuro-chip neuro-chip--accent">theme link</span>');
+  }
+  parts.push('</div>');
+  parts.push(`<h3 class="neuro-node-panel__title">${esc(title)}</h3>`);
+  parts.push(`<div class="neuro-node-panel__id">${esc(id)}</div>`);
+  parts.push('</div>');
+
+  parts.push('<div class="neuro-node-panel__scroll">');
+
+  parts.push('<section class="neuro-node-panel__sec">');
+  parts.push('<div class="neuro-node-panel__sec-title">Graph context</div>');
+  parts.push(neuroPanelRow('Connections (edges)', String(edges.length)));
+  if (typeof nodeData.themeConnectionWeight === 'number') {
+    parts.push(neuroPanelRow('Theme link weight', esc(String(nodeData.themeConnectionWeight))));
+  }
+  parts.push(neuroPanelRow('Temporal flag', nodeData.isTemporal ? 'yes' : 'no'));
+  parts.push(neuroPanelRow('Linked to theme hub', nodeData.isConnectedToTheme ? 'yes' : 'no'));
+  parts.push('</section>');
+
+  const knownTop = new Set(['id', 'label', 'category', 'type', 'attributes', 'moments']);
+  const extraKeys = Object.keys(node).filter(k => !knownTop.has(k));
+  if (extraKeys.length > 0) {
+    parts.push('<section class="neuro-node-panel__sec">');
+    parts.push('<div class="neuro-node-panel__sec-title">Node fields</div>');
+    extraKeys.forEach(k => {
+      parts.push(neuroPanelRow(k, formatNeuroFieldValue(node[k])));
+    });
+    parts.push('</section>');
+  }
+
+  const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+  if (attrs && Object.keys(attrs).length > 0) {
+    parts.push('<section class="neuro-node-panel__sec">');
+    parts.push(`<div class="neuro-node-panel__sec-title">Attributes <span class="neuro-node-panel__count">${Object.keys(attrs).length}</span></div>`);
+    Object.keys(attrs).forEach(k => {
+      parts.push(neuroPanelRow(k, formatNeuroAttrCell(k, attrs[k])));
+    });
+    parts.push('</section>');
   }
 
   if (node.moments && node.moments.length > 0) {
-    const recentMoment = node.moments[0];
-    html += `<div style="margin: 5px 0; font-size: 10px; color: #aaa;">Updated: ${recentMoment.date || 'Unknown'}</div>`;
+    parts.push('<section class="neuro-node-panel__sec">');
+    parts.push(`<div class="neuro-node-panel__sec-title">Moments <span class="neuro-node-panel__count">${node.moments.length}</span></div>`);
+    node.moments.forEach((m, i) => {
+      parts.push('<div class="neuro-node-panel__moment">');
+      parts.push(`<span class="neuro-node-panel__moment-idx">#${i + 1}</span>`);
+      parts.push(formatNeuroFieldValue(typeof m === 'object' && m !== null ? m : { value: m }));
+      parts.push('</div>');
+    });
+    parts.push('</section>');
   }
 
-  return html;
+  if (edges.length > 0) {
+    const maxShow = 24;
+    parts.push('<section class="neuro-node-panel__sec">');
+    parts.push(`<div class="neuro-node-panel__sec-title">Synapses <span class="neuro-node-panel__count">${edges.length}</span></div>`);
+    edges.slice(0, maxShow).forEach(edge => {
+      const peer = neuroEdgePeerId(edge, id);
+      const w = edge.weight ?? edge.strength ?? '—';
+      const typ = edge.type || edge.label || '';
+      const extra = Object.keys(edge).filter(k =>
+        !['source', 'target', 'from', 'to', 'weight', 'strength', 'type', 'label'].includes(k)
+      );
+      let sub = `<div class="neuro-node-panel__edge-peer">↔ ${esc(peer)}</div>`;
+      sub += `<div style="margin-top:4px;opacity:0.85;">weight: <code>${esc(String(w))}</code>`;
+      if (typ) {sub += ` · ${esc(String(typ))}`;}
+      sub += '</div>';
+      if (extra.length) {
+        const slice = {};
+        extra.forEach(k => { slice[k] = edge[k]; });
+        sub += formatNeuroFieldValue(slice);
+      }
+      parts.push(`<div class="neuro-node-panel__edge">${sub}</div>`);
+    });
+    if (edges.length > maxShow) {
+      parts.push(`<div class="neuro-node-panel__muted" style="font-size:10px;margin-top:6px;">+ ${edges.length - maxShow} more connections</div>`);
+    }
+    parts.push('</section>');
+  }
+
+  if (neurographData && neurographData.meta) {
+    parts.push('<section class="neuro-node-panel__sec">');
+    parts.push('<div class="neuro-node-panel__sec-title">Dataset</div>');
+    parts.push(neuroPanelRow('Nodes in graph', String(neurographData.meta.nodeCount ?? '—')));
+    parts.push(neuroPanelRow('Synapses in graph', String(neurographData.meta.synapseCount ?? '—')));
+    if (neurographData.meta.timestamp) {
+      parts.push(neuroPanelRow('Snapshot', esc(neurographData.meta.timestamp)));
+    }
+    parts.push('</section>');
+  }
+
+  parts.push('</div></div>');
+  return parts.join('');
 }
 
 // Load neurograph data from API
@@ -2159,6 +2426,19 @@ function createNeurograph(data) {
   synapses.forEach(synapse => neurographScene.remove(synapse));
   neurons = [];
   synapses = [];
+  neuroHoverHighlightedMesh = null;
+  neuroHoverDesiredMesh = null;
+  neuroHoverAnimMesh = null;
+  neuroHoverBlend = 0;
+  neurographHoverLastTime = null;
+  neuroFocusStyledMesh = null;
+  neurographFocusTarget = null;
+  neurographFlyActive = false;
+  hoveredNode = null;
+  if (labelDiv) {
+    labelDiv.style.display = 'none';
+    labelDiv.style.zIndex = '1000';
+  }
 
   // Create nodes as spheres
   // Limit to 1000 nodes to prevent WebGL errors (too many objects)

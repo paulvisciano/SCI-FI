@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>JARVIS Voice Recorder</title>
+    <title>JARVIS Git Backed Consciosness</title>
     
     <!-- Three.js from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -427,16 +427,30 @@
             opacity: 0.6;
         }
 
-        /* Network Device Dots (Background) */
+        /* Network device map (lives inside System Vitals overlay) */
         #network-dots-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            pointer-events: none;
-            z-index: 1;
-            overflow: hidden; /* Keep dots within viewport */
+            position: relative;
+            width: 100%;
+            min-height: 200px;
+            height: 260px;
+            box-sizing: border-box;
+            padding: 48px 20px 56px;
+            margin-top: 8px;
+            pointer-events: auto;
+            overflow: hidden;
+            border-radius: 8px;
+            background: rgba(0, 217, 255, 0.05);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+        }
+
+        .vitals-network-card .network-dot {
+            width: 12px;
+            height: 12px;
+            border-width: 1px;
+        }
+
+        .vitals-network-card .network-dot:hover {
+            transform: scale(1.5);
         }
         
         .network-dot {
@@ -568,6 +582,267 @@
             0%, 100% { opacity: 0.6; transform: scale(1); }
             50% { opacity: 0.3; transform: scale(0.95); }
         }
+
+        /* Neurograph node info (hover / focus) — fixed right, vertically centered; scroll inside */
+        .neuro-node-floating {
+            position: fixed;
+            right: max(16px, env(safe-area-inset-right, 0px));
+            top: 50%;
+            transform: translateY(-50%);
+            left: auto;
+            min-width: 288px;
+            width: min(420px, calc(100vw - 32px));
+            max-width: min(420px, calc(100vw - 32px));
+            max-height: min(85vh, 680px);
+            overflow: hidden;
+            display: none; /* toggled to flex in JS when visible */
+            flex-direction: column;
+            pointer-events: auto;
+            z-index: 1000;
+            touch-action: pan-y;
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(12, 22, 48, 0.82) 0%, rgba(6, 12, 28, 0.9) 100%);
+            backdrop-filter: blur(16px) saturate(1.25);
+            -webkit-backdrop-filter: blur(16px) saturate(1.25);
+            border: 1px solid rgba(0, 220, 255, 0.28);
+            box-shadow:
+                0 0 0 1px rgba(0, 255, 255, 0.06) inset,
+                0 12px 40px rgba(0, 0, 0, 0.55),
+                0 0 48px rgba(0, 180, 255, 0.1);
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            font-size: 12px;
+            line-height: 1.45;
+            color: #c8e8f0;
+        }
+
+        .neuro-node-floating::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.35), rgba(100, 80, 255, 0.15), transparent 60%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        .neuro-node-floating > .neuro-node-panel {
+            width: 100%;
+        }
+
+        .neuro-node-panel {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .neuro-node-panel__scroll {
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 14px 16px 16px;
+            flex: 1 1 auto;
+            min-height: 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 212, 255, 0.35) transparent;
+        }
+
+        .neuro-node-panel__scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .neuro-node-panel__scroll::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.35);
+            border-radius: 4px;
+        }
+
+        .neuro-node-panel__head {
+            flex-shrink: 0;
+            padding: 14px 16px 12px;
+            border-bottom: 1px solid rgba(0, 200, 255, 0.15);
+            background: linear-gradient(180deg, rgba(0, 40, 60, 0.35) 0%, transparent 100%);
+        }
+
+        .neuro-node-panel__chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .neuro-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: rgba(0, 212, 255, 0.12);
+            border: 1px solid rgba(0, 212, 255, 0.35);
+            color: #7eefff;
+        }
+
+        .neuro-chip--dim {
+            background: rgba(120, 140, 180, 0.12);
+            border-color: rgba(140, 160, 200, 0.3);
+            color: #9ab;
+        }
+
+        .neuro-chip--accent {
+            background: rgba(0, 255, 180, 0.1);
+            border-color: rgba(0, 255, 180, 0.35);
+            color: #6fc;
+        }
+
+        .neuro-node-panel__title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #e8fbff;
+            line-height: 1.3;
+            text-shadow: 0 0 20px rgba(0, 200, 255, 0.25);
+        }
+
+        .neuro-node-panel__id {
+            margin-top: 6px;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 10px;
+            color: rgba(0, 220, 255, 0.65);
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        .neuro-node-panel__sec {
+            margin-top: 14px;
+        }
+
+        .neuro-node-panel__sec-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(0, 220, 255, 0.75);
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(0, 180, 255, 0.12);
+        }
+
+        .neuro-node-panel__count {
+            font-weight: 600;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+
+        .neuro-node-panel__row {
+            display: grid;
+            grid-template-columns: minmax(88px, 34%) 1fr;
+            gap: 8px 12px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            align-items: start;
+        }
+
+        .neuro-node-panel__row:last-child {
+            border-bottom: none;
+        }
+
+        .neuro-node-panel__k {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: rgba(160, 190, 210, 0.85);
+            overflow-wrap: anywhere;
+        }
+
+        .neuro-node-panel__v {
+            font-size: 11px;
+            color: #dceef5;
+            overflow-wrap: anywhere;
+            min-width: 0;
+        }
+
+        .neuro-node-panel__v code {
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 10px;
+            color: #8ef;
+            background: rgba(0, 40, 60, 0.4);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .neuro-node-panel__muted {
+            color: rgba(160, 180, 200, 0.45);
+        }
+
+        .neuro-node-panel__json {
+            margin: 0;
+            padding: 8px 10px;
+            font-size: 10px;
+            line-height: 1.4;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(0, 180, 255, 0.15);
+            border-radius: 8px;
+            color: #b8d0e0;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .neuro-swatch {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            vertical-align: middle;
+            margin-right: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .neuro-node-panel__edge {
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 8px;
+            background: rgba(0, 30, 50, 0.45);
+            border: 1px solid rgba(0, 200, 255, 0.12);
+            font-size: 10px;
+        }
+
+        .neuro-node-panel__edge-peer {
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            color: #9ef;
+            word-break: break-word;
+        }
+
+        .neuro-node-panel__moment {
+            margin-bottom: 10px;
+            padding-left: 8px;
+            border-left: 2px solid rgba(0, 200, 255, 0.25);
+        }
+
+        .neuro-node-panel__moment-idx {
+            display: block;
+            font-size: 9px;
+            color: rgba(0, 220, 255, 0.5);
+            margin-bottom: 4px;
+        }
+
+        .neuro-node-panel__empty {
+            padding: 16px;
+            color: #8ab;
+        }
         
         /* QR Modal */
         .qr-modal {
@@ -638,27 +913,27 @@
             to { text-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.5); }
         }
 
-        /* Orb + server: stacked bottom-right; dock centered in stack, status right-aligned */
-        .jarvis-bottom-right-stack {
+        /* Orb + server: stacked bottom-left; dock centered in stack */
+        .jarvis-bottom-left-stack {
             position: fixed;
             bottom: 12px;
-            right: 18px;
+            left: 18px;
             z-index: 1001;
             display: flex;
             flex-direction: column;
-            align-items: flex-end;
+            align-items: flex-start;
             gap: 0;
             width: max-content;
             max-width: min(calc(100vw - 36px), 96vw);
             pointer-events: none;
         }
 
-        .jarvis-bottom-right-stack .jarvis-bottom-dock,
-        .jarvis-bottom-right-stack #server-status {
+        .jarvis-bottom-left-stack .jarvis-bottom-dock,
+        .jarvis-bottom-left-stack #server-status {
             pointer-events: auto;
         }
 
-        .jarvis-bottom-right-stack .jarvis-bottom-dock {
+        .jarvis-bottom-left-stack .jarvis-bottom-dock {
             align-self: center;
             margin-bottom: -10px;
         }
@@ -707,7 +982,7 @@
             transition: opacity 0.35s ease;
         }
 
-        /* Server line (inside .jarvis-bottom-right-stack); click opens vitals */
+        /* Server line (inside .jarvis-bottom-left-stack); click opens vitals */
         #server-status.server-status {
             position: relative;
             z-index: 1;
@@ -1250,8 +1525,8 @@
     </style>
 </head>
 <body>
-    <!-- Orb + title above server status, bottom-right -->
-    <div class="jarvis-bottom-right-stack">
+    <!-- Orb + title above server status, bottom-left -->
+    <div class="jarvis-bottom-left-stack">
         <div class="jarvis-bottom-dock">
             <div class="jarvis-orb-container" id="jarvis-orb-container">
                 <video id="jarvis-video" loop muted autoplay playsinline preload="auto" aria-hidden="true">
@@ -1361,6 +1636,13 @@
                             <span id="vital-system-disk" class="vital-value" style="color: #ffffff; font-weight: 600;">0 GB / 0 GB</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- LAN devices (ring map) -->
+                <div class="vitals-card vitals-network-card" style="grid-column: 1 / -1; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,217,255,0.25); border-radius: 8px; padding: 12px;">
+                    <div class="vitals-header" style="color: #00d9ff; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 1px;">Network devices</div>
+                    <p style="margin: 6px 0 0; font-size: 0.65em; color: #94a3b8; line-height: 1.35;">Detected on your LAN. Hover or click a dot for details and QR.</p>
+                    <div id="network-dots-container"></div>
                 </div>
 
                 <!-- Settings -->
@@ -1490,5 +1772,4 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
     
-    <div id="network-dots-container"></div>
-    <script src="app.js?v=20260329145217"></script>
+    <script src="app.js?v=20260329201000"></script>
