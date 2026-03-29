@@ -3,14 +3,17 @@
 // Client version (bumped when UI changes ship)
 const CLIENT_VERSION = '3.1.1';
 const CLIENT_BUILD_DATE = '2026-03-29';
+let isRecording = false;
+// Shared with pollForTranscript — cleared when starting a new recording
+let thinkingTimer = null;
+let agentWaitStart = null;
 
 // Fade server status after 3 seconds, reappear on hover
 let fadeTimer;
 function setupServerStatusFade() {
   const serverStatus = document.getElementById('server-status');
-  const titleContainer = document.querySelector('.title-container');
 
-  if (!serverStatus || !titleContainer) {return;}
+  if (!serverStatus) {return;}
 
   const DEBUG = false; // Set to true for development logging
 
@@ -19,20 +22,6 @@ function setupServerStatusFade() {
     serverStatus.classList.add('faded');
     if (DEBUG) {console.log('[UI] Server status faded out');}
   }, 3000);
-
-  // Fade in on hover over title container or status
-  titleContainer.addEventListener('mouseenter', () => {
-    serverStatus.classList.remove('faded');
-    clearTimeout(fadeTimer);
-    if (DEBUG) {console.log('[UI] Server status faded in (title hover)');}
-  });
-
-  titleContainer.addEventListener('mouseleave', () => {
-    fadeTimer = setTimeout(() => {
-      serverStatus.classList.add('faded');
-      if (DEBUG) {console.log('[UI] Server status faded out (title leave)');}
-    }, 2000);
-  });
 
   serverStatus.addEventListener('mouseenter', () => {
     serverStatus.classList.remove('faded');
@@ -390,8 +379,6 @@ const MAX_POLL_ATTEMPTS = 180; // 3 min - whisper + agent can be slow
 
 async function pollForTranscript(uploadFilename) {
   let attempts = 0;
-  let agentWaitStart = null;
-  let thinkingTimer = null;
   const fileParam = uploadFilename ? '?file=' + encodeURIComponent(uploadFilename) : '';
 
   // Clear transcript at start of new polling session (fix race condition: old transcript from previous recording was kept)

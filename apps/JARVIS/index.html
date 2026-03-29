@@ -638,49 +638,81 @@
             to { text-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.5); }
         }
 
-        .title-container {
+        /* Orb on top, title below; dock fixed bottom-right */
+        .jarvis-bottom-dock {
             position: fixed;
-            bottom: 50px;
-            left: 130px;
+            bottom: 8px;
+            right: 20px;
+            left: auto;
             z-index: 1000;
             display: flex;
-            align-items: baseline;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            max-width: calc(100vw - 40px);
+        }
+
+        .jarvis-bottom-dock .title-row {
             justify-content: center;
+        }
+
+        .jarvis-bottom-dock h1.futuristic-title {
+            font-size: 1.65rem;
+            letter-spacing: 0.18em;
+            margin-bottom: 0;
+        }
+
+        .jarvis-bottom-dock #client-version-inline {
+            font-size: 0.65rem;
+        }
+
+        .title-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: flex-start;
             gap: 8px;
-            margin-bottom: 8px;
-            font-size: 0.7em;
         }
         
         .server-status {
-            position: fixed;
-            bottom: 50px;
-            left: 130px;
-            z-index: 1000;
-            font-size: 0.8em;
+            font-size: 0.72em;
             color: #64ffda;
-            margin-bottom: 10px;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             text-transform: uppercase;
             font-weight: 300;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             gap: 8px;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.35s ease;
         }
-        
-        /* Show on hover over parent container */
-        .title-container:hover + .server-status {
-            opacity: 1 !important;
+
+        /* Server line: top-right (click opens vitals); .faded toggled by app.js */
+        #server-status.server-status {
+            position: fixed;
+            top: 14px;
+            right: 18px;
+            z-index: 1001;
+            opacity: 0.92;
             pointer-events: auto;
+            max-width: min(380px, calc(100vw - 36px));
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            border: 1px solid rgba(0, 255, 255, 0.22);
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: rgba(10, 17, 40, 0.55);
+            backdrop-filter: blur(8px);
         }
-        
-        /* Fade in on hover over status itself */
-        .server-status:hover {
-            opacity: 1 !important;
-            pointer-events: auto;
+
+        #server-status.server-status:hover,
+        #server-status.server-status.faded:hover {
+            opacity: 1;
+        }
+
+        #server-status.server-status.faded {
+            opacity: 0.22;
         }
         
         .server-status .indicator {
@@ -727,7 +759,7 @@
             transition: opacity 0.2s;
         }
         
-        .jarvis-orb-container:hover + .status + .recording-hint,
+        .container:has(#jarvis-orb-container:hover) .recording-hint,
         .recording-hint:hover {
             opacity: 1;
             text-transform: uppercase;
@@ -737,14 +769,11 @@
         }
 
         /* JARVIS Video ORB - Pure Neural Intelligence */
-        /* JARVIS Orb - Bottom left corner */
         .jarvis-orb-container {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            width: 100px;
-            height: 100px;
-            z-index: 100;
+            position: relative;
+            flex-shrink: 0;
+            width: 124px;
+            height: 124px;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
@@ -760,7 +789,8 @@
             border-radius: 50%;
             overflow: hidden;
             position: relative;
-            border: 1px solid rgba(0, 255, 255, 0.2);
+            border: none;
+            box-shadow: none;
         }
 
         .jarvis-orb video {
@@ -770,18 +800,15 @@
         }
 
         .jarvis-orb-container:hover .jarvis-orb {
-            border-color: rgba(0, 255, 255, 0.4);
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 24px rgba(0, 255, 255, 0.25);
         }
         
         .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
-            border-color: rgba(0, 255, 255, 0.6);
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 32px rgba(0, 255, 255, 0.35);
         }
         
         .jarvis-orb.recording {
-            border-color: rgba(255, 68, 68, 0.4);
-            box-shadow: 0 0 20px rgba(255, 68, 68, 0.2);
+            box-shadow: 0 0 22px rgba(255, 68, 68, 0.35);
         }
         
         .orb-version-badge {
@@ -1195,29 +1222,29 @@
     </style>
 </head>
 <body>
+    <!-- Server / vitals entry (fixed top-right) -->
+    <div class="server-status" id="server-status" title="Click to view system vitals">
+        <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px; flex-shrink: 0;"></span>
+        <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
+    </div>
+
     <!-- Orb centered vertically -->
     <div class="container">
-        <!-- Title with client version inline (top right) -->
-        <div class="title-container">
-            <h1 class="futuristic-title" style="margin: 0; font-size: 3.1em;">J.A.R.V.I.S</h1>
-            <span id="client-version-inline" style="font-size: 0.75em; color: #64ffda; opacity: 0.7;">v2.9.26</span>
-        </div>
-        
-        <!-- Server status under title (all server info) -->
-        <div class="server-status" id="server-status" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.8em; cursor: pointer; transition: all 0.2s ease; border: 1px solid rgba(0,255,255,0.2); padding: 8px 16px; border-radius: 6px; width: min(640px, calc(100vw - 40px));" title="Click to view system vitals">
-            <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px;"></span>
-            <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
-        </div>
-        
-        <!-- JARVIS Video ORB -->
-        <div class="jarvis-orb-container" id="jarvis-orb-container">
-            <div class="jarvis-orb" id="jarvis-orb">
-                <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
-                    <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
+        <div class="jarvis-bottom-dock">
+            <!-- JARVIS Video ORB -->
+            <div class="jarvis-orb-container" id="jarvis-orb-container">
+                <div class="jarvis-orb" id="jarvis-orb">
+                    <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
+                        <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="orb-glow-ring"></div>
             </div>
-            <div class="orb-glow-ring"></div>
+            <div class="title-row">
+                <h1 class="futuristic-title" style="margin: 0;">J.A.R.V.I.S</h1>
+                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v2.9.26</span>
+            </div>
         </div>
         
         <!-- Text Input Field - appears on orb click -->
