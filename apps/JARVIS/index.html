@@ -638,20 +638,37 @@
             to { text-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.5); }
         }
 
-        /* Orb + title: bottom center; title to the right of the sphere */
-        .jarvis-bottom-dock {
+        /* Orb + server: stacked bottom-right; dock centered in stack, status right-aligned */
+        .jarvis-bottom-right-stack {
             position: fixed;
-            bottom: 8px;
-            left: 50%;
-            right: auto;
-            transform: translateX(-50%);
-            z-index: 1000;
+            bottom: 12px;
+            right: 18px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0;
+            width: max-content;
+            max-width: min(calc(100vw - 36px), 96vw);
+            pointer-events: none;
+        }
+
+        .jarvis-bottom-right-stack .jarvis-bottom-dock,
+        .jarvis-bottom-right-stack #server-status {
+            pointer-events: auto;
+        }
+
+        .jarvis-bottom-right-stack .jarvis-bottom-dock {
+            align-self: center;
+            margin-bottom: -10px;
+        }
+
+        .jarvis-bottom-dock {
             display: flex;
             flex-direction: row;
             align-items: center;
             gap: 18px;
             width: max-content;
-            max-width: min(calc(100vw - 40px), 92vw);
         }
 
         .jarvis-bottom-dock .title-row {
@@ -690,14 +707,10 @@
             transition: opacity 0.35s ease;
         }
 
-        /* Server line: bottom-right (click opens vitals); .faded toggled by app.js */
+        /* Server line (inside .jarvis-bottom-right-stack); click opens vitals */
         #server-status.server-status {
-            position: fixed;
-            bottom: 12px;
-            right: 18px;
-            top: auto;
-            left: auto;
-            z-index: 1001;
+            position: relative;
+            z-index: 1;
             opacity: 0.92;
             pointer-events: auto;
             max-width: min(380px, calc(100vw - 36px));
@@ -935,19 +948,25 @@
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
         }
         
-        /* Fullscreen/Expand mode - occupies full page for reading large transcripts */
+        /* Fullscreen/Expand mode — true viewport fill (overrides inline width/margin on #transcript) */
         #transcript.fullscreen {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            bottom: 100px;
-            width: calc(100vw - 40px);
-            height: calc(100vh - 120px);
-            z-index: 1000;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: auto !important;
+            max-width: none !important;
+            height: auto !important;
+            max-height: none !important;
+            margin: 0 !important;
+            padding: 0 20px 24px 20px;
+            box-sizing: border-box;
+            border-radius: 0;
+            z-index: 5000;
             border-color: rgba(0, 255, 255, 0.8);
-            box-shadow: 0 0 40px rgba(0, 255, 255, 0.2);
-            transform: none;
+            box-shadow: none;
+            transform: none !important;
         }
         
         /* Expand button in transcript header */
@@ -1068,9 +1087,10 @@
         }
         
         #transcript.fullscreen .transcript-header {
-            padding: 10px 20px;
-            margin: -20px -20px 10px -20px;
+            padding: 12px 20px;
+            margin: 0 -20px 12px -20px;
             width: calc(100% + 40px);
+            box-sizing: border-box;
             background: rgba(10, 17, 40, 0.98);
             backdrop-filter: blur(10px);
         }
@@ -1230,21 +1250,13 @@
     </style>
 </head>
 <body>
-    <!-- Server / vitals entry (fixed bottom-right) -->
-    <div class="server-status" id="server-status" title="Click to view system vitals">
-        <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px; flex-shrink: 0;"></span>
-        <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
-    </div>
-
-    <!-- Orb centered vertically -->
-    <div class="container">
+    <!-- Orb + title above server status, bottom-right -->
+    <div class="jarvis-bottom-right-stack">
         <div class="jarvis-bottom-dock">
-            <!-- JARVIS Video ORB -->
             <div class="jarvis-orb-container" id="jarvis-orb-container">
                 <video id="jarvis-video" loop muted autoplay playsinline preload="auto" aria-hidden="true">
                     <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
                 </video>
-                <!-- WebGL sphere + video texture mounted here (see initJarvisOrb in app.js) -->
                 <div class="orb-glow-ring" id="jarvis-orb" tabindex="0" role="img" aria-label="JARVIS orb — click to record"></div>
             </div>
             <div class="title-row">
@@ -1252,7 +1264,13 @@
                 <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v2.9.26</span>
             </div>
         </div>
-        
+        <div class="server-status" id="server-status" title="Click to view system vitals">
+            <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px; flex-shrink: 0;"></span>
+            <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
+        </div>
+    </div>
+
+    <div class="container">
         <!-- Text Input Field - appears on orb click -->
         <div id="text-input-container" class="hidden">
             <input 
