@@ -231,8 +231,9 @@ async function startRecording() {
     mediaRecorder.start(2000);
     isRecording = true;
 
-    // Recording state - subtle red glow (CSS-only, no video reflow)
+    // Recording state — CSS on #jarvis-orb + sphere tint
     jarvisOrb.classList.add('recording');
+    syncJarvisOrbRecordingMaterial();
 
     // Update status text
     status.textContent = '🔴 Recording...';
@@ -270,6 +271,7 @@ async function stopRecording() {
 
   // Remove recording state
   jarvisOrb.classList.remove('recording');
+  syncJarvisOrbRecordingMaterial();
 
   // Restore recording hint
   const hint = document.getElementById('recording-hint');
@@ -1643,121 +1645,139 @@ let idleRotation = 0;
 let isNeurographLoaded = false;
 
 // === Three.js JARVIS Orb Rendering ===
-// Create 3D sphere with video texture for the JARVIS orb
+// Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
 
 let jarvisOrbScene, jarvisOrbCamera, jarvisOrbRenderer;
-let jarvisOrbMesh, jarvisOrbVideo;
-let jarvisOrbRotation = 0;
+let jarvisOrbMesh;
+let jarvisOrbVideoTexture;
 
-// Initialize JARVIS Orb Three.js scene
+/** Keep sphere material in sync with #jarvis-orb recording class + CSS */
+function syncJarvisOrbRecordingMaterial() {
+  if (!jarvisOrbMesh || !jarvisOrbMesh.material) {return;}
+  const m = jarvisOrbMesh.material;
+  if (jarvisOrb.classList.contains('recording')) {
+    m.color.setHex(0xff8888);
+  } else {
+    m.color.setHex(0xffffff);
+  }
+}
+
+// Initialize JARVIS Orb Three.js scene (canvas appended to #jarvis-orb)
 function initJarvisOrb() {
-  console.log('[JarvisOrb] initJarvisOrb() called, checking DOM...');
-  const container = document.getElementById('jarvis-orb-container');
-  console.log('[JarvisOrb] Container element:', container);
-  if (!container) {
-    console.warn('[JarvisOrb] Container element not found');
+  const outer = document.getElementById('jarvis-orb-container');
+  const mount = document.getElementById('jarvis-orb');
+  if (!outer || !mount) {
+    console.warn('[JarvisOrb] orb container or #jarvis-orb mount not found');
     return;
   }
-  
-  console.log('[JarvisOrb] Container found, dimensions:', container.offsetWidth, 'x', container.offsetHeight);
 
-  // Get video element
   const video = document.getElementById('jarvis-video');
-  console.log('[JarvisOrb] Video element:', video);
   if (!video) {
     console.warn('[JarvisOrb] Video element not found');
     return;
   }
 
-  // Create video texture
-  const videoTexture = new THREE.VideoTexture(video);
-  videoTexture.minFilter = THREE.LinearFilter;
-  videoTexture.magFilter = THREE.LinearFilter;
-  videoTexture.colorSpace = THREE.SRGBColorSpace;
-
-  // Create scene
   jarvisOrbScene = new THREE.Scene();
-  jarvisOrbScene.background = new THREE.Color(0x000000);
+  jarvisOrbScene.background = null;
 
-  // Create camera
-  jarvisOrbCamera = new THREE.PerspectiveCamera(
-    75,
-    1, // Square aspect ratio for container
-    0.1,
-    1000
-  );
-  jarvisOrbCamera.position.z = 3;
+  jarvisOrbCamera = new THREE.PerspectiveCamera(68, 1, 0.1, 1000);
+  /* Closer camera = larger sphere in frame; canvas pixel size unchanged (resizeOrb still uses #jarvis-orb). */
+  jarvisOrbCamera.position.set(0, 0, 2.58);
 
-  // Create renderer
-  const rect = container.getBoundingClientRect();
-  const size = Math.min(rect.width, rect.height);
   jarvisOrbRenderer = new THREE.WebGLRenderer({
     antialias: true,
-    alpha: true
+    alpha: true,
+    premultipliedAlpha: false
   });
-  jarvisOrbRenderer.setSize(size, size);
-  jarvisOrbRenderer.setPixelRatio(window.devicePixelRatio);
-  container.appendChild(jarvisOrbRenderer.domElement);
+  jarvisOrbRenderer.setClearColor(0x000000, 0);
+  if (jarvisOrbRenderer.outputEncoding !== undefined && THREE.sRGBEncoding !== undefined) {
+    jarvisOrbRenderer.outputEncoding = THREE.sRGBEncoding;
+  }
+  jarvisOrbRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  mount.appendChild(jarvisOrbRenderer.domElement);
 
-  // Create sphere with video texture
-  const geometry = new THREE.SphereGeometry(1, 64, 64);
-  const material = new THREE.MeshStandardMaterial({
-    map: videoTexture,
-    roughness: 0.3,
-    metalness: 0.7,
-    emissive: 0x00ffff,
-    emissiveIntensity: 0.3
-  });
-  jarvisOrbMesh = new THREE.Mesh(geometry, material);
-  jarvisOrbScene.add(jarvisOrbMesh);
+  function createVideoSphere() {
+    if (jarvisOrbMesh) {return;}
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {return;}
 
-  // Add lighting
-  const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-  jarvisOrbScene.add(ambientLight);
-
-  const pointLight = new THREE.PointLight(0x00ffff, 1, 10);
-  pointLight.position.set(2, 2, 2);
-  jarvisOrbScene.add(pointLight);
-
-  // Add hover effect
-  container.addEventListener('mouseenter', () => {
-    if (jarvisOrbMesh) {
-      jarvisOrbMesh.material.emissiveIntensity = 0.5;
-      jarvisOrbMesh.material.color.setHex(0x00ffff);
+    jarvisOrbVideoTexture = new THREE.VideoTexture(video);
+    jarvisOrbVideoTexture.minFilter = THREE.LinearFilter;
+    jarvisOrbVideoTexture.magFilter = THREE.LinearFilter;
+    jarvisOrbVideoTexture.flipY = false;
+    if (THREE.SRGBColorSpace !== undefined) {
+      jarvisOrbVideoTexture.colorSpace = THREE.SRGBColorSpace;
+    } else if (THREE.sRGBEncoding !== undefined) {
+      jarvisOrbVideoTexture.encoding = THREE.sRGBEncoding;
     }
+    const maxA = jarvisOrbRenderer.capabilities.getMaxAnisotropy
+      ? jarvisOrbRenderer.capabilities.getMaxAnisotropy()
+      : 1;
+    jarvisOrbVideoTexture.anisotropy = Math.min(8, maxA);
+
+    const geometry = new THREE.SphereGeometry(1, 96, 64);
+    const material = new THREE.MeshBasicMaterial({
+      map: jarvisOrbVideoTexture,
+      color: 0xffffff
+    });
+    jarvisOrbMesh = new THREE.Mesh(geometry, material);
+    jarvisOrbMesh.scale.x = -1;
+    jarvisOrbScene.add(jarvisOrbMesh);
+    syncJarvisOrbRecordingMaterial();
+    console.log('[JarvisOrb] Video mapped onto sphere', video.videoWidth, 'x', video.videoHeight);
+  }
+
+  function kickPlayback() {
+    video.play().catch((err) => {
+      console.warn('[JarvisOrb] video.play() failed (autoplay policy?):', err);
+    });
+  }
+
+  video.addEventListener('loadeddata', () => {
+    createVideoSphere();
+    kickPlayback();
+  });
+  video.addEventListener('canplay', () => {
+    createVideoSphere();
+  });
+  createVideoSphere();
+  kickPlayback();
+
+  function resizeOrb() {
+    const rect = mount.getBoundingClientRect();
+    const size = Math.max(1, Math.min(rect.width, rect.height));
+    jarvisOrbCamera.aspect = 1;
+    jarvisOrbCamera.updateProjectionMatrix();
+    jarvisOrbRenderer.setSize(size, size);
+  }
+
+  outer.addEventListener('mouseenter', () => {
+    if (!jarvisOrbMesh || jarvisOrb.classList.contains('recording')) {return;}
+    jarvisOrbMesh.material.color.setHex(0xaaffff);
   });
 
-  container.addEventListener('mouseleave', () => {
-    if (jarvisOrbMesh) {
-      jarvisOrbMesh.material.emissiveIntensity = 0.3;
-      jarvisOrbMesh.material.color.setHex(0xffffff);
-    }
+  outer.addEventListener('mouseleave', () => {
+    syncJarvisOrbRecordingMaterial();
   });
 
-  // Add animation loop
   function animateOrb() {
     requestAnimationFrame(animateOrb);
-
-    // Slow rotation of the sphere
-    if (jarvisOrbMesh) {
-      jarvisOrbMesh.rotation.y += 0.005;
-      jarvisOrbMesh.rotation.x += 0.002;
+    if (jarvisOrbVideoTexture && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      jarvisOrbVideoTexture.needsUpdate = true;
     }
-
-    jarvisOrbRenderer.render(jarvisOrbScene, jarvisOrbCamera);
+    if (jarvisOrbMesh) {
+      jarvisOrbMesh.rotation.y += 0.00022;
+      jarvisOrbMesh.rotation.x += 0.00008;
+    }
+    if (jarvisOrbRenderer && jarvisOrbScene && jarvisOrbCamera) {
+      jarvisOrbRenderer.render(jarvisOrbScene, jarvisOrbCamera);
+    }
   }
   animateOrb();
 
-  // Handle resize
-  function resizeOrb() {
-    const rect = container.getBoundingClientRect();
-    const size = Math.min(rect.width, rect.height);
-    jarvisOrbRenderer.setSize(size, size);
-  }
   window.addEventListener('resize', resizeOrb);
   resizeOrb();
 
-  console.log('[JarvisOrb] Three.js sphere with video texture initialized');
+  console.log('[JarvisOrb] Three.js orb host ready (sphere attaches when video has frames)');
 }
 
 // Initialize Three.js scene

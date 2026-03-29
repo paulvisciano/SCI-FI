@@ -638,22 +638,26 @@
             to { text-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.5); }
         }
 
-        /* Orb on top, title below; dock fixed bottom-right */
+        /* Orb + title: bottom center; title to the right of the sphere */
         .jarvis-bottom-dock {
             position: fixed;
             bottom: 8px;
-            right: 20px;
-            left: auto;
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%);
             z-index: 1000;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
-            gap: 12px;
-            max-width: calc(100vw - 40px);
+            gap: 18px;
+            width: max-content;
+            max-width: min(calc(100vw - 40px), 92vw);
         }
 
         .jarvis-bottom-dock .title-row {
-            justify-content: center;
+            justify-content: flex-start;
+            flex-shrink: 0;
+            margin-left: -30px;
         }
 
         .jarvis-bottom-dock h1.futuristic-title {
@@ -686,11 +690,13 @@
             transition: opacity 0.35s ease;
         }
 
-        /* Server line: top-right (click opens vitals); .faded toggled by app.js */
+        /* Server line: bottom-right (click opens vitals); .faded toggled by app.js */
         #server-status.server-status {
             position: fixed;
-            top: 14px;
+            bottom: 12px;
             right: 18px;
+            top: auto;
+            left: auto;
             z-index: 1001;
             opacity: 0.92;
             pointer-events: auto;
@@ -768,12 +774,12 @@
             transition: all 0.3s ease;
         }
 
-        /* JARVIS Video ORB - Pure Neural Intelligence */
+        /* JARVIS 3D orb: hidden video feeds WebGL; canvas lives in #jarvis-orb (.orb-glow-ring) */
         .jarvis-orb-container {
             position: relative;
             flex-shrink: 0;
-            width: 124px;
-            height: 124px;
+            width: 132px;
+            height: 132px;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
@@ -783,7 +789,18 @@
             -ms-user-select: none;
         }
 
-        .jarvis-orb {
+        #jarvis-video {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+        }
+
+        .orb-glow-ring,
+        #jarvis-orb {
             width: 100%;
             height: 100%;
             border-radius: 50%;
@@ -791,24 +808,15 @@
             position: relative;
             border: none;
             box-shadow: none;
+            outline: none;
         }
 
-        .jarvis-orb video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .jarvis-orb-container:hover .jarvis-orb {
-            box-shadow: 0 0 24px rgba(0, 255, 255, 0.25);
-        }
-        
-        .jarvis-orb-container:active .jarvis-orb, .jarvis-orb-container.tapped .jarvis-orb {
-            box-shadow: 0 0 32px rgba(0, 255, 255, 0.35);
-        }
-        
-        .jarvis-orb.recording {
-            box-shadow: 0 0 22px rgba(255, 68, 68, 0.35);
+        #jarvis-orb canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+            border-radius: 50%;
+            background: transparent;
         }
         
         .orb-version-badge {
@@ -1222,7 +1230,7 @@
     </style>
 </head>
 <body>
-    <!-- Server / vitals entry (fixed top-right) -->
+    <!-- Server / vitals entry (fixed bottom-right) -->
     <div class="server-status" id="server-status" title="Click to view system vitals">
         <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px; flex-shrink: 0;"></span>
         <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
@@ -1233,13 +1241,11 @@
         <div class="jarvis-bottom-dock">
             <!-- JARVIS Video ORB -->
             <div class="jarvis-orb-container" id="jarvis-orb-container">
-                <div class="jarvis-orb" id="jarvis-orb">
-                    <video id="jarvis-video" loop muted autoplay playsinline preload="auto">
-                        <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
-                </div>
-                <div class="orb-glow-ring"></div>
+                <video id="jarvis-video" loop muted autoplay playsinline preload="auto" aria-hidden="true">
+                    <source src="assets/jarvis-orb-video.mp4" type="video/mp4">
+                </video>
+                <!-- WebGL sphere + video texture mounted here (see initJarvisOrb in app.js) -->
+                <div class="orb-glow-ring" id="jarvis-orb" tabindex="0" role="img" aria-label="JARVIS orb — click to record"></div>
             </div>
             <div class="title-row">
                 <h1 class="futuristic-title" style="margin: 0;">J.A.R.V.I.S</h1>
