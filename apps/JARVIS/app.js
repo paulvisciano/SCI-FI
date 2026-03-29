@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.1.0';
-const CLIENT_BUILD_DATE = '2026-03-28';
+const CLIENT_VERSION = '3.1.1';
+const CLIENT_BUILD_DATE = '2026-03-29';
 
 // Fade server status after 3 seconds, reappear on hover
 let fadeTimer;
@@ -1541,7 +1541,9 @@ if (document.readyState === 'loading') {
   }
 
   // Initialize text input on page load
-  initTextInput();
+  setTimeout(() => {
+    initTextInput();
+  }, 100);
 
   // Send text message to OpenClaw
   async function sendTextMessage() {
