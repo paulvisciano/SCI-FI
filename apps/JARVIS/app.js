@@ -66,6 +66,7 @@ function toggleTranscriptFullscreen() {
     expandBtn.textContent = '⛶ Expand';
     expandBtn.classList.remove('expanded');
     expandBtn.title = 'Expand to fullscreen';
+    scheduleTranscriptBubblePosition();
   }
 }
 
@@ -80,6 +81,54 @@ const responseText = document.getElementById('response-text');
 const jarvisOrb = document.getElementById('jarvis-orb');
 const jarvisOrbContainer = document.getElementById('jarvis-orb-container');
 const jarvisVideo = document.getElementById('jarvis-video');
+
+/** Pin transcript panel to top-right of orb (chat bubble); skipped in fullscreen */
+let transcriptBubbleRaf = null;
+function scheduleTranscriptBubblePosition() {
+  if (transcriptBubbleRaf !== null) {
+    cancelAnimationFrame(transcriptBubbleRaf);
+  }
+  transcriptBubbleRaf = requestAnimationFrame(() => {
+    transcriptBubbleRaf = null;
+    positionTranscriptBubble();
+  });
+}
+
+function positionTranscriptBubble() {
+  const tr = document.getElementById('transcript');
+  const orb = document.getElementById('jarvis-orb-container');
+  if (!tr || !orb || tr.classList.contains('fullscreen')) {return;}
+  const r = orb.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) {return;}
+  const gapH = 5;
+  const gapV = 4;
+  let left = r.right + gapH;
+  const bottom = window.innerHeight - r.top + gapV;
+  tr.style.left = `${Math.round(left)}px`;
+  tr.style.bottom = `${Math.round(bottom)}px`;
+  tr.style.top = 'auto';
+  tr.style.right = 'auto';
+  const tw = tr.getBoundingClientRect().width;
+  if (tw > 0) {
+    left = Math.min(left, window.innerWidth - tw - 10);
+    left = Math.max(8, left);
+    tr.style.left = `${Math.round(left)}px`;
+  }
+}
+
+if (transcript && jarvisOrbContainer) {
+  const transcriptBubbleObserver = new MutationObserver(() => scheduleTranscriptBubblePosition());
+  transcriptBubbleObserver.observe(transcript, { attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('resize', scheduleTranscriptBubblePosition);
+  const dockStack = document.querySelector('.jarvis-bottom-left-stack');
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => scheduleTranscriptBubblePosition()).observe(jarvisOrbContainer);
+    if (dockStack) {
+      new ResizeObserver(() => scheduleTranscriptBubblePosition()).observe(dockStack);
+    }
+  }
+  scheduleTranscriptBubblePosition();
+}
 
 let isOrbEngaged = false;
 
