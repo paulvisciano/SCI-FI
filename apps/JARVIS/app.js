@@ -1791,7 +1791,7 @@ function initNeurograph() {
   // Create scene
   neurographScene = new THREE.Scene();
   neurographScene.background = new THREE.Color(0x050510);
-  neurographScene.fog = new THREE.FogExp2(0x050510, 0.002);
+  neurographScene.fog = new THREE.FogExp2(0x050510, 0.0014);
 
   // Create camera
   neurographCamera = new THREE.PerspectiveCamera(
@@ -1816,7 +1816,7 @@ function initNeurograph() {
   neurographControls.enableDamping = true;
   neurographControls.dampingFactor = 0.05;
   neurographControls.minDistance = 50;
-  neurographControls.maxDistance = 800;
+  neurographControls.maxDistance = 1100;
 
   // Add lighting
   const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
@@ -1845,17 +1845,79 @@ function initNeurograph() {
   createStarfield();
 }
 
+// Raycaster + floating label (hover + click-to-focus)
+let hoveredNode = null;
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const labelDiv = document.createElement('div');
+
+// Click-to-focus: fly camera to a node and pin the same label as hover
+let neurographFocusTarget = null;
+let neurographFlyActive = false;
+const neurographFocusDir = new THREE.Vector3(0, 0, 1);
+const NEUROGRAPH_FOCUS_DISTANCE = 44;
+const NEUROGRAPH_FLY_DURATION_MS = 3400;
+const _neuroDesiredCam = new THREE.Vector3();
+const _neuroProj = new THREE.Vector3();
+const neurographFlyFromCam = new THREE.Vector3();
+const neurographFlyFromTarget = new THREE.Vector3();
+let neurographFlyStartTime = 0;
+
+function easeInOutCubicNeuro(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function updateNeurographFocusLabelPosition() {
+  if (!neurographFocusTarget || !neurographRenderer || !neurographCamera ||
+      !neurographRenderer.domElement) {return;}
+  _neuroProj.copy(neurographFocusTarget.position).project(neurographCamera);
+  const rect = neurographRenderer.domElement.getBoundingClientRect();
+  let x = (_neuroProj.x * 0.5 + 0.5) * rect.width + rect.left;
+  let y = (-_neuroProj.y * 0.5 + 0.5) * rect.height + rect.top;
+  x = Math.max(8, Math.min(x, window.innerWidth - 312));
+  y = Math.max(8, Math.min(y, window.innerHeight - 200));
+  labelDiv.style.left = `${x + 14}px`;
+  labelDiv.style.top = `${y + 14}px`;
+}
+
+function clearNeurographNodeFocus() {
+  neurographFocusTarget = null;
+  neurographFlyActive = false;
+  if (neurographControls) {
+    neurographControls.enabled = true;
+  }
+  labelDiv.style.display = 'none';
+  labelDiv.style.zIndex = '1000';
+  hoveredNode = null;
+}
+
+function focusNeurographNode(neuron) {
+  if (!neuron || !neurographCamera || !neurographControls) {return;}
+  neurographFocusTarget = neuron;
+  neurographFlyActive = true;
+  neurographFlyFromCam.copy(neurographCamera.position);
+  neurographFlyFromTarget.copy(neurographControls.target);
+  neurographFlyStartTime = performance.now();
+  _neuroDesiredCam.subVectors(neurographCamera.position, neuron.position);
+  if (_neuroDesiredCam.lengthSq() < 0.01) {
+    _neuroDesiredCam.set(0.35, 0.2, 1);
+  }
+  neurographFocusDir.copy(_neuroDesiredCam.normalize());
+  hoveredNode = neuron;
+  labelDiv.innerHTML = createNodeLabel(neuron.userData);
+  labelDiv.style.display = 'block';
+  labelDiv.style.zIndex = '6000';
+  updateNeurographFocusLabelPosition();
+}
+
 // Animation loop
 function animateNeurograph() {
   requestAnimationFrame(animateNeurograph);
 
-  if (neurographControls) {
-    neurographControls.update();
-  }
-
-  // Repulsion between spheres - makes them spread out in space (increased from 0.3 to 2.0, minDist from 3.0 to 30.0)
+  // Repulsion between spheres — push apart until at least minDist (higher = more spread)
   if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
-    const repulsionStrength = 2.0; // Stronger repulsion
+    const repulsionStrength = 6.2;
+    const minDist = 78.0;
 
     for (let i = 0; i < neurons.length; i++) {
       for (let j = i + 1; j < neurons.length; j++) {
@@ -1865,7 +1927,6 @@ function animateNeurograph() {
         const dy = a.y - b.y;
         const dz = a.z - b.z;
         const distSq = dx*dx + dy*dy + dz*dz;
-        const minDist = 30.0; // Much increased for better spreading
 
         if (distSq < minDist * minDist && distSq > 0.001) {
           const dist = Math.sqrt(distSq);
@@ -1884,6 +1945,27 @@ function animateNeurograph() {
         }
       }
     }
+  }
+
+  if (neurographFlyActive && neurographFocusTarget && neurographCamera && neurographControls) {
+    neurographControls.enabled = false;
+    const tpos = neurographFocusTarget.position;
+    _neuroDesiredCam.copy(tpos).addScaledVector(neurographFocusDir, NEUROGRAPH_FOCUS_DISTANCE);
+    const elapsed = performance.now() - neurographFlyStartTime;
+    const u = Math.min(1, elapsed / NEUROGRAPH_FLY_DURATION_MS);
+    const e = easeInOutCubicNeuro(u);
+    neurographCamera.position.copy(neurographFlyFromCam).lerp(_neuroDesiredCam, e);
+    neurographControls.target.copy(neurographFlyFromTarget).lerp(tpos, e);
+    neurographControls.update();
+    if (u >= 1) {
+      neurographCamera.position.copy(_neuroDesiredCam);
+      neurographControls.target.copy(tpos);
+      neurographFlyActive = false;
+      neurographControls.enabled = true;
+    }
+  } else if (neurographControls) {
+    neurographControls.enabled = true;
+    neurographControls.update();
   }
 
   // Idle rotation - spheres are now static (no animation)
@@ -1906,6 +1988,10 @@ function animateNeurograph() {
     });
   }
 
+  if (neurographFocusTarget) {
+    updateNeurographFocusLabelPosition();
+  }
+
   neurographRenderer.render(neurographScene, neurographCamera);
 }
 
@@ -1924,14 +2010,8 @@ function onNeurographWindowResize() {
   }
 }
 
-// Raycaster for hover labels on neurograph spheres
-let hoveredNode = null;
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-const labelDiv = document.createElement('div');
-
 function setupNeurographHover() {
-  // Create label div
+  // Style & mount label div (element created above)
   labelDiv.style.position = 'absolute';
   labelDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
   labelDiv.style.color = '#00ffff';
@@ -1945,9 +2025,30 @@ function setupNeurographHover() {
   labelDiv.style.wordBreak = 'break-all';
   document.body.appendChild(labelDiv);
 
+  neurographRenderer.domElement.addEventListener('click', (e) => {
+    if (!neurographScene || neurons.length === 0) {return;}
+    const rect = neurographRenderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, neurographCamera);
+    const hits = raycaster.intersectObjects(neurons);
+    if (hits.length > 0) {
+      focusNeurographNode(hits[0].object);
+    } else {
+      clearNeurographNodeFocus();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && neurographFocusTarget) {
+      clearNeurographNodeFocus();
+    }
+  });
+
   // Mouse move handler for neurograph
   document.addEventListener('mousemove', (e) => {
     if (!neurographScene) return;
+    if (neurographFocusTarget) {return;}
 
     // Calculate mouse position in normalized device coordinates
     const rect = neurographRenderer.domElement.getBoundingClientRect();
@@ -1975,7 +2076,6 @@ function setupNeurographHover() {
         labelDiv.style.top = (e.clientY - 15) + 'px';
       }
     } else {
-      // No node hovered
       if (hoveredNode) {
         labelDiv.style.display = 'none';
         hoveredNode = null;
@@ -2184,24 +2284,24 @@ function createNeurograph(data) {
       // Theme node at center
       neuron.position.set(0, 0, 0);
     } else if (isConnectedToTheme) {
-      // Orbiting nodes - arrange in orbital planes around center
-      const orbitRadius = 8 + (themeConnectionWeight / 20); // 8-13 units from center
+      // Orbiting nodes - arrange in orbital planes around center (wider orbits vs repulsion minDist)
+      const orbitRadius = 22 + (themeConnectionWeight / 10);
       const planeAngle = (idx % 4) * (Math.PI / 2); // 4 orbital planes: 0, 90, 180, 270 degrees
 
       // Calculate position in orbital plane
       const angle = (idx / 4) * (Math.PI * 2); // Distribute nodes in each plane
       const x = Math.cos(angle) * orbitRadius;
       const z = Math.sin(angle) * orbitRadius;
-      const y = Math.sin(planeAngle) * (orbitRadius * 0.3); // Slight tilt for 3D effect
+      const y = Math.sin(planeAngle) * (orbitRadius * 0.35); // Slight tilt for 3D effect
 
       neuron.position.set(x, y, z);
     } else {
       // Other nodes - in outer orbits
-      const orbitRadius = 18 + (maxWeight / 100); // Outer orbit
+      const orbitRadius = 48 + (maxWeight / 50);
       const angle = (idx / (nodes.length || 1)) * Math.PI * 2;
       neuron.position.set(
         Math.cos(angle) * orbitRadius,
-        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 28,
         Math.sin(angle) * orbitRadius
       );
     }
@@ -2311,10 +2411,10 @@ function createFallbackNeurograph() {
     const neuron = new THREE.Mesh(geometry, material);
 
     const angle = (i / nodeCount) * Math.PI * 2;
-    const radiusPos = 15 + Math.random() * 20;
+    const radiusPos = 40 + Math.random() * 48;
     neuron.position.set(
       Math.cos(angle) * radiusPos,
-      (Math.random() - 0.5) * 15,
+      (Math.random() - 0.5) * 32,
       Math.sin(angle) * radiusPos
     );
 
