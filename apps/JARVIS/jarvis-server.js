@@ -1107,6 +1107,90 @@ function handleRequest(req, res) {
     return;
   }
 
+  // TTS audio playback endpoint - serves audio files for Jarvis's voice responses
+  if (req.method === 'GET' && req.url.startsWith('/api/tts/')) {
+    try {
+      // Extract filename from URL (e.g., /api/tts/voice-1234567890.mp3)
+      const urlParts = req.url.split('/');
+      const filename = urlParts[urlParts.length - 1]; // Get last part
+            
+      // Security: Prevent directory traversal
+      if (filename.includes('..') || filename.includes('/')) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid filename' }));
+        return;
+      }
+            
+      // TTS files are stored in /tmp/openclaw/tts-<session-id>/ (created by OpenClaw TTS tool)
+      const os = require('os');
+      const ttsBaseDir = path.join(os.tmpdir(), 'openclaw');
+            
+      // Find the most recent TTS directory
+      let ttsDir = null;
+      try {
+        if (fs.existsSync(ttsBaseDir)) {
+          const dirs = fs.readdirSync(ttsBaseDir)
+            .filter(f => f.startsWith('tts-'))
+            .sort()
+            .reverse();
+          if (dirs.length > 0) {
+            ttsDir = path.join(ttsBaseDir, dirs[0]);
+          }
+        }
+      } catch (e) {
+        console.log('[TTS] No TTS directories found yet');
+      }
+            
+      // If no TTS directory exists, use liveDir as fallback
+      if (!ttsDir || !fs.existsSync(ttsDir)) {
+        ttsDir = CONFIG.liveDir;
+      }
+            
+      const filePath = path.join(ttsDir, filename);
+            
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        console.log(`[TTS] Audio file not found: ${filename} (searched in ${ttsDir})`);
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Audio file not found' }));
+        return;
+      }
+            
+      // Determine content type from extension
+      let contentType = 'audio/mpeg';
+      if (filename.endsWith('.mp3')) {
+        contentType = 'audio/mpeg';
+      } else if (filename.endsWith('.wav')) {
+        contentType = 'audio/wav';
+      } else if (filename.endsWith('.webm')) {
+        contentType = 'audio/webm';
+      } else if (filename.endsWith('.ogg')) {
+        contentType = 'audio/ogg';
+      }
+            
+      // Read and serve file
+      const fileContent = fs.readFileSync(filePath);
+            
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Content-Length': fileContent.length,
+        'Cache-Control': 'no-cache'
+      });
+      res.end(fileContent);
+            
+      console.log(`[TTS] Serving audio: ${filename} from ${ttsDir}`);
+            
+    } catch (error) {
+      console.error('[TTS] Error serving audio:', error.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ 
+        error: 'Failed to serve audio', 
+        details: error.message 
+      }));
+    }
+    return;
+  }
+
   // Clear current transcription state
   if (req.method === 'POST' && req.url === '/transcript/clear') {
     console.log('🚨 /transcript/clear - Clearing current transcription state');

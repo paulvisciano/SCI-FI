@@ -94,6 +94,14 @@ const jarvisVideo = document.getElementById('jarvis-video');
 
 let isOrbEngaged = false;
 
+// Text input elements
+let textInputContainer = null;
+let jarvisTextInput = null;
+let jarvisSendBtn = null;
+
+// Text input state
+let isTextInputVisible = false;
+
 // Live streaming transcription
 let audioContext;
 let mediaStreamSource;
@@ -1452,6 +1460,188 @@ if (document.readyState === 'loading') {
   // Initialize enhanced UI components
   initBreathCircleEnhanced();
   initHeartbeatEnhanced();
+
+  // Initialize text input
+  function initTextInput() {
+    console.log('[TextInput] Initializing text input handlers');
+    
+    // DOM element references - lookup after DOM is loaded
+    textInputContainer = document.getElementById('text-input-container');
+    jarvisTextInput = document.getElementById('jarvis-text-input');
+    jarvisSendBtn = document.getElementById('jarvis-send-btn');
+    
+    if (!textInputContainer || !jarvisTextInput || !jarvisSendBtn) {
+      console.warn('[TextInput] DOM elements not found - text input disabled');
+      console.warn('  textInputContainer:', !!textInputContainer);
+      console.warn('  jarvisTextInput:', !!jarvisTextInput);
+      console.warn('  jarvisSendBtn:', !!jarvisSendBtn);
+      return;
+    }
+    
+    // Orb click - show text input if hidden, or hide if visible
+    jarvisOrbContainer.addEventListener('click', () => {
+      if (!isTextInputVisible) {
+        console.log('[TextInput] Showing text input');
+      // Also toggle engagement (visual feedback)
+      isOrbEngaged = !isOrbEngaged;
+      if (isOrbEngaged) {
+        jarvisOrb.classList.add('engaged');
+      } else {
+        jarvisOrb.classList.remove('engaged');
+      }
+        isTextInputVisible = true;
+        textInputContainer.classList.remove('hidden');
+        jarvisTextInput.focus();
+      } else {
+        console.log('[TextInput] Hiding text input');
+        isTextInputVisible = false;
+        textInputContainer.classList.add('hidden');
+        jarvisTextInput.value = '';
+        // Return focus to orb
+        jarvisOrb.focus();
+      }
+    }, { passive: true });
+    
+    // Text input Enter key - send message
+    jarvisTextInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendTextMessage();
+      }
+    });
+    
+    // Send button click - send message
+    jarvisSendBtn.addEventListener('click', () => {
+      sendTextMessage();
+    });
+    
+    // Escape key - hide text input
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isTextInputVisible) {
+        console.log('[TextInput] Hiding via Escape key');
+        isTextInputVisible = false;
+        textInputContainer.classList.add('hidden');
+        jarvisTextInput.value = '';
+        jarvisOrb.focus();
+      }
+    });
+    
+    // Click outside input - hide text input
+    document.addEventListener('click', (e) => {
+      if (isTextInputVisible && 
+          !textInputContainer.contains(e.target) && 
+          !jarvisOrbContainer.contains(e.target)) {
+        console.log('[TextInput] Hiding via outside click');
+        isTextInputVisible = false;
+        textInputContainer.classList.add('hidden');
+        jarvisTextInput.value = '';
+        jarvisOrb.focus();
+      }
+    });
+  }
+
+  // Initialize text input on page load
+  initTextInput();
+
+  // Send text message to OpenClaw
+  async function sendTextMessage() {
+    if (!jarvisTextInput) {
+      console.error('[TextInput] Text input not found');
+      return;
+    }
+    
+    const message = jarvisTextInput.value.trim();
+    
+    // Validation
+    if (message.length === 0) {
+      console.warn('[TextInput] Empty message - focusing input');
+      if (jarvisTextInput) {
+        jarvisTextInput.focus();
+      }
+      return;
+    }
+    
+    if (message.length > 5000) {
+      alert('Message too long. Max 5000 characters.');
+      return;
+    }
+    
+    // Check for dangerous characters (basic validation)
+    const dangerousPatterns = [/;.*--/, /'.*or.*'.*=.*'/, /.*eval.*/, /.*exec.*/];
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(message.toLowerCase())) {
+        alert('Message contains potentially dangerous content.');
+        return;
+      }
+    }
+    
+    console.log(`[TextInput] Sending message: ${message.substring(0, 50)}...`);
+    
+    // Show loading state
+    if (jarvisSendBtn) {
+      jarvisSendBtn.innerHTML = '⏳';
+      jarvisSendBtn.style.background = 'rgba(255, 165, 0, 0.2)';
+    }
+    
+    try {
+      // Send to server endpoint
+      const response = await fetch(`${API_BASE}/api/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: message })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log(`[TextInput] Message sent successfully`);
+        console.log(`[TextInput] Jarvis response: ${result.jarvisResponse || ''}`);
+        
+        // Clear input on success
+        if (jarvisTextInput) {
+          jarvisTextInput.value = '';
+        }
+        
+        // Show success feedback
+        if (jarvisSendBtn) {
+          jarvisSendBtn.innerHTML = '✅';
+          jarvisSendBtn.style.background = 'rgba(68, 255, 68, 0.2)';
+        }
+        
+        // Hide input after successful send
+        setTimeout(() => {
+          isTextInputVisible = false;
+          if (textInputContainer) {
+            textInputContainer.classList.add('hidden');
+          }
+          if (jarvisTextInput) {
+            jarvisTextInput.value = '';
+          }
+        }, 500);
+      } else {
+        // Show error
+        console.error('[TextInput] Send failed:', result.error);
+        if (jarvisSendBtn) {
+          jarvisSendBtn.innerHTML = '❌';
+          jarvisSendBtn.style.background = 'rgba(255, 68, 68, 0.2)';
+        }
+      }
+    } catch (error) {
+      console.error('[TextInput] Network error:', error);
+      if (jarvisSendBtn) {
+        jarvisSendBtn.innerHTML = '❌';
+        jarvisSendBtn.style.background = 'rgba(255, 68, 68, 0.2)';
+      }
+    }
+    
+    // Reset button after delay
+    setTimeout(() => {
+      if (jarvisSendBtn && (jarvisSendBtn.innerHTML === '✅' || jarvisSendBtn.innerHTML === '❌')) {
+        jarvisSendBtn.innerHTML = '→';
+        jarvisSendBtn.style.background = '';
+      }
+    }, 2000);
+  }
 
 })();
 

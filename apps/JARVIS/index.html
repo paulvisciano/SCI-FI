@@ -788,6 +788,72 @@
             display: none;
         }
 
+        /* Text Input Container - appears on orb click */
+        #text-input-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 16px;
+            margin-bottom: 16px;
+        }
+        
+        #text-input-container.hidden {
+            display: none;
+        }
+        
+        #jarvis-text-input {
+            background: rgba(10, 17, 40, 0.6);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 1em;
+            color: #e0e0e0;
+            width: min(400px, calc(100vw - 60px));
+            outline: none;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        #jarvis-text-input:focus {
+            border-color: rgba(0, 255, 255, 0.8);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            background: rgba(10, 17, 40, 0.8);
+        }
+        
+        #jarvis-text-input::placeholder {
+            color: rgba(0, 255, 255, 0.4);
+            opacity: 0.6;
+        }
+        
+        #jarvis-send-btn {
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            border-radius: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            color: #ffd700;
+            font-size: 1.2em;
+            transition: all 0.3s ease;
+            min-width: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        #jarvis-send-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: rgba(255, 215, 0, 0.6);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.25);
+            transform: scale(1.05);
+        }
+        
+        #jarvis-send-btn:active {
+            transform: scale(0.95);
+        }
+
         @keyframes orb-pulse {
             0%, 100% { 
                 transform: scale(1);
@@ -1154,6 +1220,21 @@
             <div class="orb-glow-ring"></div>
         </div>
         
+        <!-- Text Input Field - appears on orb click -->
+        <div id="text-input-container" class="hidden">
+            <input 
+                type="text" 
+                id="jarvis-text-input" 
+                placeholder="Type a message..." 
+                autocomplete="off"
+                maxlength="5000"
+                aria-label="Type your message"
+            />
+            <button type="button" id="jarvis-send-btn" aria-label="Send message">
+                <span>→</span>
+            </button>
+        </div>
+        
         <!-- Recording status under orb -->
         <div class="status" id="status" style="font-size: 0.8em; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 20px; margin-bottom: 8px;"></div>
         
@@ -1345,6 +1426,10 @@
         </div>
         <div id="transcript-text" style="margin-top: 20px; margin-bottom:15px;"></div>
         <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
+        
+        <!-- TTS Audio Player - for Jarvis's voice responses -->
+        <audio id="jarvis-tts-player" style="display: none;" preload="auto" playsinline></audio>
+        
         <div class="jarvis-response" id="jarvis-response" style="display:none;">
             <div class="label" style="margin-top:15px;">Jarvis Response</div>
             <div id="response-text"></div>
@@ -1355,4 +1440,4 @@
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
     
     <div id="network-dots-container"></div>
-    <script src="app.js?v=20260329023900"></script>
+    <script src="app.js?v=20260329145217"></script>
