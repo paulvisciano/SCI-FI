@@ -591,9 +591,11 @@ function checkServerStatus() {
 
         statusTextEl.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
 
-        // Client version inline next to J.A.R.V.I.S title (top right)
-        document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
-        statusText.style.color = '#00ffff';
+        // Server version in separate element (no flicker on page load)
+        const serverVersionEl = document.getElementById('server-version-text');
+        if (serverVersionEl) {
+            serverVersionEl.textContent = `v${serverVersion}`;
+        }
 
         console.log('[checkServerStatus] Status text updated:', statusText.textContent);
 
@@ -612,7 +614,10 @@ function checkServerStatus() {
         indicator.style.background = '#ff4444';
         indicator.style.boxShadow = '0 0 8px #ff4444';
         document.getElementById('server-status-text').textContent = 'Server: Offline';
-        document.getElementById('client-version-inline').textContent = `v${CLIENT_VERSION}`;
+        const serverVersionEl = document.getElementById('server-version-text');
+        if (serverVersionEl) {
+            serverVersionEl.textContent = '';
+        }
         statusText.style.color = '#ff4444';
       }
     })
