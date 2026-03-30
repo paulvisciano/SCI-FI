@@ -460,10 +460,6 @@ async function pollForTranscript(uploadFilename) {
           status.textContent = 'Processing...';
         } else if (data.status === 'processing' && data.transcript) {
           transcriptText.textContent = data.transcript;
-          const now = new Date();
-          const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-          const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          document.getElementById('transcript-time').textContent = `${dateStr} ${timeStr}`;
           transcript.classList.add('pulsate');
           status.style.color = '#ffd700';
           if (!agentWaitStart) {
@@ -476,11 +472,6 @@ async function pollForTranscript(uploadFilename) {
           }
         } else if (data.status === 'done' && data.transcript) {
           transcriptText.textContent = data.transcript;
-
-          const now = new Date();
-          const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-          const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          document.getElementById('transcript-time').textContent = `${dateStr} ${timeStr}`;
 
           if (data.jarvisResponse) {
             clearInterval(pollInterval);
