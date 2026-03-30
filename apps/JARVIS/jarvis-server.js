@@ -26,7 +26,7 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '3.1.1';
+const VERSION = '3.1.2';
 const BUILD_DATE = '2026-03-29';
 
 // Date formatting utility for consistent date handling
