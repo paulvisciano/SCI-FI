@@ -582,12 +582,6 @@ function checkServerStatus() {
 
         statusTextEl.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
 
-        // Server version in separate element (no flicker on page load)
-        const serverVersionEl = document.getElementById('server-version-text');
-        if (serverVersionEl) {
-            serverVersionEl.textContent = `v${serverVersion}`;
-        }
-
         console.log('[checkServerStatus] Status text updated:', statusText.textContent);
 
         // Restore faded state after updating text (polling doesn't break fade)
@@ -605,10 +599,6 @@ function checkServerStatus() {
         indicator.style.background = '#ff4444';
         indicator.style.boxShadow = '0 0 8px #ff4444';
         document.getElementById('server-status-text').textContent = 'Server: Offline';
-        const serverVersionEl = document.getElementById('server-version-text');
-        if (serverVersionEl) {
-            serverVersionEl.textContent = '';
-        }
         statusText.style.color = '#ff4444';
       }
     })
