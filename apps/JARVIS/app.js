@@ -1706,6 +1706,13 @@ let synapses = [];
 let neurographData = null;
 let idleRotation = 0;
 let isNeurographLoaded = false;
+/** Repulsion is O(n²); throttle + pass budget cuts steady-state CPU without touching pointer/hover. */
+let neurographAnimFrame = 0;
+let neuroRepulsionPasses = 0;
+const NEURO_REPULSION_MAX_PASSES = 600;
+const NEURO_MAX_PIXEL_RATIO = 1.5;
+/** When false, connection lines are not created (CPU/GPU experiment). */
+const NEUROGRAPH_DRAW_SYNAPSES = false;
 
 // === Three.js JARVIS Orb Rendering ===
 // Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
@@ -1824,6 +1831,9 @@ function initJarvisOrb() {
 
   function animateOrb() {
     requestAnimationFrame(animateOrb);
+    if (document.hidden) {
+      return;
+    }
     if (jarvisOrbVideoTexture && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
       jarvisOrbVideoTexture.needsUpdate = true;
     }
@@ -1869,10 +1879,11 @@ function initNeurograph() {
   neurographRenderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: true,
-    alpha: true
+    alpha: true,
+    powerPreference: 'low-power'
   });
   neurographRenderer.setSize(window.innerWidth, window.innerHeight);
-  neurographRenderer.setPixelRatio(window.devicePixelRatio);
+  neurographRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, NEURO_MAX_PIXEL_RATIO));
 
   // Add orbit controls for rotation/zoom
   neurographControls = new THREE.OrbitControls(neurographCamera, neurographRenderer.domElement);
@@ -1880,6 +1891,16 @@ function initNeurograph() {
   neurographControls.dampingFactor = 0.05;
   neurographControls.minDistance = 50;
   neurographControls.maxDistance = 1100;
+
+  const ngDom = neurographRenderer.domElement;
+  ngDom.style.touchAction = 'none';
+  ngDom.addEventListener(
+    'wheel',
+    (ev) => {
+      ev.preventDefault();
+    },
+    { passive: false }
+  );
 
   // Add lighting
   const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
@@ -2057,37 +2078,47 @@ function focusNeurographNode(neuron) {
 // Animation loop
 function animateNeurograph() {
   requestAnimationFrame(animateNeurograph);
+  neurographAnimFrame++;
+
+  if (document.hidden) {
+    return;
+  }
 
   // Repulsion between spheres — push apart until at least minDist (higher = more spread)
   if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
     const repulsionStrength = 6.2;
     const minDist = 78.0;
+    const runRepulsion =
+      neuroRepulsionPasses < NEURO_REPULSION_MAX_PASSES && (neurographAnimFrame % 2 === 0);
 
-    for (let i = 0; i < neurons.length; i++) {
-      for (let j = i + 1; j < neurons.length; j++) {
-        const a = neurons[i].position;
-        const b = neurons[j].position;
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const dz = a.z - b.z;
-        const distSq = dx*dx + dy*dy + dz*dz;
+    if (runRepulsion) {
+      for (let i = 0; i < neurons.length; i++) {
+        for (let j = i + 1; j < neurons.length; j++) {
+          const a = neurons[i].position;
+          const b = neurons[j].position;
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dz = a.z - b.z;
+          const distSq = dx * dx + dy * dy + dz * dz;
 
-        if (distSq < minDist * minDist && distSq > 0.001) {
-          const dist = Math.sqrt(distSq);
-          const force = repulsionStrength * (minDist - dist) / dist;
+          if (distSq < minDist * minDist && distSq > 0.001) {
+            const dist = Math.sqrt(distSq);
+            const force = repulsionStrength * (minDist - dist) / dist;
 
-          const nx = (dx / dist) * force;
-          const ny = (dy / dist) * force;
-          const nz = (dz / dist) * force;
+            const nx = (dx / dist) * force;
+            const ny = (dy / dist) * force;
+            const nz = (dz / dist) * force;
 
-          neurons[i].position.x += nx;
-          neurons[i].position.y += ny;
-          neurons[i].position.z += nz;
-          neurons[j].position.x -= nx;
-          neurons[j].position.y -= ny;
-          neurons[j].position.z -= nz;
+            neurons[i].position.x += nx;
+            neurons[i].position.y += ny;
+            neurons[i].position.z += nz;
+            neurons[j].position.x -= nx;
+            neurons[j].position.y -= ny;
+            neurons[j].position.z -= nz;
+          }
         }
       }
+      neuroRepulsionPasses++;
     }
   }
 
@@ -2124,12 +2155,13 @@ function animateNeurograph() {
   //   ...
   // }
   //
-  //   // Update synapse pulsation
-  if (synapses.length > 0 && isNeurographLoaded) {
+  //   // Update synapse pulsation (only when lines exist)
+  if (NEUROGRAPH_DRAW_SYNAPSES && synapses.length > 0 && isNeurographLoaded && (neurographAnimFrame % 2 === 0)) {
     const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
-    synapses.forEach((synapse, idx) => {
-      synapse.material.opacity = 0.3 + 0.3 * pulse;
-    });
+    const opacity = 0.3 + 0.3 * pulse;
+    for (let s = 0; s < synapses.length; s++) {
+      synapses[s].material.opacity = opacity;
+    }
   }
 
   // Smooth hover: ease scale + material (avoids abrupt pop)
@@ -2181,6 +2213,7 @@ function onNeurographWindowResize() {
   if (neurographCamera && neurographRenderer) {
     neurographCamera.aspect = window.innerWidth / window.innerHeight;
     neurographCamera.updateProjectionMatrix();
+    neurographRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, NEURO_MAX_PIXEL_RATIO));
     neurographRenderer.setSize(window.innerWidth, window.innerHeight);
   }
 }
@@ -2216,7 +2249,7 @@ function setupNeurographHover() {
     }
   });
 
-  // Mouse move handler for neurograph
+  // Document-level move so hover clears when cursor is over UI above the canvas (canvas-only listeners miss those moves)
   document.addEventListener('mousemove', (e) => {
     if (!neurographScene) return;
     if (neurographFocusTarget) {return;}
@@ -2475,6 +2508,8 @@ function createNeurograph(data) {
   synapses.forEach(synapse => neurographScene.remove(synapse));
   neurons = [];
   synapses = [];
+  neuroRepulsionPasses = 0;
+  neurographAnimFrame = 0;
   neuroHoverHighlightedMesh = null;
   neuroHoverDesiredMesh = null;
   neuroHoverAnimMesh = null;
@@ -2649,73 +2684,66 @@ function createNeurograph(data) {
     neurons.push(neuron);
   });
 
-  // Create connection lines (synapses) - straight lines between nodes
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: 0x00bfff,
-    transparent: true,
-    opacity: 0.8,
-    linewidth: 2 // Thicker lines for better visibility
-  });
+  if (NEUROGRAPH_DRAW_SYNAPSES) {
+    // Create connection lines (synapses) - straight lines between nodes
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: 0x00bfff,
+      transparent: true,
+      opacity: 0.8,
+      linewidth: 2 // Thicker lines for better visibility
+    });
 
-  // Create a map of node IDs to neuron indices for quick lookup
-  const nodeMap = {};
-  neurons.forEach((neuron, idx) => {
-    nodeMap[neuron.userData.id] = neuron;
-  });
+    const nodeMap = {};
+    neurons.forEach((neuron) => {
+      nodeMap[neuron.userData.id] = neuron;
+    });
 
-  console.log(`[Neurograph] Creating ${connections.length} connections from ${neurons.length} neurons`);
+    console.log(`[Neurograph] Creating ${connections.length} connections from ${neurons.length} neurons`);
 
-  // Debug: show first 5 connections with their weights
-  // Commented out - removed for clarity
+    connections.forEach(conn => {
+      const sourceId = conn.source || conn.from;
+      const targetId = conn.target || conn.to;
 
-  connections.forEach(conn => {
-    // Support both source/target (string IDs) and from/to (indices)
-    const sourceId = conn.source || conn.from;
-    const targetId = conn.target || conn.to;
-    
-    // Skip connections with empty source or target
-    if (!sourceId || !targetId) {
-      console.warn(`[Neurograph] Skipping connection with empty source/target`);
-      return;
-    }
-    
-    // Use the nodeMap to find neurons by ID
-    const sourceNode = nodeMap[sourceId];
-    const targetNode = nodeMap[targetId];
-
-    if (sourceNode && targetNode) {
-      // Verify source and target are different nodes
-      if (sourceNode === targetNode) {
+      if (!sourceId || !targetId) {
+        console.warn(`[Neurograph] Skipping connection with empty source/target`);
         return;
       }
 
-      // Get weight for line thickness/opacity (0-100 scale)
-      const weight = conn.weight || conn.strength || 1;
-      const opacity = 0.3 + 0.3 * (weight / 100);
+      const sourceNode = nodeMap[sourceId];
+      const targetNode = nodeMap[targetId];
 
-      // Straight line between source and target nodes (synapse = connection)
-      const points = [
-        sourceNode.userData.position.clone(),
-        targetNode.userData.position.clone()
-      ];
+      if (sourceNode && targetNode) {
+        if (sourceNode === targetNode) {
+          return;
+        }
 
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(geometry, lineMaterial.clone());
+        const weight = conn.weight || conn.strength || 1;
 
-      line.userData = {
-        source: sourceId,
-        target: targetId,
-        weight: weight,
-        type: conn.type || 'connection',
-        label: conn.label || `Link ${sourceId} -> ${targetId}`
-      };
+        const points = [
+          sourceNode.userData.position.clone(),
+          targetNode.userData.position.clone()
+        ];
 
-      neurographScene.add(line);
-      synapses.push(line);
-    } else {
-      console.warn(`[Neurograph] Connection failed: source=${sourceId}, target=${targetId} - not found in nodeMap`);
-    }
-  });
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const line = new THREE.Line(geometry, lineMaterial.clone());
+
+        line.userData = {
+          source: sourceId,
+          target: targetId,
+          weight: weight,
+          type: conn.type || 'connection',
+          label: conn.label || `Link ${sourceId} -> ${targetId}`
+        };
+
+        neurographScene.add(line);
+        synapses.push(line);
+      } else {
+        console.warn(`[Neurograph] Connection failed: source=${sourceId}, target=${targetId} - not found in nodeMap`);
+      }
+    });
+  } else {
+    console.log(`[Neurograph] Synapse lines skipped (NEUROGRAPH_DRAW_SYNAPSES=false); ${connections.length} connections not drawn`);
+  }
 
   // Node labels removed - causing "weird bubbles" effect with 9549 nodes
   // The neurograph is now clean with just nodes and connections
@@ -2762,34 +2790,35 @@ function createFallbackNeurograph() {
     }
   }
 
-  // Create connection lines
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: 0x00bfff,
-    transparent: true,
-    opacity: 0.5
-  });
+  if (NEUROGRAPH_DRAW_SYNAPSES) {
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: 0x00bfff,
+      transparent: true,
+      opacity: 0.5
+    });
 
-  connections.forEach(conn => {
-    const sourceNode = neurons[conn.from];
-    const targetNode = neurons[conn.to];
+    connections.forEach(conn => {
+      const sourceNode = neurons[conn.from];
+      const targetNode = neurons[conn.to];
 
-    if (sourceNode && targetNode) {
-      const points = [
-        sourceNode.position,
-        new THREE.Vector3(
-          (sourceNode.position.x + targetNode.position.x) / 2,
-          (Math.random() - 0.5) * 10,
-          (sourceNode.position.z + targetNode.position.z) / 2
-        ),
-        targetNode.position
-      ];
+      if (sourceNode && targetNode) {
+        const points = [
+          sourceNode.position,
+          new THREE.Vector3(
+            (sourceNode.position.x + targetNode.position.x) / 2,
+            (Math.random() - 0.5) * 10,
+            (sourceNode.position.z + targetNode.position.z) / 2
+          ),
+          targetNode.position
+        ];
 
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(geometry, lineMaterial.clone());
-      synapses.push(line);
-      neurographScene.add(line);
-    }
-  });
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const line = new THREE.Line(geometry, lineMaterial.clone());
+        synapses.push(line);
+        neurographScene.add(line);
+      }
+    });
+  }
 
   console.log('[Neurograph] Fallback neurograph created:', nodeCount, 'nodes');
 }
@@ -2799,7 +2828,7 @@ function createFallbackNeurograph() {
 
 // Create starfield background
 function createStarfield() {
-  const starCount = 500;
+  const starCount = 280;
   const starGeometry = new THREE.BufferGeometry();
   const starPositions = [];
 
