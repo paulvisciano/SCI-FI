@@ -2230,6 +2230,16 @@ function animateNeurograph() {
   // }
   //
   //   // Update synapse pulsation (only when lines exist)
+  if (neurons.length > 0 && isNeurographLoaded) {
+    const temporalPulse = 0.56 + 0.24 * Math.sin(Date.now() * 0.0024);
+    for (let i = 0; i < neurons.length; i++) {
+      const neuron = neurons[i];
+      if (neuron.userData && neuron.userData.isTemporal && neuron.material) {
+        neuron.material.emissiveIntensity = temporalPulse;
+      }
+    }
+  }
+
   if (NEUROGRAPH_DRAW_SYNAPSES && synapses.length > 0 && isNeurographLoaded && (neurographAnimFrame % 2 === 0)) {
     const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
     const opacity = 0.3 + 0.3 * pulse;
@@ -2721,6 +2731,14 @@ function createNeurograph(data) {
 
     const geometry = new THREE.SphereGeometry(baseRadius, 32, 32);
     const neuron = new THREE.Mesh(geometry, nodeMaterial.clone());
+
+    if (isTemporal) {
+      // Temporal nodes use a warmer accent and stronger emission so they stand out.
+      neuron.material.color.setHex(0xffa347);
+      neuron.material.emissive.setHex(0xff7a00);
+      neuron.material.emissiveIntensity = 0.72;
+      neuron.scale.setScalar(1.14);
+    }
 
     // Position nodes in molecule-like structure:
     // - Theme node at center (0, 0, 0)
