@@ -1221,6 +1221,28 @@
             font-size: 0.65rem;
         }
 
+        /* Preview Mode Badge - visible only on preview server (port 18788) */
+        .preview-badge {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.85em;
+            z-index: 9999;
+            box-shadow: 0 2px 12px rgba(255, 107, 53, 0.4);
+            pointer-events: none;
+            animation: pulse-badge 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-badge {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.9; transform: scale(1.02); }
+        }
+
         .title-row {
             display: flex;
             align-items: baseline;
@@ -1866,6 +1888,9 @@
             <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
             <span id="server-version-text" style="font-size: 0.72em; color: #64ffda; opacity: 0.8; margin-left: 8px;">(loading...)</span>
         </div>
+        
+        <!-- Preview Mode Badge - only visible when preview server (port 18788) -->
+        <div id="preview-badge" class="preview-badge" title="PREVIEW MODE - Not production"></div>
     </div>
 
     <div class="container">

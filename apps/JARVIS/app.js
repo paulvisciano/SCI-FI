@@ -640,15 +640,49 @@ window.addEventListener('beforeunload', () => {
   clearInterval(serverStatusInterval);
 });
 
+// Detect preview mode (port 18788)
+const IS_PREVIEW = window.location.port === '18788' || 
+                   new URLSearchParams(window.location.search).get('preview') === 'true';
+
+// Set page title for preview mode
+if (IS_PREVIEW) {
+  const originalTitle = document.title;
+  if (!originalTitle.includes('[PREVIEW]')) {
+    document.title = `[PREVIEW] ${originalTitle}`;
+  }
+  console.log('[UI] Running in PREVIEW MODE (port 18788)');
+}
+
 // Wait for DOM to be ready before first check
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     console.log('[UI] DOMContentLoaded - calling checkServerStatus');
     checkServerStatus();
+    
+    // Show preview badge if in preview mode
+    if (IS_PREVIEW) {
+      const previewBadge = document.getElementById('preview-badge');
+      if (previewBadge) {
+        previewBadge.textContent = 'PREVIEW';
+        previewBadge.style.display = 'block';
+        console.log('[UI] Preview badge displayed');
+      }
+    }
   });
 } else {
   console.log('[UI] DOM already ready - calling checkServerStatus');
   checkServerStatus();
+  
+  // Show preview badge if in preview mode
+  if (IS_PREVIEW) {
+    const previewBadge = document.getElementById('preview-badge');
+    if (previewBadge) {
+      previewBadge.textContent = 'PREVIEW';
+      previewBadge.style.display = 'block';
+      console.log('[UI] Preview badge displayed (DOM already ready)');
+    }
+  }
+}
 }
 
 // === Network Dots Integration (with Device Identity) ===
