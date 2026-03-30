@@ -683,7 +683,6 @@ if (document.readyState === 'loading') {
     }
   }
 }
-}
 
 // === Network Dots Integration (with Device Identity) ===
 (function() {
