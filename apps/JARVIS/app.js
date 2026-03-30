@@ -641,8 +641,17 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Detect preview mode (port 18788)
-const IS_PREVIEW = window.location.port === '18788' || 
+const currentPort = window.location.port || '80';
+const IS_PREVIEW = currentPort === '18788' || 
                    new URLSearchParams(window.location.search).get('preview') === 'true';
+
+console.log('[UI] Port detection:', { 
+  currentPort, 
+  locationPort: window.location.port, 
+  locationHost: window.location.host, 
+  isPreview: IS_PREVIEW,
+  searchParams: Object.fromEntries(new URLSearchParams(window.location.search))
+});
 
 // Set page title for preview mode
 if (IS_PREVIEW) {
