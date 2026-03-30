@@ -100,8 +100,8 @@ function positionTranscriptBubble() {
   if (!tr || !orb || tr.classList.contains('fullscreen')) {return;}
   const r = orb.getBoundingClientRect();
   if (r.width < 4 || r.height < 4) {return;}
-  const gapH = 5;
-  const gapV = 4;
+  const gapH = 0;
+  const gapV = 2;
   let left = r.right + gapH;
   const bottom = window.innerHeight - r.top + gapV;
   tr.style.left = `${Math.round(left)}px`;

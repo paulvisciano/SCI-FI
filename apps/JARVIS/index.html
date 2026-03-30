@@ -1495,6 +1495,18 @@
                 -2px 10px 24px rgba(0, 180, 255, 0.06);
         }
 
+        /* Timestamp in bottom-right corner (moved from header) */
+        #transcript .transcript-time {
+            position: absolute;
+            bottom: 6px;
+            right: 12px;
+            font-size: 0.75em;
+            color: #6a8a90;
+            font-weight: 400;
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
         /* Speech bubble arrow pointing toward orb (bottom-left corner) */
         #transcript::before {
             content: "";
@@ -1562,7 +1574,7 @@
             min-width: 30px;
             min-height: 30px;
         }
-        
+
         .transcript-expand-btn:hover {
             background: rgba(0, 255, 255, 0.16);
             border-color: rgba(0, 255, 255, 0.4);
@@ -1570,7 +1582,7 @@
             box-shadow: 0 0 8px rgba(0, 200, 255, 0.2);
             transform: scale(1.05);
         }
-        
+
         .transcript-expand-btn.expanded {
             background: rgba(0, 255, 255, 0.22);
             border-color: rgba(0, 255, 255, 0.55);
@@ -2079,14 +2091,15 @@
         <div class="label transcript-header">
             <span>Live Transcription</span>
             <div style="display: flex; align-items: center; gap: 12px;">
-                <span id="transcript-time" style="font-size: 1.05em; color: #00ffff; opacity: 0.95; font-weight: 700;"></span>
                 <span class="path-icon" onclick="toggleTranscriptPath()" title="Show archive path">📁</span>
                 <button class="transcript-expand-btn" onclick="toggleTranscriptFullscreen()" title="Expand to fullscreen">⛶ Expand</button>
             </div>
         </div>
         <div id="transcript-text" style="margin-top: 20px; margin-bottom:15px;"></div>
         <div id="transcript-path" style="font-family: monospace; font-size: 0.75em; color: #00ff88; display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0, 255, 255, 0.2); word-break: break-all;"></div>
-
+        
+        <span id="transcript-time" class="transcript-time"></span>
+        
         <!-- TTS Audio Player - for Jarvis's voice responses -->
         <audio id="jarvis-tts-player" style="display: none;" preload="auto" playsinline></audio>
 
