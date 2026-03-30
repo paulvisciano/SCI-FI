@@ -100,8 +100,9 @@ function positionTranscriptBubble() {
   if (!tr || !orb || tr.classList.contains('fullscreen')) {return;}
   const r = orb.getBoundingClientRect();
   if (r.width < 4 || r.height < 4) {return;}
-  const gapH = 0;
-  const gapV = 2;
+  // Close positioning: transcript feels like it's emerging from the orb
+  const gapH = -2;  // Slight overlap (negative = bubble extends over orb)
+  const gapV = -2;  // Slight overlap
   let left = r.right + gapH;
   const bottom = window.innerHeight - r.top + gapV;
   tr.style.left = `${Math.round(left)}px`;
