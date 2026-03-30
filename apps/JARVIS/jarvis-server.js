@@ -3,7 +3,9 @@
 // Portable: No hardcoded paths, configurable via environment variables
 
 // Set process name for Activity Monitor
-process.title = 'JARVIS';
+// Production: JARVIS-production (port 18787)
+// Preview: JARVIS-preview (port 18788)
+process.title = process.env.JARVIS_PREVIEW === 'true' ? 'JARVIS-preview' : 'JARVIS-production';
 
 const https = require('https');
 const http = require('http');
