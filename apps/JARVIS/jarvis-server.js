@@ -1228,12 +1228,9 @@ function handleRequest(req, res) {
 
       // Scoped request but not ready yet: report status for this file only
       if (recordingBase) {
+        const DEBUG_TRANSCRIPT = process.env.TRANSCRIPT_DEBUG === 'true';
         const wavBase = recordingBase + '.wav';
         const txtName = wavBase + '.txt';
-                
-        // Check both liveDir and archiveDir (files are archived immediately after transcription)
-        const today = new Date().toISOString().split('T')[0];
-        const archiveDir = path.join(CONFIG.archiveBase, today, 'audio');
                 
         const hasWavLive = fs.existsSync(path.join(CONFIG.liveDir, wavBase));
         const hasTxtLive = fs.existsSync(path.join(CONFIG.liveDir, txtName));
@@ -1252,44 +1249,45 @@ function handleRequest(req, res) {
         if (hasTxtLive) {
           const transcriptPath = path.join(CONFIG.liveDir, txtName);
           const transcript = fs.readFileSync(transcriptPath, 'utf8').trim();
+          if (DEBUG_TRANSCRIPT) {
+            console.log('[TranscriptLatest] scoped liveTxt', {
+              recordingBase,
+              file: fileParam,
+              hasWavLive,
+              hasTxtLive,
+              at: new Date().toISOString()
+            });
+          }
           res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
           res.end(JSON.stringify({ status: 'processing', transcript, message: 'Agent thinking...', file: fileParam }));
           return;
         }
-                
-        // File not in liveDir - check archive for most recent transcript (upload filename doesn't match archive filename)
-        if (fs.existsSync(archiveDir)) {
-          const archiveFiles = fs.readdirSync(archiveDir)
-            .filter(f => f.endsWith('.wav.txt'))
-            .map(f => {
-              const fullPath = path.join(archiveDir, f);
-              return { name: f, mtimeMs: fs.statSync(fullPath).mtimeMs, path: fullPath };
-            })
-            .sort((a, b) => b.mtimeMs - a.mtimeMs);
-                    
-          if (archiveFiles.length > 0) {
-            const latestArchived = archiveFiles[0];
-            const transcript = fs.readFileSync(latestArchived.path, 'utf8').trim();
-            const responsePath = latestArchived.path.replace('.wav.txt', '.response.txt');
-            let jarvisResponse = null;
-            if (fs.existsSync(responsePath)) {
-              jarvisResponse = fs.readFileSync(responsePath, 'utf8').trim();
-            }
-            res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-            res.end(JSON.stringify({ 
-              status: jarvisResponse ? 'done' : 'processing', 
-              transcript, 
-              jarvisResponse,
-              file: latestArchived.name 
-            }));
-            return;
-          }
-        }
-                
+
+        // If the transcript isn't in live/ yet, DO NOT fall back to unrelated archive transcripts.
+        // Scoped polling is keyed to `?file=<uploadFilename>`, so returning "latest archive by mtime"
+        // would often show the previous recording's transcript.
         if (hasWavLive) {
+          if (DEBUG_TRANSCRIPT) {
+            console.log('[TranscriptLatest] scoped waiting liveWav', {
+              recordingBase,
+              file: fileParam,
+              hasWavLive,
+              hasTxtLive,
+              at: new Date().toISOString()
+            });
+          }
           res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
           res.end(JSON.stringify({ status: 'transcribing', message: 'Transcription in progress...', file: fileParam }));
           return;
+        }
+        if (DEBUG_TRANSCRIPT) {
+          console.log('[TranscriptLatest] scoped waiting file', {
+            recordingBase,
+            file: fileParam,
+            hasWavLive,
+            hasTxtLive,
+            at: new Date().toISOString()
+          });
         }
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ status: 'transcribing', message: 'Waiting for file...', file: fileParam }));

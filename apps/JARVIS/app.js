@@ -7,6 +7,9 @@ let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
 let agentWaitStart = null;
+// Poll session guard to prevent overlapping polling from overwriting the UI
+let activePollId = 0;
+let activePollInterval = null;
 
 // Fade server status after 3 seconds, reappear on hover
 let fadeTimer;
@@ -35,6 +38,23 @@ function setupServerStatusFade() {
       if (DEBUG) {console.log('[UI] Server status faded out (status leave)');}
     }, 2000);
   });
+}
+
+function cancelActivePolling() {
+  // Invalidate any in-flight poll callbacks immediately.
+  activePollId++;
+
+  if (activePollInterval) {
+    clearInterval(activePollInterval);
+    activePollInterval = null;
+  }
+
+  // Clear any "agent thinking..." timer tied to poll updates.
+  if (thinkingTimer) {
+    clearInterval(thinkingTimer);
+    thinkingTimer = null;
+  }
+  agentWaitStart = null;
 }
 
 function toggleTranscriptPath() {
@@ -235,13 +255,7 @@ async function startRecording() {
     } catch (clearErr) {
       console.log('[startRecording] Clear endpoint not available, continuing...');
     }
-
-    // Clear thinking timer if active
-    if (thinkingTimer) {
-      clearInterval(thinkingTimer);
-      thinkingTimer = null;
-    }
-    agentWaitStart = null;
+    cancelActivePolling();
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -431,6 +445,17 @@ const MAX_POLL_ATTEMPTS = 180; // 3 min - whisper + agent can be slow
 
 async function pollForTranscript(uploadFilename) {
   let attempts = 0;
+  const pollId = ++activePollId;
+  if (activePollInterval) {
+    clearInterval(activePollInterval);
+    activePollInterval = null;
+  }
+  // Ensure no leftover "agent thinking..." timer from a previous poll session.
+  if (thinkingTimer) {
+    clearInterval(thinkingTimer);
+    thinkingTimer = null;
+  }
+  agentWaitStart = null;
   const fileParam = uploadFilename ? '?file=' + encodeURIComponent(uploadFilename) : '';
 
   // Clear transcript at start of new polling session (fix race condition: old transcript from previous recording was kept)
@@ -446,12 +471,23 @@ async function pollForTranscript(uploadFilename) {
   };
 
   const pollInterval = setInterval(async () => {
+    // Stop immediately if a newer poll session has started.
+    if (pollId !== activePollId) {
+      clearInterval(pollInterval);
+      return;
+    }
+
     attempts++;
 
     try {
       const response = await fetch(`${API_BASE}/transcript/latest${fileParam}`);
       if (response.ok) {
         const data = await response.json();
+
+        // Ignore any responses that arrived after a newer poll started.
+        if (pollId !== activePollId) {
+          return;
+        }
 
         if (data.status === 'transcribing') {
           clearThinkingTimer();
@@ -476,6 +512,7 @@ async function pollForTranscript(uploadFilename) {
 
           if (data.jarvisResponse) {
             clearInterval(pollInterval);
+            if (activePollInterval === pollInterval) activePollInterval = null;
             clearThinkingTimer();
             transcript.classList.remove('pulsate');
             status.textContent = '✅ Complete';
@@ -488,6 +525,7 @@ async function pollForTranscript(uploadFilename) {
           } else {
             // Agent didn't return a response (failed or empty) - stop polling and show message
             clearInterval(pollInterval);
+            if (activePollInterval === pollInterval) activePollInterval = null;
             clearThinkingTimer();
             transcript.classList.remove('pulsate');
             status.textContent = '⚠️ No response';
@@ -497,6 +535,7 @@ async function pollForTranscript(uploadFilename) {
           }
         } else if (data.status === 'error') {
           clearInterval(pollInterval);
+          if (activePollInterval === pollInterval) activePollInterval = null;
           clearThinkingTimer();
           transcript.classList.remove('pulsate');
           transcriptText.innerHTML = '<span style="color: #ff4444;">❌ ' + data.error + '</span>';
@@ -511,6 +550,7 @@ async function pollForTranscript(uploadFilename) {
             transcriptText.textContent = '-';
           }
           clearInterval(pollInterval);
+          if (activePollInterval === pollInterval) activePollInterval = null;
           clearThinkingTimer();
           transcript.classList.remove('pulsate');
           status.textContent = '✅ Complete';
@@ -524,6 +564,7 @@ async function pollForTranscript(uploadFilename) {
         }
       }
     } catch (err) {
+      if (pollId !== activePollId) return;
       console.error('Poll error:', err);
       if (attempts === 1) {
         transcriptText.innerHTML = '<span style="color: #00ffff;">⏳ Processing...</span>';
@@ -532,12 +573,15 @@ async function pollForTranscript(uploadFilename) {
 
     if (attempts >= MAX_POLL_ATTEMPTS) {
       clearInterval(pollInterval);
+      if (activePollInterval === pollInterval) activePollInterval = null;
       clearThinkingTimer();
       transcript.classList.remove('pulsate');
       transcriptText.innerHTML = '<span style="color: #ff8800;">⏱️ Timeout - no transcript received</span>';
       status.textContent = 'Timeout';
     }
   }, POLL_INTERVAL_MS);
+
+  activePollInterval = pollInterval;
 }
 
 // Keyboard shortcut (Space to record)
