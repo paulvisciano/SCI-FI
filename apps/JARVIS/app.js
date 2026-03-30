@@ -2035,6 +2035,7 @@ function clearNeurographNodeFocus() {
   if (neurographControls) {
     neurographControls.enabled = true;
   }
+  // Do not move camera or orbit target — user stays in the same view (first-person continuity)
   labelDiv.style.display = 'none';
   labelDiv.style.zIndex = '1000';
   hoveredNode = null;
@@ -2247,6 +2248,15 @@ function setupNeurographHover() {
     if (e.key === 'Escape' && neurographFocusTarget) {
       clearNeurographNodeFocus();
     }
+  });
+
+  // Click outside the info panel (e.g. dock, transcript) clears focus; canvas clicks use raycast below
+  document.addEventListener('click', (e) => {
+    if (!neurographFocusTarget) {return;}
+    if (labelDiv.contains(e.target)) {return;}
+    const canvasEl = neurographRenderer && neurographRenderer.domElement;
+    if (canvasEl && canvasEl.contains(e.target)) {return;}
+    clearNeurographNodeFocus();
   });
 
   // Document-level move so hover clears when cursor is over UI above the canvas (canvas-only listeners miss those moves)
