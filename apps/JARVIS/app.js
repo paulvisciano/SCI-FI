@@ -12,61 +12,11 @@ let activePollId = 0;
 let activePollInterval = null;
 
 // Auto-open state
-let autoOpenEnabled = false;
-let autoOpenTriggered = false;
 
 /**
  * Open the Jarvis UI in a new tab
  * Uses window.open() which works because it's triggered by user gesture (sending message)
  */
-function triggerAutoOpen() {
-  if (!autoOpenEnabled || autoOpenTriggered) {
-    return;
-  }
-  
-  autoOpenTriggered = true;
-  console.log('[AutoOpen] Triggering browser open to https://localhost:18787/');
-  
-  // Show a brief notification
-  const notification = document.createElement('div');
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(0, 255, 0, 0.9);
-    color: black;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    z-index: 10000;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  `;
-  notification.textContent = '🌐 Auto-open triggered - opening UI...';
-  document.body.appendChild(notification);
-  
-  // Remove notification after 2 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      document.body.removeChild(notification);
-    }
-  }, 2000);
-  
-  // Try to open the UI
-  const newWindow = window.open('https://localhost:18787/', '_blank');
-  
-  if (newWindow) {
-    console.log('[AutoOpen] Browser open succeeded');
-    // Focus the new window
-    newWindow.focus();
-  } else {
-    console.warn('[AutoOpen] Browser open failed - popup blocker may be active');
-    // Show a toast notification if showToast is available
-    if (typeof showToast === 'function') {
-      showToast('Browser blocked auto-open. Please enable popups for localhost:18787', 'warn');
-    }
-  }
-}
-
 // Fade server status after 3 seconds, reappear on hover
 let fadeTimer;
 function setupServerStatusFade() {
@@ -920,6 +870,12 @@ function updateOrbVersion() {
   if (orbVersionEl) {
     orbVersionEl.textContent = `v${CLIENT_VERSION}`;
   }
+  
+  // Also update the main UI title (client-version-inline span)
+  const clientVersionEl = document.getElementById('client-version-inline');
+  if (clientVersionEl) {
+    clientVersionEl.textContent = `v${CLIENT_VERSION}`;
+  }
 }
 
 // Setup TTS toggle button
@@ -1432,7 +1388,6 @@ if (document.readyState === 'loading') {
   // Modal references
   const settingsModal = document.getElementById('settings-modal');
   const desktopArchivingToggle = document.getElementById('desktop-archiving-toggle');
-  const autoOpenToggle = document.getElementById('auto-open-toggle');
 
   // Load settings from OpenClaw config
   async function loadSettings() {
@@ -1443,16 +1398,6 @@ if (document.readyState === 'loading') {
       if (desktopArchivingToggle) {
         desktopArchivingToggle.checked = data.desktopArchiving?.enabled === true;
       }
-      
-      if (autoOpenToggle) {
-        autoOpenToggle.checked = data.autoOpen === true;
-      }
-      
-      // Load autoOpen setting
-      if (data.autoOpen !== undefined) {
-        autoOpenEnabled = data.autoOpen;
-        console.log('[AutoOpen] Config loaded: autoOpen =', autoOpenEnabled);
-      }
     } catch (err) {
       console.error('Failed to load settings:', err);
     }
@@ -1461,27 +1406,18 @@ if (document.readyState === 'loading') {
   // Save settings to OpenClaw config
   async function saveSettings() {
     const enabled = desktopArchivingToggle?.checked ?? false;
-    const newAutoOpen = autoOpenToggle?.checked ?? autoOpenEnabled;
-
     try {
       const response = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          desktopArchiving: { enabled },
-          autoOpen: newAutoOpen
+          desktopArchiving: { enabled }
         })
       });
-
       const data = await response.json();
 
       if (data.success) {
-        // Update local state
-        autoOpenEnabled = newAutoOpen;
-        
-        // Show toast notification
-        const autoOpenMsg = newAutoOpen ? ' (auto-open enabled)' : ' (auto-open disabled)';
-        showToast(`Desktop archiving ${enabled ? 'enabled' : 'disabled'}${autoOpenMsg}`);
+        showToast(`Desktop archiving ${enabled ? 'enabled' : 'disabled'}`);
         closeSettingsModal();
       } else {
         showToast('Error saving settings', 'error');
@@ -1989,11 +1925,6 @@ if (document.readyState === 'loading') {
     }
     
     console.log(`[TextInput] Sending message: ${message.substring(0, 50)}...`);
-    
-    // Auto-open: trigger browser open on first conversational message if enabled
-    if (autoOpenEnabled && !autoOpenTriggered) {
-      triggerAutoOpen();
-    }
     
     // Show loading state
     if (jarvisSendBtn) {
