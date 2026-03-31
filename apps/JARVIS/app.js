@@ -2274,6 +2274,36 @@ function getNeuroInfoPanel() {
   return neuroInfoPanel;
 }
 
+function updateNeuroInfoPanelPosition(node, panel = neuroInfoPanel) {
+  if (!node || !panel || !neurographCamera || !neurographRenderer) {return;}
+  const rect = neurographRenderer.domElement.getBoundingClientRect();
+  const projected = node.position.clone().project(neurographCamera);
+
+  // Skip positioning when node is behind camera.
+  if (projected.z > 1) {return;}
+
+  const nodeX = rect.left + (projected.x * 0.5 + 0.5) * rect.width;
+  const nodeY = rect.top + (-(projected.y * 0.5) + 0.5) * rect.height;
+
+  // First pass for measurements before final clamping.
+  const offsetX = 16;
+  const offsetY = 16;
+  panel.style.left = `${Math.round(nodeX + offsetX)}px`;
+  panel.style.top = `${Math.round(nodeY - offsetY)}px`;
+
+  const panelRect = panel.getBoundingClientRect();
+  const margin = 10;
+  const minLeft = rect.left + margin;
+  const maxLeft = rect.right - panelRect.width - margin;
+  const minTop = rect.top + margin;
+  const maxTop = rect.bottom - panelRect.height - margin;
+
+  const clampedLeft = Math.max(minLeft, Math.min(panel.offsetLeft, maxLeft));
+  const clampedTop = Math.max(minTop, Math.min(panel.offsetTop, maxTop));
+  panel.style.left = `${Math.round(clampedLeft)}px`;
+  panel.style.top = `${Math.round(clampedTop)}px`;
+}
+
 // Clear the single info panel
 function clearNeuroInfoPanel() {
   if (neuroInfoPanel && neuroInfoPanel.parentNode) {
@@ -2492,7 +2522,10 @@ function focusNeurographNode(neuron) {
   hoveredNode = neuron;
   setNeurographSphereFocusVisual(neuron, true);
   neuroFocusStyledMesh = neuron;
-  getNeuroInfoPanel().innerHTML = createNodeLabel(neuron.userData);
+  const panel = getNeuroInfoPanel();
+  panel.innerHTML = createNodeLabel(neuron.userData);
+  panel.style.opacity = '1';
+  updateNeuroInfoPanelPosition(neuron, panel);
   isPanelExpanded = true;
 }
 
@@ -2630,6 +2663,14 @@ function animateNeurograph() {
     }
   }
 
+  if (neuroInfoPanel && neuroInfoPanel.style.opacity === '1') {
+    if (neurographFocusTarget) {
+      updateNeuroInfoPanelPosition(neurographFocusTarget, neuroInfoPanel);
+    } else if (hoveredNode) {
+      updateNeuroInfoPanelPosition(hoveredNode, neuroInfoPanel);
+    }
+  }
+
   neurographRenderer.render(neurographScene, neurographCamera);
 }
 
@@ -2721,6 +2762,7 @@ function setupNeurographHover() {
           const nodeData = hoveredNode.userData;
           panel.innerHTML = createCollapsedNodeLabel(nodeData);
           panel.style.opacity = '1';
+          updateNeuroInfoPanelPosition(hoveredNode, panel);
           isPanelExpanded = false;
         }
       }
