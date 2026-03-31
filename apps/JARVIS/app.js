@@ -2711,15 +2711,16 @@ function setupNeurographHover() {
       applyNeurographHoverVisual(intersected);
       if (intersected !== hoveredNode) {
         // New node hovered - show collapsed panel
-        if (hoveredNode && neuroInfoPanel) {
-          neuroInfoPanel.style.opacity = '0';
-        }
-        hoveredNode = intersected;
-        // Show collapsed panel with minimal content
-        const nodeData = hoveredNode.userData;
-        if (neuroInfoPanel) {
-          neuroInfoPanel.innerHTML = createCollapsedNodeLabel(nodeData);
-          neuroInfoPanel.style.opacity = '1';
+        const panel = getNeuroInfoPanel();  // Create panel if it doesn't exist
+        if (panel) {
+          if (hoveredNode) {
+            panel.style.opacity = '0';
+          }
+          hoveredNode = intersected;
+          // Show collapsed panel with minimal content
+          const nodeData = hoveredNode.userData;
+          panel.innerHTML = createCollapsedNodeLabel(nodeData);
+          panel.style.opacity = '1';
           isPanelExpanded = false;
         }
       }
