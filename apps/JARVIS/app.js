@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.1.3';
-const CLIENT_BUILD_DATE = '2026-03-29';
+const CLIENT_VERSION = '3.1.5';
+const CLIENT_BUILD_DATE = '2026-03-31';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
@@ -10,6 +10,62 @@ let agentWaitStart = null;
 // Poll session guard to prevent overlapping polling from overwriting the UI
 let activePollId = 0;
 let activePollInterval = null;
+
+// Auto-open state
+let autoOpenEnabled = false;
+let autoOpenTriggered = false;
+
+/**
+ * Open the Jarvis UI in a new tab
+ * Uses window.open() which works because it's triggered by user gesture (sending message)
+ */
+function triggerAutoOpen() {
+  if (!autoOpenEnabled || autoOpenTriggered) {
+    return;
+  }
+  
+  autoOpenTriggered = true;
+  console.log('[AutoOpen] Triggering browser open to https://localhost:18787/');
+  
+  // Show a brief notification
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 255, 0, 0.9);
+    color: black;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  `;
+  notification.textContent = '🌐 Auto-open triggered - opening UI...';
+  document.body.appendChild(notification);
+  
+  // Remove notification after 2 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      document.body.removeChild(notification);
+    }
+  }, 2000);
+  
+  // Try to open the UI
+  const newWindow = window.open('https://localhost:18787/', '_blank');
+  
+  if (newWindow) {
+    console.log('[AutoOpen] Browser open succeeded');
+    // Focus the new window
+    newWindow.focus();
+  } else {
+    console.warn('[AutoOpen] Browser open failed - popup blocker may be active');
+    // Show a toast notification if showToast is available
+    if (typeof showToast === 'function') {
+      showToast('Browser blocked auto-open. Please enable popups for localhost:18787', 'warn');
+    }
+  }
+}
 
 // Fade server status after 3 seconds, reappear on hover
 let fadeTimer;
@@ -439,6 +495,178 @@ function formatResponseText(text) {
     .replace(/\n/g, '<br>');
 }
 
+// === TTS Audio Playback Functions ===
+// TTS audio player element
+let ttsAudioPlayer = null;
+
+// Initialize TTS audio player
+function initTtsPlayer() {
+  if (ttsAudioPlayer) return;
+  
+  // Get the audio element from the DOM
+  const audioEl = document.getElementById('jarvis-tts-player');
+  if (audioEl) {
+    ttsAudioPlayer = audioEl;
+    console.log('[TTS] Audio player initialized');
+    console.log('[TTS] Audio element state:', { 
+      src: audioEl.src, 
+      readyState: audioEl.readyState,
+      paused: audioEl.paused,
+      preload: audioEl.preload
+    });
+    
+    // Add error handling
+    ttsAudioPlayer.addEventListener('error', (e) => {
+      console.error('[TTS] Audio playback error:', e);
+      console.error('[TTS] Error details:', { 
+        error: e.target.error, 
+        readyState: e.target.readyState,
+        networkState: e.target.networkState
+      });
+    });
+    
+    // Add ended event to show visual feedback
+    ttsAudioPlayer.addEventListener('ended', () => {
+      console.log('[TTS] Audio playback completed');
+    });
+    
+    // Add waiting event (buffering)
+    ttsAudioPlayer.addEventListener('waiting', () => {
+      console.log('[TTS] Audio waiting for data...');
+    });
+    
+    // Add canplay event
+    ttsAudioPlayer.addEventListener('canplay', () => {
+      console.log('[TTS] Audio ready to play');
+    });
+  } else {
+    console.warn('[TTS] Audio player element not found in DOM');
+  }
+}
+
+// Play TTS audio from filename
+function playTtsAudio(filename) {
+  if (!filename) return;
+  
+  console.log('[TTS] playTtsAudio called with filename:', filename);
+  
+  // Initialize if not already done
+  initTtsPlayer();
+  
+  if (!ttsAudioPlayer) {
+    console.warn('[TTS] Audio player not available after initTtsPlayer');
+    return;
+  }
+  
+  // Construct the audio URL
+  const audioUrl = `${API_BASE}/api/tts/${encodeURIComponent(filename)}`;
+  console.log('[TTS] Audio URL:', audioUrl);
+  console.log('[TTS] Calling playTtsAudio()...');
+  
+  // Log current state before changing src
+  console.log('[TTS] Audio element state BEFORE update:', { 
+    src: ttsAudioPlayer.src, 
+    readyState: ttsAudioPlayer.readyState,
+    paused: ttsAudioPlayer.paused,
+    networkState: ttsAudioPlayer.networkState
+  });
+  
+  // Set the source and play
+  ttsAudioPlayer.src = audioUrl;
+  ttsAudioPlayer.currentTime = 0;
+  
+  // Log state after setting src
+  console.log('[TTS] Audio element state AFTER src update:', { 
+    src: ttsAudioPlayer.src, 
+    readyState: ttsAudioPlayer.readyState,
+    paused: ttsAudioPlayer.paused
+  });
+  
+  // Add visual indicator that audio is playing
+  showAudioPlayingIndicator();
+  
+  // Play with error handling
+  ttsAudioPlayer.play()
+    .then(() => {
+      console.log('[TTS] Audio playback started successfully');
+      console.log('[TTS] Audio element state after play:', { 
+        readyState: ttsAudioPlayer.readyState,
+        paused: ttsAudioPlayer.paused,
+        currentTime: ttsAudioPlayer.currentTime,
+        duration: ttsAudioPlayer.duration
+      });
+    })
+    .catch((err) => {
+      console.error('[TTS] Audio playback failed:', err);
+      console.error('[TTS] Playback error details:', { 
+        name: err.name,
+        message: err.message,
+        readyState: ttsAudioPlayer.readyState
+      });
+      
+      // Check for autoplay policy error
+      if (err.name === 'NotAllowedError') {
+        console.warn('[TTS] Autoplay policy blocked playback - user interaction required');
+        console.warn('[TTS] TTS toggle may need to be enabled first');
+      }
+    });
+}
+
+// Show visual indicator that audio is playing
+function showAudioPlayingIndicator() {
+  // Create or update an indicator element
+  let indicator = document.getElementById('tts-playing-indicator');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'tts-playing-indicator';
+    indicator.className = 'tts-playing-indicator';
+    indicator.innerHTML = '<span>🔊 Playing</span>';
+    indicator.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 255, 0, 0.8);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: opacity 0.5s ease;
+    `;
+    document.body.appendChild(indicator);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      indicator.style.opacity = '0';
+      setTimeout(() => {
+        if (indicator.parentNode) {
+          document.body.removeChild(indicator);
+        }
+      }, 500);
+    }, 5000);
+  }
+}
+
+// Toggle TTS mute/unmute
+let isTtsMuted = false;
+function toggleTtsMute() {
+  isTtsMuted = !isTtsMuted;
+  
+  if (ttsAudioPlayer) {
+    ttsAudioPlayer.muted = isTtsMuted;
+  }
+  
+  console.log(`[TTS] Mute: ${isTtsMuted ? 'ON' : 'OFF'}`);
+  return isTtsMuted;
+}
+
+// Check if TTS is available
+function isTtsAvailable() {
+  return !!ttsAudioPlayer;
+}
+
 // Polling configuration constants
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_ATTEMPTS = 180; // 3 min - whisper + agent can be slow
@@ -489,6 +717,10 @@ async function pollForTranscript(uploadFilename) {
           return;
         }
 
+        // Log full poll response for debugging
+        console.log('[TTS] Poll response:', data);
+        console.log('[TTS] Poll response - status:', data.status);
+        
         if (data.status === 'transcribing') {
           clearThinkingTimer();
           transcript.classList.remove('pulsate');
@@ -508,9 +740,13 @@ async function pollForTranscript(uploadFilename) {
             }, 1000);
           }
         } else if (data.status === 'done' && data.transcript) {
-          transcriptText.textContent = data.transcript;
-
+          console.log('[TTS] Poll response - status: done, transcript available');
+          console.log('[TTS] Poll response - full data:', data);
+          
           if (data.jarvisResponse) {
+            console.log('[TTS] Audio filename detected:', data.audioFilename || 'none');
+            console.log('[TTS] Calling playTtsAudio()...');
+            
             clearInterval(pollInterval);
             if (activePollInterval === pollInterval) activePollInterval = null;
             clearThinkingTimer();
@@ -522,6 +758,14 @@ async function pollForTranscript(uploadFilename) {
             transcriptText.textContent = data.transcript;
             responseText.innerHTML = formatResponseText(data.jarvisResponse);
             jarvisResponse.style.display = 'block';
+            
+            // Play TTS audio if available
+            if (data.audioFilename) {
+              console.log('[TTS] Audio filename found:', data.audioFilename);
+              playTtsAudio(data.audioFilename);
+            } else {
+              console.log('[TTS] No audioFilename in response');
+            }
           } else {
             // Agent didn't return a response (failed or empty) - stop polling and show message
             clearInterval(pollInterval);
@@ -546,6 +790,10 @@ async function pollForTranscript(uploadFilename) {
           status.style.color = '#ff4444';
         } else if (data.status === 'done' && data.jarvisResponse && !data.transcript) {
           /* Server sent done + response but no transcript (edge case): still show response and clear "Transcribing..." */
+          console.log('[TTS] Poll response - status: done (no transcript), jarvisResponse present');
+          console.log('[TTS] Poll response - full data:', data);
+          console.log('[TTS] Audio filename detected:', data.audioFilename || 'none');
+          
           if (transcriptText.textContent === '' || transcriptText.innerHTML.includes('Transcribing') || transcriptText.innerHTML.includes('Processing')) {
             transcriptText.textContent = '-';
           }
@@ -557,6 +805,14 @@ async function pollForTranscript(uploadFilename) {
           status.style.color = '#00ff88';
           responseText.innerHTML = formatResponseText(data.jarvisResponse);
           jarvisResponse.style.display = 'block';
+          
+          // Play TTS audio if available
+          if (data.audioFilename) {
+            console.log('[TTS] Audio filename found (no transcript case):', data.audioFilename);
+            playTtsAudio(data.audioFilename);
+          } else {
+            console.log('[TTS] No audioFilename in response (no transcript case)');
+          }
         } else if (data.status === 'idle') {
           clearThinkingTimer();
           transcript.classList.remove('pulsate');
@@ -666,7 +922,20 @@ function updateOrbVersion() {
   }
 }
 
+// Setup TTS toggle button
+function setupTtsToggle() {
+  const ttsToggleBtn = document.getElementById('tts-toggle');
+  if (ttsToggleBtn) {
+    ttsToggleBtn.addEventListener('click', () => {
+      const isMuted = toggleTtsMute();
+      document.getElementById('tts-status').textContent = isMuted ? '🔇 TTS: OFF' : '🔊 TTS: ON';
+    });
+    console.log('[TTS] Toggle button setup complete');
+  }
+}
+
 updateOrbVersion();
+setupTtsToggle();
 
 // Server status check interval with cleanup on page unload
 console.log('[UI] Starting server status interval...');
@@ -1163,6 +1432,7 @@ if (document.readyState === 'loading') {
   // Modal references
   const settingsModal = document.getElementById('settings-modal');
   const desktopArchivingToggle = document.getElementById('desktop-archiving-toggle');
+  const autoOpenToggle = document.getElementById('auto-open-toggle');
 
   // Load settings from OpenClaw config
   async function loadSettings() {
@@ -1173,6 +1443,16 @@ if (document.readyState === 'loading') {
       if (desktopArchivingToggle) {
         desktopArchivingToggle.checked = data.desktopArchiving?.enabled === true;
       }
+      
+      if (autoOpenToggle) {
+        autoOpenToggle.checked = data.autoOpen === true;
+      }
+      
+      // Load autoOpen setting
+      if (data.autoOpen !== undefined) {
+        autoOpenEnabled = data.autoOpen;
+        console.log('[AutoOpen] Config loaded: autoOpen =', autoOpenEnabled);
+      }
     } catch (err) {
       console.error('Failed to load settings:', err);
     }
@@ -1180,22 +1460,28 @@ if (document.readyState === 'loading') {
 
   // Save settings to OpenClaw config
   async function saveSettings() {
-    const enabled = desktopArchivingToggle.checked;
+    const enabled = desktopArchivingToggle?.checked ?? false;
+    const newAutoOpen = autoOpenToggle?.checked ?? autoOpenEnabled;
 
     try {
       const response = await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          desktopArchiving: { enabled }
+          desktopArchiving: { enabled },
+          autoOpen: newAutoOpen
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
+        // Update local state
+        autoOpenEnabled = newAutoOpen;
+        
         // Show toast notification
-        showToast(`Desktop archiving ${enabled ? 'enabled' : 'disabled'}`);
+        const autoOpenMsg = newAutoOpen ? ' (auto-open enabled)' : ' (auto-open disabled)';
+        showToast(`Desktop archiving ${enabled ? 'enabled' : 'disabled'}${autoOpenMsg}`);
         closeSettingsModal();
       } else {
         showToast('Error saving settings', 'error');
@@ -1704,6 +1990,11 @@ if (document.readyState === 'loading') {
     
     console.log(`[TextInput] Sending message: ${message.substring(0, 50)}...`);
     
+    // Auto-open: trigger browser open on first conversational message if enabled
+    if (autoOpenEnabled && !autoOpenTriggered) {
+      triggerAutoOpen();
+    }
+    
     // Show loading state
     if (jarvisSendBtn) {
       jarvisSendBtn.innerHTML = '⏳';
@@ -2018,7 +2309,48 @@ const _neuroHoverCol0 = new THREE.Color();
 const _neuroHoverCol1 = new THREE.Color();
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-const labelDiv = document.createElement('div');
+
+// Single info panel (collapsed on hover, expanded on click)
+let neuroInfoPanel = null;
+let isPanelExpanded = false;
+
+// Create or get the single info panel
+function getNeuroInfoPanel() {
+  if (!neuroInfoPanel) {
+    neuroInfoPanel = document.createElement('div');
+    neuroInfoPanel.className = 'neuro-node-panel';
+    neuroInfoPanel.style.cssText = `
+      position: fixed;
+      background: rgba(5, 5, 16, 0.96);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 255, 255, 0.4);
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 280px;
+      max-width: 420px;
+      max-height: 60vh;
+      overflow-y: auto;
+      z-index: 6000;
+      pointer-events: auto;
+      opacity: 0;
+      transform: scale(0.95) translateY(10px);
+      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    `;
+    document.body.appendChild(neuroInfoPanel);
+    console.log('[NeuroInfoPanel] Panel created');
+  }
+  return neuroInfoPanel;
+}
+
+// Clear the single info panel
+function clearNeuroInfoPanel() {
+  if (neuroInfoPanel && neuroInfoPanel.parentNode) {
+    document.body.removeChild(neuroInfoPanel);
+  }
+  neuroInfoPanel = null;
+  isPanelExpanded = false;
+}
 
 // Click-to-focus: fly camera to a node and pin the same label as hover
 let neurographFocusTarget = null;
@@ -2102,6 +2434,90 @@ function applyNeurographHoverVisual(mesh) {
   }
 }
 
+// === NeuroTooltip Helper Functions ===
+
+function updateNeuroTooltipPosition(node) {
+  if (!node || !neuroTooltipMinimized) return;
+  
+  // Get node position in 3D space
+  const pos = node.position.clone();
+  
+  // Project to 2D screen coordinates
+  pos.project(neurographCamera);
+  
+  // Convert from WebGL coordinates (-1 to 1) to screen coordinates
+  const x = (pos.x * 0.5 + 0.5) * neurographRenderer.domElement.clientWidth;
+  const y = (-(pos.y * 0.5) + 0.5) * neurographRenderer.domElement.clientHeight;
+  
+  // Add offset so tooltip doesn't cover the node
+  const offsetX = 16;
+  const offsetY = 16;
+  
+  neuroTooltipMinimized.style.left = `${Math.round(x + offsetX)}px`;
+  neuroTooltipMinimized.style.top = `${Math.round(y - offsetY)}px`;
+}
+
+function showNeuroTooltipMinimized(node, data) {
+  if (!neuroTooltipMinimized) return;
+  
+  neuroTooltipMinimized.innerHTML = createMinimizedNodeLabel(data);
+  neuroTooltipMinimized.style.opacity = '1';
+  neuroTooltipMinimized.style.transform = 'scale(1)';
+  
+  updateNeuroTooltipPosition(node);
+  tooltipLastNode = node;
+}
+
+function hideNeuroTooltipMinimized() {
+  if (!neuroTooltipMinimized) return;
+  
+  neuroTooltipMinimized.style.opacity = '0';
+  neuroTooltipMinimized.style.transform = 'scale(0.9)';
+  
+}
+
+function showNeuroTooltipFull(node, data) {
+  if (!neuroTooltipFull) return;
+  
+  neuroTooltipFull.innerHTML = createNodeLabel(data);
+  neuroTooltipFull.style.opacity = '1';
+  neuroTooltipFull.style.transform = 'scale(1) translateY(0)';
+  
+  // Position near the node but adjust if it would go off-screen
+  if (node) {
+    updateNeuroTooltipPosition(node);
+    
+    // Adjust if tooltip would go off right edge
+    const rect = neuroTooltipFull.getBoundingClientRect();
+    if (rect.right > window.innerWidth) {
+      const offset = rect.right - window.innerWidth + 10;
+      neuroTooltipFull.style.left = `calc(${neuroTooltipFull.style.left} - ${offset}px)`;
+    }
+    
+    // Adjust if tooltip would go off bottom edge
+    if (rect.bottom > window.innerHeight) {
+      const currentTop = parseFloat(neuroTooltipFull.style.top) || 0;
+      const offset = rect.bottom - window.innerHeight + 10;
+      neuroTooltipFull.style.top = `${Math.round(currentTop - offset - 100)}px`;
+    }
+  }
+  
+  isTooltipExpanded = true;
+}
+
+function hideNeuroTooltipFull() {
+  if (!neuroTooltipFull) return;
+  
+  neuroTooltipFull.style.opacity = '0';
+  neuroTooltipFull.style.transform = 'scale(0.95) translateY(10px)';
+  isTooltipExpanded = false;
+}
+
+function clearNeuroTooltip() {
+  hideNeuroTooltipMinimized();
+  hideNeuroTooltipFull();
+}
+
 function clearNeurographNodeFocus() {
   neurographFocusTarget = null;
   neurographFlyActive = false;
@@ -2109,9 +2525,10 @@ function clearNeurographNodeFocus() {
     neurographControls.enabled = true;
   }
   // Do not move camera or orbit target — user stays in the same view (first-person continuity)
-  labelDiv.style.display = 'none';
-  labelDiv.style.zIndex = '1000';
+  clearNeuroInfoPanel();
   hoveredNode = null;
+  hoveredNode = null;
+  
   if (neuroFocusStyledMesh) {
     setNeurographSphereFocusVisual(neuroFocusStyledMesh, false);
     neuroFocusStyledMesh = null;
@@ -2144,9 +2561,8 @@ function focusNeurographNode(neuron) {
   hoveredNode = neuron;
   setNeurographSphereFocusVisual(neuron, true);
   neuroFocusStyledMesh = neuron;
-  labelDiv.innerHTML = createNodeLabel(neuron.userData);
-  labelDiv.style.display = 'flex';
-  labelDiv.style.zIndex = '6000';
+  getNeuroInfoPanel().innerHTML = createNodeLabel(neuron.userData);
+  isPanelExpanded = true;
 }
 
 // Animation loop
@@ -2230,6 +2646,16 @@ function animateNeurograph() {
   // }
   //
   //   // Update synapse pulsation (only when lines exist)
+  if (neurons.length > 0 && isNeurographLoaded) {
+    const temporalPulse = 0.56 + 0.24 * Math.sin(Date.now() * 0.0024);
+    for (let i = 0; i < neurons.length; i++) {
+      const neuron = neurons[i];
+      if (neuron.userData && neuron.userData.isTemporal && neuron.material) {
+        neuron.material.emissiveIntensity = temporalPulse;
+      }
+    }
+  }
+
   if (NEUROGRAPH_DRAW_SYNAPSES && synapses.length > 0 && isNeurographLoaded && (neurographAnimFrame % 2 === 0)) {
     const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.003);
     const opacity = 0.3 + 0.3 * pulse;
@@ -2293,16 +2719,10 @@ function onNeurographWindowResize() {
 }
 
 function setupNeurographHover() {
-  labelDiv.className = 'neuro-node-floating';
-  labelDiv.style.position = '';
-  labelDiv.style.left = '';
-  labelDiv.style.top = '';
-  labelDiv.style.transform = '';
-  labelDiv.style.pointerEvents = '';
-  labelDiv.style.zIndex = '1000';
-  labelDiv.style.display = 'none';
-  document.body.appendChild(labelDiv);
+  // Initialize the single info panel
+  getNeuroInfoPanel();
 
+  // Handle canvas click (node selection)
   neurographRenderer.domElement.addEventListener('click', (e) => {
     if (!neurographScene || neurons.length === 0) {return;}
     const rect = neurographRenderer.domElement.getBoundingClientRect();
@@ -2311,30 +2731,39 @@ function setupNeurographHover() {
     raycaster.setFromCamera(mouse, neurographCamera);
     const hits = raycaster.intersectObjects(neurons);
     if (hits.length > 0) {
-      focusNeurographNode(hits[0].object);
+      const clickedNode = hits[0].object;
+      focusNeurographNode(clickedNode);
     } else {
+      // Click on empty space - clear focus
       clearNeurographNodeFocus();
     }
   });
 
+  // Escape key - collapse the panel
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && neurographFocusTarget) {
       clearNeurographNodeFocus();
     }
   });
 
-  // Click outside the info panel (e.g. dock, transcript) clears focus; canvas clicks use raycast below
+  // Click outside the info panel (e.g. dock, transcript) - hide panel
   document.addEventListener('click', (e) => {
     if (!neurographFocusTarget) {return;}
-    if (labelDiv.contains(e.target)) {return;}
+    
+    // Don't hide if clicking inside panel or canvas
+    if (neuroInfoPanel && neuroInfoPanel.contains(e.target)) {return;}
     const canvasEl = neurographRenderer && neurographRenderer.domElement;
     if (canvasEl && canvasEl.contains(e.target)) {return;}
+    
+    // Click outside - clear focus
     clearNeurographNodeFocus();
   });
 
-  // Document-level move so hover clears when cursor is over UI above the canvas (canvas-only listeners miss those moves)
+  // Document-level move so hover clears when cursor is over UI above the canvas
   document.addEventListener('mousemove', (e) => {
     if (!neurographScene) return;
+    
+    // Don't update hover while focus/camera is active
     if (neurographFocusTarget) {return;}
 
     // Calculate mouse position in normalized device coordinates
@@ -2350,20 +2779,21 @@ function setupNeurographHover() {
       const intersected = intersects[0].object;
       applyNeurographHoverVisual(intersected);
       if (intersected !== hoveredNode) {
-        // New node hovered
+        // New node hovered - show collapsed panel
         if (hoveredNode) {
-          labelDiv.style.display = 'none';
+          neuroInfoPanel.style.opacity = '0';
         }
         hoveredNode = intersected;
-        // Show full node info
+        // Show collapsed panel with minimal content
         const nodeData = hoveredNode.userData;
-        labelDiv.innerHTML = createNodeLabel(nodeData);
-        labelDiv.style.display = 'flex';
+        neuroInfoPanel.innerHTML = createCollapsedNodeLabel(nodeData);
+        neuroInfoPanel.style.opacity = '1';
+        isPanelExpanded = false;
       }
     } else {
       clearNeurographHoverVisual();
       if (hoveredNode) {
-        labelDiv.style.display = 'none';
+        neuroInfoPanel.style.opacity = '0';
         hoveredNode = null;
       }
     }
@@ -2371,6 +2801,9 @@ function setupNeurographHover() {
 }
 
 // Call setupNeurographHover when DOM is ready
+setupNeurographHover();
+
+
 setupNeurographHover();
 
 function escapeHtmlNeuro(s) {
@@ -2421,6 +2854,88 @@ function neuroEdgePeerId(edge, nodeId) {
   if (s === nodeId) {return t;}
   if (t === nodeId) {return s;}
   return '?';
+}
+
+// Minimized tooltip (on hover) - shows just title and category
+function createMinimizedNodeLabel(nodeData) {
+  const esc = escapeHtmlNeuro;
+
+  if (!nodeData) {
+    return '<div class="neuro-tooltip-content">No node selected</div>';
+  }
+
+  if (!nodeData.rawData) {
+    const id = nodeData.id || 'Unknown';
+    return `
+      <div class="neuro-tooltip-content">
+        <div class="neuro-tooltip-title">${esc(id)}</div>
+        <div class="neuro-tooltip-subtitle">Click for details</div>
+      </div>
+    `;
+  }
+
+  const node = nodeData.rawData;
+  const id = node.id || nodeData.id || '';
+  const title = node.label || id || 'Node';
+  const category = node.category || nodeData.category || '';
+  const type = node.type || nodeData.type || '';
+  const temporal = nodeData.isTemporal ? '<span class="neuro-tooltip-temporal">T</span>' : '';
+
+  let content = `<div class="neuro-tooltip-content">
+    <div class="neuro-tooltip-header">
+      <div class="neuro-tooltip-title">${esc(title)}</div>
+      ${temporal}
+    </div>`;
+
+  // Add category chip if available
+  if (category) {
+    content += `<div class="neuro-tooltip-category">${esc(category)}</div>`;
+  }
+
+  // Add type if available
+  if (type && type !== category) {
+    content += `<div class="neuro-tooltip-type">${esc(type)}</div>`;
+  }
+
+  content += `<div class="neuro-tooltip-hint">Click for details</div>
+  </div>`;
+
+  return content;
+}
+
+// Collapsed node label (minimal info for hover state)
+function createCollapsedNodeLabel(nodeData) {
+  const esc = escapeHtmlNeuro;
+
+  if (!nodeData) {
+    return '<div class="neuro-panel-collapsed"><div class="neuro-panel-title">No node selected</div><div class="neuro-panel-hint">Click for details</div></div>';
+  }
+
+  if (!nodeData.rawData) {
+    const id = nodeData.id || 'Unknown';
+    return `<div class="neuro-panel-collapsed">
+      <div class="neuro-panel-title">${esc(id)}</div>
+      <div class="neuro-panel-hint">Click for details</div>
+    </div>`;
+  }
+
+  const node = nodeData.rawData;
+  const id = node.id || nodeData.id || '';
+  const title = node.label || id || 'Node';
+  const description = node.description || '';
+
+  let content = `<div class="neuro-panel-collapsed">
+    <div class="neuro-panel-title">${esc(title)}</div>`;
+
+  // Add description if available
+  if (description) {
+    content += `<div class="neuro-panel-description">${esc(description)}</div>`;
+  }
+
+  content += `<div class="neuro-panel-hint">Click for details</div>
+  </div>`;
+
+  return content;
 }
 
 function createNodeLabel(nodeData) {
@@ -2602,10 +3117,11 @@ function createNeurograph(data) {
   neurographFocusTarget = null;
   neurographFlyActive = false;
   hoveredNode = null;
-  if (labelDiv) {
-    labelDiv.style.display = 'none';
-    labelDiv.style.zIndex = '1000';
-  }
+  clearNeuroInfoPanel();
+  hoveredNode = null;
+  
+  clearNeuroInfoPanel();
+  hoveredNode = null;
 
   // Create nodes as spheres
   // Limit to 1000 nodes to prevent WebGL errors (too many objects)
@@ -2721,6 +3237,14 @@ function createNeurograph(data) {
 
     const geometry = new THREE.SphereGeometry(baseRadius, 32, 32);
     const neuron = new THREE.Mesh(geometry, nodeMaterial.clone());
+
+    if (isTemporal) {
+      // Temporal nodes use a warmer accent and stronger emission so they stand out.
+      neuron.material.color.setHex(0xffa347);
+      neuron.material.emissive.setHex(0xff7a00);
+      neuron.material.emissiveIntensity = 0.72;
+      neuron.scale.setScalar(1.14);
+    }
 
     // Position nodes in molecule-like structure:
     // - Theme node at center (0, 0, 0)

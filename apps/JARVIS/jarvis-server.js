@@ -3,9 +3,8 @@
 // Portable: No hardcoded paths, configurable via environment variables
 
 // Set process name for Activity Monitor
-// Production: JARVIS-production (port 18787)
-// Preview: JARVIS-preview (port 18788)
-process.title = process.env.JARVIS_PREVIEW === 'true' ? 'JARVIS-preview' : 'JARVIS-production';
+const isPreview = process.env.JARVIS_PREVIEW === 'true';
+process.title = isPreview ? 'JARVIS-preview' : 'JARVIS-production';
 
 const https = require('https');
 const http = require('http');
@@ -28,8 +27,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '3.1.2';
-const BUILD_DATE = '2026-03-29';
+const VERSION = '3.1.5';
+const BUILD_DATE = '2026-03-31';
 
 // Date formatting utility for consistent date handling
 function formatDateForFilename(date = new Date()) {
@@ -286,6 +285,41 @@ function parseMultipart(buffer, contentType) {
   return buffer.slice(headerEnd + 4, end - 2);
 }
 
+// === TTS Audio Helper Functions ===
+// Extract TTS audio filename from response text
+// Looks for [[audio_as_voice]] marker followed by MEDIA:/path/to/file.mp3
+function extractTtsAudio(responseText) {
+  if (!responseText) return null;
+  
+  // Check for [[audio_as_voice]] marker
+  const audioMarkerMatch = responseText.match(/\[\[audio_as_voice\]\]/i);
+  if (!audioMarkerMatch) return null;
+  
+  // Look for MEDIA: pattern in the response
+  const mediaMatch = responseText.match(/MEDIA:\s*([^\s\]]+)/i);
+  if (mediaMatch) {
+    const mediaPath = mediaMatch[1].trim();
+    // Extract just the filename from the path
+    const filename = path.basename(mediaPath);
+    console.log(`[TTS] Extracted audio filename from response: ${filename}`);
+    return filename;
+  }
+  
+  return null;
+}
+
+// Clean TTS audio marker from response text for display
+function cleanTtsResponse(responseText) {
+  if (!responseText) return responseText;
+  
+  // Remove [[audio_as_voice]] marker and MEDIA: line
+  let cleaned = responseText.replace(/\[\[audio_as_voice\]\]/i, '');
+  cleaned = cleaned.replace(/MEDIA:\s*[^\n]+/i, '');
+  
+  // Trim extra whitespace/newlines
+  return cleaned.trim();
+}
+
 // === Request Handler (used by both HTTP and HTTPS) ===
 function handleRequest(req, res) {
   // Restrict CORS to known origins (configurable via env var)
@@ -294,20 +328,20 @@ function handleRequest(req, res) {
   if (!origin || allowedOrigins.some(o => origin.includes(o.replace('*', '')))) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, GET');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Range, Range');
+  // Add CORS preflight support for all requests
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200);
+    res.end();
+    return;
+  }
     
   // Standardized error response helper
   const sendError = (code, message, details = null) => {
     res.writeHead(code, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: message, code, details }));
   };
-
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200);
-    res.end();
-    return;
-  }
 
   // Network scanner endpoints
   if (req.method === 'GET' && req.url === '/network/devices') {
@@ -466,8 +500,9 @@ function handleRequest(req, res) {
     try {
       const fullConfig = getConfig();
       const desktopArchiving = fullConfig?.desktopArchiving || { enabled: false };
+      const autoOpen = fullConfig?.autoOpen ?? false;
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ desktopArchiving }));
+      res.end(JSON.stringify({ desktopArchiving, autoOpen }));
     } catch (err) {
       console.error('Config GET error:', err.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -485,6 +520,7 @@ function handleRequest(req, res) {
         const body = Buffer.concat(chunks).toString();
         const data = JSON.parse(body);
         const newDesktopArchiving = data.desktopArchiving;
+        const newAutoOpen = data.autoOpen;
           
         if (newDesktopArchiving === undefined || newDesktopArchiving === null) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -498,15 +534,25 @@ function handleRequest(req, res) {
           ...existingConfig,
           desktopArchiving: newDesktopArchiving
         };
+        
+        // Add autoOpen if provided
+        if (newAutoOpen !== undefined && newAutoOpen !== null) {
+          updatedConfig.autoOpen = newAutoOpen;
+        }
           
         const success = saveConfig(updatedConfig);
           
         if (success) {
+          const responseConfig = { desktopArchiving: newDesktopArchiving };
+          if (newAutoOpen !== undefined && newAutoOpen !== null) {
+            responseConfig.autoOpen = newAutoOpen;
+          }
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             success: true,
-            config: { desktopArchiving: newDesktopArchiving },
-            message: `Desktop archiving ${newDesktopArchiving.enabled ? 'enabled' : 'disabled'}`
+            config: responseConfig,
+            message: `Desktop archiving ${newDesktopArchiving.enabled ? 'enabled' : 'disabled'}` + 
+                     (newAutoOpen !== undefined ? ` | autoOpen ${newAutoOpen ? 'enabled' : 'disabled'}` : '')
           }));
         } else {
           res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -1076,10 +1122,14 @@ function handleRequest(req, res) {
                     
           console.log(`[${agentTimestamp}] 🤖 My response: ${responseText}`);
                     
+          // Extract TTS audio filename if present in response
+          const audioFilename = extractTtsAudio(responseText);
+          const cleanResponseText = audioFilename ? cleanTtsResponse(responseText) : responseText;
+                    
           // Post to Jarvis agent session (OpenClaw)
           try {
             // Security fix: Use execFile instead of exec to prevent command injection
-            execFile('openclaw', ['sessions', 'send', '--sessionKey', 'agent:jarvis:main', '--message', responseText], { encoding: 'utf8', timeout: 120000 },
+            execFile('openclaw', ['sessions', 'send', '--sessionKey', 'agent:jarvis:main', '--message', cleanResponseText], { encoding: 'utf8', timeout: 120000 },
               (sessionErr) => {
                 if (sessionErr) {
                   console.error(`[${agentTimestamp}] ⚠️ Session send failed:`, sessionErr.message);
@@ -1096,7 +1146,8 @@ function handleRequest(req, res) {
           res.end(JSON.stringify({ 
             status: 'processed', 
             userMessage: userMessage,
-            myResponse: responseText || 'Message processed'
+            myResponse: cleanResponseText || 'Message processed',
+            audioFilename: audioFilename || null
           }));
         }
       );
@@ -1124,19 +1175,19 @@ function handleRequest(req, res) {
       }
             
       // TTS files are stored in /tmp/openclaw/tts-<session-id>/ (created by OpenClaw TTS tool)
-      const os = require('os');
-      const ttsBaseDir = path.join(os.tmpdir(), 'openclaw');
+      // On macOS, /tmp is a symlink to /private/tmp, not os.tmpdir()
+      const ttsBaseDir = '/private/tmp/openclaw';
             
-      // Find the most recent TTS directory
+      // Find the most recent TTS directory (by modification time, not alphabetically)
       let ttsDir = null;
       try {
         if (fs.existsSync(ttsBaseDir)) {
-          const dirs = fs.readdirSync(ttsBaseDir)
-            .filter(f => f.startsWith('tts-'))
-            .sort()
-            .reverse();
+          const dirs = fs.readdirSync(ttsBaseDir, { withFileTypes: true })
+            .filter(d => d.isDirectory() && d.name.startsWith('tts-'))
+            .map(d => ({ name: d.name, mtime: fs.statSync(path.join(ttsBaseDir, d.name)).mtimeMs }))
+            .sort((a, b) => b.mtime - a.mtime);
           if (dirs.length > 0) {
-            ttsDir = path.join(ttsBaseDir, dirs[0]);
+            ttsDir = path.join(ttsBaseDir, dirs[0].name);
           }
         }
       } catch (e) {
@@ -1223,6 +1274,7 @@ function handleRequest(req, res) {
           status: 'done',
           transcript: entry.transcript || '',
           jarvisResponse: entry.jarvisResponse ?? null,
+          audioFilename: entry.audioFilename || null,
           file: fileParam
         }));
         return;
@@ -1332,10 +1384,15 @@ function handleRequest(req, res) {
         const transcript = fs.readFileSync(transcriptPath, 'utf8').trim();
         const responsePath = path.join(dirPath, latestFile.name.replace('.wav.txt', '.response.txt'));
         let jarvisResponse = null;
+        let audioFilename = null;
                 
         // Check if response exists (server already processed this)
         if (fs.existsSync(responsePath)) {
           jarvisResponse = fs.readFileSync(responsePath, 'utf8').trim();
+          // Extract TTS audio filename if present in response
+          audioFilename = extractTtsAudio(jarvisResponse);
+          // Clean response text for display
+          jarvisResponse = audioFilename ? cleanTtsResponse(jarvisResponse) : jarvisResponse;
         }
                 
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -1343,6 +1400,7 @@ function handleRequest(req, res) {
           status: 'done', 
           transcript, 
           jarvisResponse,
+          audioFilename: audioFilename,
           file: latestFile.name,
           timestamp: latestFile.mtimeMs
         }));
@@ -1560,9 +1618,18 @@ function handleTranscript(filepath, transcript, extension) {
       fs.writeFileSync(responsePath, responseText);
     }
         
+    // Extract TTS audio filename if present in response
+    const audioFilename = extractTtsAudio(responseText);
+    const cleanResponseText = audioFilename ? cleanTtsResponse(responseText) : responseText;
+        
     // So client can get this recording's response in the poll body (no file lookup); keep for 5 min so repeat polls get it
     const recordingBase = path.basename(filepath).replace(/\.[^.]+$/, '');
-    pendingResponses.set(recordingBase, { transcript, jarvisResponse: responseText || null, at: Date.now() });
+    pendingResponses.set(recordingBase, { 
+      transcript, 
+      jarvisResponse: cleanResponseText || null, 
+      audioFilename: audioFilename,
+      at: Date.now() 
+    });
     activeTranscriptions--;
   });
 }
