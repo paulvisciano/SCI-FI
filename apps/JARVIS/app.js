@@ -2711,19 +2711,21 @@ function setupNeurographHover() {
       applyNeurographHoverVisual(intersected);
       if (intersected !== hoveredNode) {
         // New node hovered - show collapsed panel
-        if (hoveredNode) {
+        if (hoveredNode && neuroInfoPanel) {
           neuroInfoPanel.style.opacity = '0';
         }
         hoveredNode = intersected;
         // Show collapsed panel with minimal content
         const nodeData = hoveredNode.userData;
-        neuroInfoPanel.innerHTML = createCollapsedNodeLabel(nodeData);
-        neuroInfoPanel.style.opacity = '1';
-        isPanelExpanded = false;
+        if (neuroInfoPanel) {
+          neuroInfoPanel.innerHTML = createCollapsedNodeLabel(nodeData);
+          neuroInfoPanel.style.opacity = '1';
+          isPanelExpanded = false;
+        }
       }
     } else {
       clearNeurographHoverVisual();
-      if (hoveredNode) {
+      if (hoveredNode && neuroInfoPanel) {
         neuroInfoPanel.style.opacity = '0';
         hoveredNode = null;
       }
@@ -2735,7 +2737,6 @@ function setupNeurographHover() {
 setupNeurographHover();
 
 
-setupNeurographHover();
 
 function escapeHtmlNeuro(s) {
   if (s === null || s === undefined) {return '';}
