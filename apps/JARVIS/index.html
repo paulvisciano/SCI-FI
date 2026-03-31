@@ -1153,6 +1153,61 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Neurograph Tooltip Styles (hover minimized, click expanded) */
+        /* Single neuro-info-panel with collapsed/expanded states */
+        .neuro-node-panel {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .neuro-node-panel.collapsed {
+            max-height: 140px;
+            overflow: hidden;
+        }
+
+        /* Panel collapsed state content */
+        .neuro-panel-collapsed {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .neuro-panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00d9ff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .neuro-panel-description {
+            font-size: 12px;
+            color: #aabbcc;
+            line-height: 1.4;
+        }
+
+        .neuro-panel-hint {
+            font-size: 10px;
+            color: #667788;
+            text-align: center;
+        }
+
+        /* Smooth transition for collapsed/expanded */
+        .neuro-node-panel {
+            transition: max-height 0.25s ease, opacity 0.25s ease;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         /* Removed duplicate .container - using first definition at line 23 */
 
         h1.futuristic-title {
@@ -1334,9 +1389,38 @@
             text-align: center;
             transition: opacity 0.2s;
         }
+        
+        /* TTS controls */
+        .tts-controls {
+            font-size: 0.7em;
+            color: #00ffff;
+            opacity: 0.6;
+            margin-bottom: 12px;
+            text-align: center;
+            transition: opacity 0.2s;
+        }
+        
+        #tts-toggle {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 8px;
+            font-size: 0.7em;
+            transition: all 0.2s ease;
+        }
+        
+        #tts-toggle:hover {
+            background: rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+        }
 
         .container:has(#jarvis-orb-container:hover) .recording-hint,
-        .recording-hint:hover {
+        .recording-hint:hover,
+        .container:has(#jarvis-orb-container:hover) .tts-controls,
+        .tts-controls:hover {
             opacity: 1;
             text-transform: uppercase;
             font-weight: 300;
@@ -1732,6 +1816,34 @@
             font-weight: 600;
         }
 
+        /* TTS Audio Player */
+        #jarvis-tts-player {
+            display: none;
+        }
+        
+        /* TTS Playing Indicator */
+        .tts-playing-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 255, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: fadeInOut 5s ease;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+        
         /* Settings Modal */
         .modal {
             display: none;
@@ -1881,7 +1993,7 @@
             </div>
             <div class="title-row">
                 <h1 class="futuristic-title" style="margin: 0;">J.A.R.V.I.S</h1>
-                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.1.2</span>
+                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.1.4</span>
             </div>
         </div>
         <div class="server-status" id="server-status" title="Click to view system vitals">
@@ -1914,6 +2026,10 @@
 
         <!-- Recording hint under status -->
         <div class="recording-hint" id="recording-hint" style="font-size: 0.7em; opacity: 0.6; color: #00ffff; margin-bottom: 12px;">Press Space to record</div>
+        <div class="tts-controls" style="font-size: 0.7em; opacity: 0.6; color: #00ffff; margin-bottom: 12px;">
+            <span id="tts-status">🔊 TTS: ON</span> 
+            <button type="button" id="tts-toggle" style="background: none; border: 1px solid #00ffff; color: #00ffff; padding: 2px 8px; border-radius: 4px; cursor: pointer; margin-left: 8px;">Toggle</button>
+        </div>
     </div>
 
     <!-- System Vitals - full-screen scrim + glass panel (matches neuro info styling) -->
@@ -2089,6 +2205,17 @@
                 </div>
                 <label class="toggle">
                     <input type="checkbox" id="desktop-archiving-toggle" />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">
+                    <span>🌐 Auto-Open UI</span>
+                    <p class="setting-description">Automatically open the unified UI when you send a message</p>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="auto-open-toggle" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
