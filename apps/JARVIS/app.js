@@ -498,6 +498,9 @@ function initTtsPlayer() {
 function playTtsAudio(filename) {
   if (!filename) return;
   
+  // Store filename for click-to-play
+  lastTtsFilename = filename;
+  
   console.log('[TTS] playTtsAudio called with filename:', filename);
   
   // Initialize if not already done
@@ -532,8 +535,8 @@ function playTtsAudio(filename) {
     paused: ttsAudioPlayer.paused
   });
   
-  // Add visual indicator that audio is playing
-  showAudioPlayingIndicator();
+  // Add visual indicator that audio is ready (not yet playing due to autoplay policy)
+  showAudioReadyIndicator();
   
   // Play with error handling
   ttsAudioPlayer.play()
@@ -545,6 +548,7 @@ function playTtsAudio(filename) {
         currentTime: ttsAudioPlayer.currentTime,
         duration: ttsAudioPlayer.duration
       });
+      updateAudioIndicatorToPlaying();
     })
     .catch((err) => {
       console.error('[TTS] Audio playback failed:', err);
@@ -554,14 +558,99 @@ function playTtsAudio(filename) {
         readyState: ttsAudioPlayer.readyState
       });
       
-      // Check for autoplay policy error
       if (err.name === 'NotAllowedError') {
         console.warn('[TTS] Autoplay policy blocked playback - user interaction required');
-        console.warn('[TTS] TTS toggle may need to be enabled first');
+        updateAudioIndicatorToClickToPlay();
       }
     });
 }
 
+// Show audio ready indicator (waiting for user to click)
+function showAudioReadyIndicator() {
+  // Remove existing indicators first
+  removeAudioIndicators();
+  
+  // Create new indicator with "Ready" state
+  const indicator = document.createElement('div');
+  indicator.id = 'tts-ready-indicator';
+  indicator.className = 'tts-ready-indicator';
+  indicator.innerHTML = '<span>🔊 TTS ready - click to play</span>';
+  indicator.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 215, 0, 0.9);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    cursor: pointer;
+    transition: opacity 0.3s ease, transform 0.2s ease;
+    user-select: none;
+  `;
+  indicator.addEventListener('click', () => {
+    // User clicked - try to play again
+    playTtsAudio(lastTtsFilename);
+  });
+  indicator.addEventListener('mouseenter', () => {
+    indicator.style.transform = 'scale(1.02)';
+  });
+  indicator.addEventListener('mouseleave', () => {
+    indicator.style.transform = 'scale(1)';
+  });
+  document.body.appendChild(indicator);
+  
+  // Auto-hide after 10 seconds if user doesn't interact
+  setTimeout(() => {
+    if (indicator.parentNode) {
+      indicator.style.opacity = '0';
+      setTimeout(() => {
+        if (indicator.parentNode) {
+          document.body.removeChild(indicator);
+        }
+      }, 300);
+    }
+  }, 10000);
+}
+
+// Update indicator to "Playing" state
+function updateAudioIndicatorToPlaying() {
+  const indicator = document.getElementById('tts-ready-indicator');
+  if (indicator) {
+    indicator.innerHTML = '<span>🔊 Playing</span>';
+    indicator.style.background = 'rgba(0, 255, 0, 0.8)';
+    indicator.style.cursor = 'default';
+  }
+}
+
+// Update indicator to "Click to Play" state
+function updateAudioIndicatorToClickToPlay() {
+  const indicator = document.getElementById('tts-ready-indicator');
+  if (indicator) {
+    indicator.innerHTML = '<span>🔊 Click to play</span>';
+    indicator.style.background = 'rgba(255, 100, 50, 0.9)';
+    indicator.style.cursor = 'pointer';
+  }
+}
+
+// Remove all audio indicators
+function removeAudioIndicators() {
+  ['tts-ready-indicator', 'tts-playing-indicator'].forEach(id => {
+    const indicator = document.getElementById(id);
+    if (indicator && indicator.parentNode) {
+      indicator.parentNode.removeChild(indicator);
+    }
+  });
+}
+
+// Track last TTS filename for click-to-play
+let lastTtsFilename = null;
+
+// Show visual indicator that audio is playing (keep for backward compatibility)
 // Show visual indicator that audio is playing
 function showAudioPlayingIndicator() {
   // Create or update an indicator element
