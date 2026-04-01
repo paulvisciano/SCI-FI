@@ -2757,8 +2757,8 @@ function setupNeurographHover() {
   // Initialize the single info panel
   getNeuroInfoPanel();
 
-  // Handle canvas click (node selection)
-  neurographRenderer.domElement.addEventListener('click', (e) => {
+  // Handle canvas click (node selection) - use pointerdown for unified mouse/touch support
+  neurographRenderer.domElement.addEventListener('pointerdown', (e) => {
     if (!neurographScene || neurons.length === 0) {return;}
     const rect = neurographRenderer.domElement.getBoundingClientRect();
     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -2774,6 +2774,18 @@ function setupNeurographHover() {
     }
   });
 
+  // Clear hover when pointer leaves canvas
+  neurographRenderer.domElement.addEventListener('pointerleave', () => {
+    clearNeurographHoverVisual();
+    if (hoveredNode) {
+      const panel = getNeuroInfoPanel();
+      if (panel) {
+        panel.style.opacity = '0';
+      }
+      hoveredNode = null;
+    }
+  });
+
   // Escape key - collapse the panel
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && neurographFocusTarget) {
@@ -2781,8 +2793,8 @@ function setupNeurographHover() {
     }
   });
 
-  // Click outside the info panel (e.g. dock, transcript) - hide panel
-  document.addEventListener('click', (e) => {
+  // Pointerdown outside the info panel (e.g. dock, transcript) - hide panel (works for both mouse and touch)
+  document.addEventListener('pointerdown', (e) => {
     if (!neurographFocusTarget) {return;}
     
     // Don't hide if clicking inside panel or canvas
@@ -2793,6 +2805,52 @@ function setupNeurographHover() {
     
     // Click outside - clear focus
     clearNeurographNodeFocus();
+  });
+
+  // Document-level pointermove for hover - unified mouse/touch support
+  document.addEventListener('pointermove', (e) => {
+    if (!neurographScene) return;
+    
+    // Don't update hover while focus/camera is active
+    if (neurographFocusTarget) {return;}
+
+    // Calculate mouse position in normalized device coordinates
+    const rect = neurographRenderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    // Update raycaster
+    raycaster.setFromCamera(mouse, neurographCamera);
+    const intersects = raycaster.intersectObjects(neurons);
+
+    if (intersects.length > 0) {
+      const intersected = intersects[0].object;
+      applyNeurographHoverVisual(intersected);
+      if (intersected !== hoveredNode) {
+        // New node hovered - show collapsed panel
+        const panel = getNeuroInfoPanel();  // Create panel if it doesn't exist
+        if (panel) {
+          if (hoveredNode) {
+            panel.style.opacity = '0';
+          }
+          hoveredNode = intersected;
+          // Show collapsed panel with minimal content
+          const nodeData = hoveredNode.userData;
+          panel.innerHTML = createCollapsedNodeLabel(nodeData);
+          panel.style.opacity = '1';
+          isPanelExpanded = false;
+        }
+      }
+    } else {
+      clearNeurographHoverVisual();
+      if (hoveredNode) {
+        const panel = getNeuroInfoPanel();
+        if (panel) {
+          panel.style.opacity = '0';
+        }
+        hoveredNode = null;
+      }
+    }
   });
 
   // Document-level move so hover clears when cursor is over UI above the canvas
