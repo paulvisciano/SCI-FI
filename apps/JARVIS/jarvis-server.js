@@ -27,8 +27,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '3.1.5';
-const BUILD_DATE = '2026-03-31';
+const VERSION = '3.2.0';
+const BUILD_DATE = '2026-04-01';
 
 // Date formatting utility for consistent date handling
 function formatDateForFilename(date = new Date()) {
@@ -773,6 +773,76 @@ function handleRequest(req, res) {
       console.error('Neurograph combined API error:', err.message);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Failed to load neurograph data', details: err.message }));
+    }
+    return;
+  }
+
+  // === MEMORY SOURCE ENDPOINTS ===
+  // /api/memory/jarvis - Jarvis consciousness graph (default)
+  // /api/memory/user - Paul's personal memory graph
+
+  // GET /api/memory/jarvis - return nodes + synapses for Jarvis memory
+  if (req.method === 'GET' && req.url === '/api/memory/jarvis') {
+    const base = process.env.HOME || '';
+    const brainDir = path.join(base, 'JARVIS', 'RAW', 'memories');
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    const synapsesPath = path.join(brainDir, 'synapses.json');
+    
+    try {
+      const nodesData = fs.readFileSync(nodesPath, 'utf8');
+      const synapsesData = fs.readFileSync(synapsesPath, 'utf8');
+      
+      const nodes = JSON.parse(nodesData);
+      const synapses = JSON.parse(synapsesData);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        nodes: nodes,
+        synapses: synapses,
+        meta: {
+          source: 'jarvis',
+          nodeCount: nodes.length,
+          synapseCount: synapses.length,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    } catch (err) {
+      console.error('Jarvis memory API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to load Jarvis memory data', details: err.message }));
+    }
+    return;
+  }
+
+  // GET /api/memory/user - return nodes + synapses for user (Paul) memory
+  if (req.method === 'GET' && req.url === '/api/memory/user') {
+    const base = process.env.HOME || '';
+    const brainDir = path.join(base, 'RAW', 'memories');
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    const synapsesPath = path.join(brainDir, 'synapses.json');
+    
+    try {
+      const nodesData = fs.readFileSync(nodesPath, 'utf8');
+      const synapsesData = fs.readFileSync(synapsesPath, 'utf8');
+      
+      const nodes = JSON.parse(nodesData);
+      const synapses = JSON.parse(synapsesData);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        nodes: nodes,
+        synapses: synapses,
+        meta: {
+          source: 'user',
+          nodeCount: nodes.length,
+          synapseCount: synapses.length,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    } catch (err) {
+      console.error('User memory API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to load user memory data', details: err.message }));
     }
     return;
   }

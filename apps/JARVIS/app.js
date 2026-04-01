@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.1.5';
-const CLIENT_BUILD_DATE = '2026-03-31';
+const CLIENT_VERSION = '3.2.0';
+const CLIENT_BUILD_DATE = '2026-04-01';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
@@ -1017,6 +1017,13 @@ if (document.readyState === 'loading') {
     console.log('[UI] DOMContentLoaded - calling checkServerStatus');
     checkServerStatus();
     
+    // Set up memory toggle event listener
+    const memoryToggle = document.getElementById('memory-toggle');
+    if (memoryToggle) {
+      memoryToggle.addEventListener('click', toggleMemorySource);
+      console.log('[MemoryToggle] Event listener attached');
+    }
+    
     // Show preview badge if in preview mode
     if (IS_PREVIEW) {
       const previewBadge = document.getElementById('preview-badge');
@@ -1030,6 +1037,13 @@ if (document.readyState === 'loading') {
 } else {
   console.log('[UI] DOM already ready - calling checkServerStatus');
   checkServerStatus();
+  
+  // Set up memory toggle event listener (DOM already ready case)
+  const memoryToggle = document.getElementById('memory-toggle');
+  if (memoryToggle) {
+    memoryToggle.addEventListener('click', toggleMemorySource);
+    console.log('[MemoryToggle] Event listener attached (DOM already ready)');
+  }
   
   // Show preview badge if in preview mode
   if (IS_PREVIEW) {
@@ -2090,6 +2104,7 @@ let synapses = [];
 let neurographData = null;
 let idleRotation = 0;
 let isNeurographLoaded = false;
+let currentMemorySource = 'jarvis'; // 'jarvis' or 'user'
 /** Repulsion is O(n²); throttle + pass budget cuts steady-state CPU without touching pointer/hover. */
 let neurographAnimFrame = 0;
 let neuroRepulsionPasses = 0;
@@ -3092,35 +3107,62 @@ function createNodeLabel(nodeData) {
 
 // Load neurograph data from API
 function loadNeurographData() {
-  fetch('/api/neurograph')
+  loadNeurographFromSource(currentMemorySource);
+}
+
+// Load neurograph data from a specific memory source
+function loadNeurographFromSource(source) {
+  const endpoint = source === 'user' ? '/api/memory/user' : '/api/memory/jarvis';
+  console.log(`[MemoryToggle] Loading ${source} memory from ${endpoint}`);
+  
+  fetch(endpoint)
     .then(res => {
       if (!res.ok) {
-        throw new Error(`Neurograph API error: ${res.status}`);
+        throw new Error(`Memory API error: ${res.status}`);
       }
       return res.json();
     })
     .then(data => {
-      console.log('[Neurograph] Raw data loaded:', data);
-      console.log('[Neurograph] Nodes count:', (data.nodes || []).length);
-      console.log('[Neurograph] Synapses count:', (data.synapses || data.connections || []).length);
+      console.log(`[MemoryToggle] Raw data loaded (${source}):`, data);
+      console.log(`[MemoryToggle] Nodes count:`, (data.nodes || []).length);
+      console.log(`[MemoryToggle] Synapses count:`, (data.synapses || data.connections || []).length);
 
       // Check for undefined sources in synapses
       const synapses = data.synapses || data.connections || [];
       const undefinedSources = synapses.filter(s => !s.source).length;
       const undefinedTargets = synapses.filter(s => !s.target).length;
-      console.log('[Neurograph] Synapses with undefined source:', undefinedSources);
-      console.log('[Neurograph] Synapses with undefined target:', undefinedTargets);
+      console.log(`[MemoryToggle] Synapses with undefined source:`, undefinedSources);
+      console.log(`[MemoryToggle] Synapses with undefined target:`, undefinedTargets);
 
       neurographData = data;
       createNeurograph(data);
       isNeurographLoaded = true;
     })
     .catch(err => {
-      console.warn('[Neurograph] Failed to load data:', err);
+      console.error(`[MemoryToggle] Failed to load ${source} data:`, err);
       // Create fallback neurograph if API fails
       createFallbackNeurograph();
       isNeurographLoaded = true;
     });
+}
+
+// Toggle between Jarvis and User memory sources
+function toggleMemorySource() {
+  // Switch source
+  currentMemorySource = currentMemorySource === 'jarvis' ? 'user' : 'jarvis';
+  
+  // Update UI toggle button
+  const memoryToggle = document.getElementById('memory-toggle');
+  if (currentMemorySource === 'user') {
+    memoryToggle.classList.add('active');
+    document.getElementById('memory-label').textContent = '🧠 User Memory';
+  } else {
+    memoryToggle.classList.remove('active');
+    document.getElementById('memory-label').textContent = '🧠 Jarvis Memory';
+  }
+  
+  // Reload neurograph data from new source
+  loadNeurographFromSource(currentMemorySource);
 }
 
 // Create neurograph from data
