@@ -201,8 +201,8 @@ jarvisOrb.addEventListener('mouseleave', () => {
   }
 });
 
-// ORB click handler - engage/disengage JARVIS
-jarvisOrbContainer.addEventListener('click', () => {
+// ORB pointerdown handler - engage/disengage JARVIS (works for both mouse click and mobile tap)
+jarvisOrbContainer.addEventListener('pointerdown', () => {
   isOrbEngaged = !isOrbEngaged;
 
   if (isOrbEngaged) {
@@ -229,17 +229,18 @@ if (!hasMediaDevices) {
   console.warn('MediaDevices check failed, but attempting recording anyway...');
 }
 
-// ORB click/tap - start/stop recording (works on mobile + desktop)
+// ORB pointerdown/tap - start/stop recording (works on mobile + desktop)
 // Mobile: tap orb (no Space key)
 // Desktop: can use Space key OR tap orb (both work)
-jarvisOrb.addEventListener('click', async (e) => {
+jarvisOrb.addEventListener('pointerdown', async (e) => {
+  e.preventDefault(); // Prevent default behavior and double-firing
   e.stopPropagation();
   if (!isRecording) {
     await startRecording();
   } else {
     await stopRecording();
   }
-  if (DEBUG) {console.log('[Orb click] Recording toggled');}
+  if (DEBUG) {console.log('[Orb pointerdown] Recording toggled');}
 });
 
 // Double-click also toggles recording (for users who prefer it)
@@ -1017,11 +1018,11 @@ if (document.readyState === 'loading') {
     console.log('[UI] DOMContentLoaded - calling checkServerStatus');
     checkServerStatus();
     
-    // Set up memory toggle event listener
+    // Set up memory toggle event listener (use pointerdown for mobile tap support)
     const memoryToggle = document.getElementById('memory-toggle');
     if (memoryToggle) {
-      memoryToggle.addEventListener('click', toggleMemorySource);
-      console.log('[MemoryToggle] Event listener attached');
+      memoryToggle.addEventListener('pointerdown', toggleMemorySource);
+      console.log('[MemoryToggle] pointerdown event listener attached');
     }
     
     // Show preview badge if in preview mode
@@ -1041,7 +1042,16 @@ if (document.readyState === 'loading') {
   // Set up memory toggle event listener (DOM already ready case)
   const memoryToggle = document.getElementById('memory-toggle');
   if (memoryToggle) {
-    memoryToggle.addEventListener('click', toggleMemorySource);
+    memoryToggle.addEventListener('pointerdown', toggleMemorySource);
+    console.log('[MemoryToggle] pointerdown event listener attached (DOM already ready)');
+  }
+  
+  // Add pointerleave handler to clear hover state on toggle
+  if (memoryToggle) {
+    memoryToggle.addEventListener('pointerleave', () => {
+      memoryToggle.classList.remove('hovered');
+    });
+  }
     console.log('[MemoryToggle] Event listener attached (DOM already ready)');
   }
   
@@ -1928,8 +1938,8 @@ if (document.readyState === 'loading') {
       return;
     }
     
-    // Orb click - show text input if hidden, or hide if visible
-    jarvisOrbContainer.addEventListener('click', () => {
+    // Orb pointerdown - show text input if hidden, or hide if visible (works for both mouse and touch)
+    jarvisOrbContainer.addEventListener('pointerdown', () => {
       if (!isTextInputVisible) {
         console.log('[TextInput] Showing text input');
       // Also toggle engagement (visual feedback)
@@ -2760,6 +2770,7 @@ function setupNeurographHover() {
   // Handle canvas click (node selection) - use pointerdown for unified mouse/touch support
   neurographRenderer.domElement.addEventListener('pointerdown', (e) => {
     if (!neurographScene || neurons.length === 0) {return;}
+    e.preventDefault(); // Prevent default behavior (zoom, etc.) and avoid double-firing with click
     const rect = neurographRenderer.domElement.getBoundingClientRect();
     mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -2795,6 +2806,7 @@ function setupNeurographHover() {
 
   // Pointerdown outside the info panel (e.g. dock, transcript) - hide panel (works for both mouse and touch)
   document.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); // Prevent default behavior
     if (!neurographFocusTarget) {return;}
     
     // Don't hide if clicking inside panel or canvas
