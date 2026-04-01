@@ -983,6 +983,114 @@ function setupTtsToggle() {
 updateOrbVersion();
 setupTtsToggle();
 
+// === Mobile Drawer Setup ===
+function setupMobileDrawer() {
+  const menuToggle = document.getElementById('menu-toggle');
+  const menuClose = document.getElementById('menu-close');
+  const menuBackdrop = document.getElementById('menu-backdrop');
+  const mobileDrawer = document.getElementById('mobile-drawer');
+  const drawerServerStatus = document.getElementById('drawer-server-status');
+  const drawerMemoryToggle = document.getElementById('drawer-memory-toggle');
+  
+  let isDrawerOpen = false;
+  
+  // Open drawer
+  function openDrawer() {
+    if (!menuToggle || !mobileDrawer || !menuBackdrop) return;
+    
+    isDrawerOpen = true;
+    mobileDrawer.classList.add('open');
+    menuBackdrop.classList.add('visible');
+    
+    // Update drawer elements with current state
+    if (drawerServerStatus) {
+      // Sync with main server status
+      const indicator = document.getElementById('server-indicator');
+      const text = document.getElementById('server-status-text');
+      if (indicator && text) {
+        drawerServerStatus.innerHTML = `
+          <span class="indicator" id="drawer-server-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 10px;"></span>
+          <span id="drawer-server-status-text" style="color: #00ffff;">${text.textContent}</span>
+        `;
+      }
+    }
+    
+    // Update drawer memory toggle to match current state
+    if (drawerMemoryToggle && memoryToggle) {
+      if (currentMemorySource === 'user') {
+        drawerMemoryToggle.classList.add('active');
+        document.getElementById('drawer-memory-label').textContent = '🧠 User Memory';
+      } else {
+        drawerMemoryToggle.classList.remove('active');
+        document.getElementById('drawer-memory-label').textContent = '🧠 Jarvis Memory';
+      }
+    }
+    
+    console.log('[MobileDrawer] Drawer opened');
+  }
+  
+  // Close drawer
+  function closeDrawer() {
+    if (!mobileDrawer || !menuBackdrop) return;
+    
+    isDrawerOpen = false;
+    mobileDrawer.classList.remove('open');
+    menuBackdrop.classList.remove('visible');
+    console.log('[MobileDrawer] Drawer closed');
+  }
+  
+  // Toggle drawer
+  function toggleDrawer() {
+    if (isDrawerOpen) {
+      closeDrawer();
+    } else {
+      openDrawer();
+    }
+  }
+  
+  // Attach event listeners
+  if (menuToggle) {
+    menuToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openDrawer();
+    });
+    console.log('[MobileDrawer] Menu toggle listener attached');
+  }
+  
+  if (menuClose) {
+    menuClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeDrawer();
+    });
+    console.log('[MobileDrawer] Menu close listener attached');
+  }
+  
+  if (menuBackdrop) {
+    menuBackdrop.addEventListener('click', () => {
+      closeDrawer();
+    });
+    console.log('[MobileDrawer] Backdrop click listener attached');
+  }
+  
+  // Drawer server status - click to open vitals
+  if (drawerServerStatus) {
+    drawerServerStatus.addEventListener('click', () => {
+      // Trigger vitals toggle
+      vitalsToggle.click();
+      closeDrawer();
+    });
+    console.log('[MobileDrawer] Drawer server status listener attached');
+  }
+  
+  // Drawer memory toggle - sync with main toggle
+  if (drawerMemoryToggle) {
+    drawerMemoryToggle.addEventListener('click', toggleMemorySource);
+    console.log('[MobileDrawer] Drawer memory toggle listener attached');
+  }
+}
+
+setupMobileDrawer();
+
 // Server status check interval with cleanup on page unload
 console.log('[UI] Starting server status interval...');
 const serverStatusInterval = setInterval(checkServerStatus, 5000);
@@ -1021,7 +1129,10 @@ if (document.readyState === 'loading') {
     // Set up memory toggle event listener (use pointerdown for mobile tap support)
     const memoryToggle = document.getElementById('memory-toggle');
     if (memoryToggle) {
-      memoryToggle.addEventListener('pointerdown', toggleMemorySource);
+      memoryToggle.addEventListener('pointerdown', () => {
+        console.log('[MemoryToggle] pointerdown fired! Current source:', currentMemorySource);
+        toggleMemorySource();
+      });
       console.log('[MemoryToggle] pointerdown event listener attached');
     }
     
@@ -1042,18 +1153,38 @@ if (document.readyState === 'loading') {
   // Set up memory toggle event listener (DOM already ready case)
   const memoryToggle = document.getElementById('memory-toggle');
   if (memoryToggle) {
-    memoryToggle.addEventListener('pointerdown', toggleMemorySource);
+    memoryToggle.addEventListener('pointerdown', () => {
+      console.log('[MemoryToggle] pointerdown fired (DOM ready)! Current source:', currentMemorySource);
+      toggleMemorySource();
+    });
     console.log('[MemoryToggle] pointerdown event listener attached (DOM already ready)');
   }
   
   // Add pointerleave handler to clear hover state on toggle
-  if (memoryToggle) {
-    memoryToggle.addEventListener('pointerleave', () => {
-      memoryToggle.classList.remove('hovered');
+  memoryToggle.addEventListener('pointerleave', () => {
+    memoryToggle.classList.remove('hovered');
+  });
+  
+  // Also add handler to inner toggle handle for better mobile tap response
+  const toggleSwitch = document.getElementById('memory-toggle-switch');
+  if (toggleSwitch) {
+    toggleSwitch.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); // Prevent bubbling
+      toggleMemorySource();
     });
+    console.log('[MemoryToggle] Toggle switch pointerdown handler attached');
   }
-    console.log('[MemoryToggle] Event listener attached (DOM already ready)');
+  
+  const toggleHandle = document.getElementById('memory-toggle-handle');
+  if (toggleHandle) {
+    toggleHandle.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); // Prevent bubbling
+      toggleMemorySource();
+    });
+    console.log('[MemoryToggle] Toggle handle pointerdown handler attached');
   }
+  
+  console.log('[MemoryToggle] Event listener attached (DOM already ready)');
   
   // Show preview badge if in preview mode
   if (IS_PREVIEW) {
@@ -2606,8 +2737,15 @@ function focusNeurographNode(neuron) {
   hoveredNode = neuron;
   setNeurographSphereFocusVisual(neuron, true);
   neuroFocusStyledMesh = neuron;
-  getNeuroInfoPanel().innerHTML = createNodeLabel(neuron.userData);
+  const panel = getNeuroInfoPanel();
+  panel.innerHTML = createNodeLabel(neuron.userData);
+  panel.style.opacity = '1';
+  panel.style.transform = 'scale(1) translateY(0)';
+  panel.style.pointerEvents = 'auto';
+  panel.style.display = 'block';
+  panel.style.visibility = 'visible';
   isPanelExpanded = true;
+  console.log('[NeuroInfoPanel] Panel shown for focused node, opacity=1, display=block');
 }
 
 // Animation loop
@@ -2767,23 +2905,92 @@ function setupNeurographHover() {
   // Initialize the single info panel
   getNeuroInfoPanel();
 
-  // Handle canvas click (node selection) - use pointerdown for unified mouse/touch support
-  neurographRenderer.domElement.addEventListener('pointerdown', (e) => {
-    if (!neurographScene || neurons.length === 0) {return;}
-    e.preventDefault(); // Prevent default behavior (zoom, etc.) and avoid double-firing with click
-    const rect = neurographRenderer.domElement.getBoundingClientRect();
-    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(mouse, neurographCamera);
-    const hits = raycaster.intersectObjects(neurons);
-    if (hits.length > 0) {
-      const clickedNode = hits[0].object;
-      focusNeurographNode(clickedNode);
+  // Double-tap tracking for mobile navigation (smooth animated fly-through)
+let lastTapTime = 0;
+let lastTapPosition = { x: 0, y: 0 };
+let isFlyingThroughSpace = false;
+
+// Smooth fly-through animation for double-tap navigation
+function flyThroughSpace(distance = 50, duration = 1200) {
+  if (isFlyingThroughSpace) return; // Prevent overlapping flights
+  isFlyingThroughSpace = true;
+  
+  const startPos = neurographCamera.position.clone();
+  const startTarget = neurographControls.target.clone();
+  
+  // Calculate forward direction
+  const forward = new THREE.Vector3(0, 0, -1);
+  forward.applyQuaternion(neurographCamera.quaternion);
+  forward.normalize();
+  
+  const endPos = startPos.clone().add(forward.clone().multiplyScalar(distance));
+  const endTarget = startTarget.clone().add(forward.clone().multiplyScalar(distance));
+  
+  const startTime = performance.now();
+  
+  function animateFlight() {
+    const elapsed = performance.now() - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    
+    // Smooth ease-in-out cubic
+    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    
+    neurographCamera.position.lerpVectors(startPos, endPos, eased);
+    neurographControls.target.lerpVectors(startTarget, endTarget, eased);
+    
+    if (t < 1) {
+      requestAnimationFrame(animateFlight);
     } else {
-      // Click on empty space - clear focus
-      clearNeurographNodeFocus();
+      isFlyingThroughSpace = false;
+      console.log('[Neurograph] Flight complete');
     }
-  });
+  }
+  
+  animateFlight();
+  console.log(`[Neurograph] Flying through space: ${distance} units over ${duration}ms`);
+}
+
+// Handle canvas click (node selection) - use pointerdown for unified mouse/touch support
+neurographRenderer.domElement.addEventListener('pointerdown', (e) => {
+  if (!neurographScene || neurons.length === 0) {return;}
+  e.preventDefault(); // Prevent default behavior (zoom, etc.) and avoid double-firing with click
+  e.stopPropagation(); // Stop event from bubbling to document
+  
+  const rect = neurographRenderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, neurographCamera);
+  const hits = raycaster.intersectObjects(neurons);
+  
+  // Check for double-tap (mobile navigation through space)
+  const now = Date.now();
+  const tapDistance = Math.sqrt(
+    Math.pow(e.clientX - lastTapPosition.x, 2) + 
+    Math.pow(e.clientY - lastTapPosition.y, 2)
+  );
+  const isDoubleTap = (now - lastTapTime < 300) && (tapDistance < 50);
+  
+  if (isDoubleTap && hits.length === 0) {
+    // Double-tap on empty space - smooth fly through space
+    console.log('[Neurograph] Double-tap detected - smooth navigation through space');
+    flyThroughSpace(50, 1200); // Fly 50 units over 1.2 seconds
+    lastTapTime = 0; // Reset
+    return;
+  }
+  
+  lastTapTime = now;
+  lastTapPosition = { x: e.clientX, y: e.clientY };
+  
+  if (hits.length > 0) {
+    const clickedNode = hits[0].object;
+    console.log('[Neurograph] Node tapped:', clickedNode.userData.id);
+    focusNeurographNode(clickedNode);
+  } else {
+    // Click on empty space - clear focus
+    console.log('[Neurograph] Empty space tapped - clearing focus');
+    clearNeurographNodeFocus();
+  }
+});
 
   // Clear hover when pointer leaves canvas
   neurographRenderer.domElement.addEventListener('pointerleave', () => {
@@ -2805,18 +3012,47 @@ function setupNeurographHover() {
   });
 
   // Pointerdown outside the info panel (e.g. dock, transcript) - hide panel (works for both mouse and touch)
+  // Use longer timeout to prevent premature closing on mobile
   document.addEventListener('pointerdown', (e) => {
-    e.preventDefault(); // Prevent default behavior
     if (!neurographFocusTarget) {return;}
     
-    // Don't hide if clicking inside panel or canvas
+    // Don't hide if clicking inside panel
     const panel = getNeuroInfoPanel();
-    if (panel && panel.contains(e.target)) {return;}
-    const canvasEl = neurographRenderer && neurographRenderer.domElement;
-    if (canvasEl && canvasEl.contains(e.target)) {return;}
+    if (panel && panel.contains(e.target)) {
+      console.log('[NeuroInfoPanel] Click inside panel - keeping open');
+      return;
+    }
     
-    // Click outside - clear focus
-    clearNeurographNodeFocus();
+    // Don't hide if clicking on canvas (canvas has its own handler)
+    const canvasEl = neurographRenderer && neurographRenderer.domElement;
+    if (canvasEl && canvasEl.contains(e.target)) {
+      console.log('[NeuroInfoPanel] Click on canvas - keeping open');
+      return;
+    }
+    
+    // Don't hide if clicking on UI elements (dock, toggle, etc.)
+    const bottomDock = document.querySelector('.jarvis-bottom-dock');
+    if (bottomDock && bottomDock.contains(e.target)) {
+      console.log('[NeuroInfoPanel] Click on dock - keeping open');
+      return;
+    }
+    if (e.target.closest('#memory-toggle')) {
+      console.log('[NeuroInfoPanel] Click on toggle - keeping open');
+      return;
+    }
+    if (e.target.closest('#server-status')) {
+      console.log('[NeuroInfoPanel] Click on server-status - keeping open');
+      return;
+    }
+    
+    // Click outside - clear focus after a longer delay (300ms for mobile)
+    console.log('[NeuroInfoPanel] Click outside - will clear focus in 300ms');
+    setTimeout(() => {
+      if (neurographFocusTarget) {
+        console.log('[NeuroInfoPanel] Clearing focus (timeout)');
+        clearNeurographNodeFocus();
+      }
+    }, 300);
   });
 
   // Document-level pointermove for hover - unified mouse/touch support
@@ -3207,12 +3443,18 @@ function loadNeurographFromSource(source) {
       neurographData = data;
       createNeurograph(data);
       isNeurographLoaded = true;
+      
+      // Hide loading overlay after graph is rendered
+      setTimeout(() => {
+        hideMemoryLoadingOverlay();
+      }, 500);
     })
     .catch(err => {
       console.error(`[MemoryToggle] Failed to load ${source} data:`, err);
       // Create fallback neurograph if API fails
       createFallbackNeurograph();
       isNeurographLoaded = true;
+      hideMemoryLoadingOverlay();
     });
 }
 
@@ -3223,16 +3465,94 @@ function toggleMemorySource() {
   
   // Update UI toggle button
   const memoryToggle = document.getElementById('memory-toggle');
+  const toggleHandle = document.getElementById('memory-toggle-handle');
+  const toggleSwitch = document.getElementById('memory-toggle-switch');
+  const memoryLabel = document.getElementById('memory-label');
+  
+  // Color scheme: Always cyan (#00ffff) - easy to read, consistent
+  const memoryColor = '#00ffff';
+  
   if (currentMemorySource === 'user') {
     memoryToggle.classList.add('active');
-    document.getElementById('memory-label').textContent = '🧠 User Memory';
+    memoryLabel.textContent = '🧠 User Memory';
+    memoryLabel.style.color = memoryColor;
+    if (toggleSwitch) toggleSwitch.style.background = '#333';
+    if (toggleHandle) {
+      toggleHandle.style.left = '22px';
+      toggleHandle.style.background = memoryColor;
+    }
   } else {
     memoryToggle.classList.remove('active');
-    document.getElementById('memory-label').textContent = '🧠 Jarvis Memory';
+    memoryLabel.textContent = '🧠 Jarvis Memory';
+    memoryLabel.style.color = memoryColor;
+    if (toggleSwitch) toggleSwitch.style.background = '#333';
+    if (toggleHandle) {
+      toggleHandle.style.left = '2px';
+      toggleHandle.style.background = memoryColor;
+    }
   }
+  
+  console.log('[MemoryToggle] Switched to', currentMemorySource);
+  
+  // Show loading overlay during memory switch
+  showMemoryLoadingOverlay(currentMemorySource);
   
   // Reload neurograph data from new source
   loadNeurographFromSource(currentMemorySource);
+}
+
+// Show loading overlay when switching memory sources
+function showMemoryLoadingOverlay(source) {
+  let overlay = document.getElementById('memory-loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'memory-loading-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(5, 10, 20, 0.92);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(overlay);
+  }
+  
+  const sourceName = source === 'user' ? 'User Memory' : 'Jarvis Memory';
+  overlay.innerHTML = `
+    <div style="width: 48px; height: 48px; border: 3px solid rgba(0, 255, 255, 0.3); border-top-color: #00ffff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <div style="color: #64ffda; font-size: 1.1em; font-weight: 500; letter-spacing: 0.5px;">Loading ${sourceName}...</div>
+  `;
+  overlay.style.opacity = '1';
+  overlay.style.pointerEvents = 'auto';
+  
+  // Add spin animation if not already present
+  if (!document.getElementById('memory-loading-spin-style')) {
+    const style = document.createElement('style');
+    style.id = 'memory-loading-spin-style';
+    style.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
+  }
+}
+
+// Hide loading overlay
+function hideMemoryLoadingOverlay() {
+  const overlay = document.getElementById('memory-loading-overlay');
+  if (overlay) {
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+      if (overlay) overlay.style.display = 'none';
+    }, 300);
+  }
 }
 
 // Create neurograph from data
