@@ -1602,7 +1602,8 @@ function processRecording(filepath, extension) {
 function transcribeWithWhisper(audioPath, modelPath, extension) {
   const timestamp = new Date().toISOString();
   // Security fix: Use execFile instead of exec to prevent command injection
-  execFile(CONFIG.whisperCli, ['-m', modelPath, '-otxt', audioPath], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+  // Added --language auto for multilingual auto-detection (Burmese + English support)
+  execFile(CONFIG.whisperCli, ['-m', modelPath, '-otxt', audioPath, '--language', 'auto'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
     (error, stdout, stderr) => {
       const txtFile = audioPath + '.txt';
             
