@@ -1614,7 +1614,7 @@
             z-index: 0;
         }
 
-        /* Fullscreen/Expand mode - 85% viewport height, centered vertically */
+        /* Fullscreen/Expand mode - 85% viewport height, centered vertically, preserve rounded corners */
         #transcript.fullscreen {
             position: fixed !important;
             top: 50% !important;
@@ -1629,7 +1629,7 @@
             margin: 0 !important;
             padding: 0 20px 60px 20px;
             box-sizing: border-box;
-            border-radius: 0;
+            border-radius: 16px 18px 16px 16px !important; /* Preserve same radius as collapsed */
             z-index: 5000;
             border-color: rgba(0, 255, 255, 0.8);
             box-shadow: none;
@@ -1642,6 +1642,10 @@
             flex: 1;
             overflow-y: auto;
             min-height: 0;
+            margin: 0 -16px -24px -16px;
+            padding: 0 16px;
+            box-sizing: border-box;
+            border-radius: 0 0 16px 16px; /* Match bottom corners */
         }
 
         /* Expand button in transcript header - icon-only, subtle */
@@ -1782,6 +1786,7 @@
             background: rgba(10, 15, 30, 0.92);
             backdrop-filter: blur(8px) saturate(1.1);
             flex-shrink: 0;
+            border-radius: 16px 18px 0 0; /* Match top corners of container */
         }
 
         /* Transcript header text - smaller and subtler */
@@ -2094,7 +2099,7 @@
             </div>
             <div class="title-row">
                 <h1 class="futuristic-title" style="margin: 0;">J.A.R.V.I.S</h1>
-                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.4</span>
+                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.5</span>
             </div>
         </div>
         
@@ -2283,4 +2288,4 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
 
-    <script src="app.js?v=3.3.4"></script>
+    <script src="app.js?v=3.3.5"></script>
