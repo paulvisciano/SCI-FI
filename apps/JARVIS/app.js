@@ -2550,21 +2550,23 @@ let lastTapTime = 0;
 let lastTapPosition = { x: 0, y: 0 };
 let isFlyingThroughSpace = false;
 
-// Smooth fly-through animation for double-tap navigation
-function flyThroughSpace(distance = 50, duration = 1200) {
+// Double-tap / double-click fly-through: direction follows the ray through screen (clientX/Y).
+const NEURO_FLY_THROUGH_DISTANCE = 165;
+const NEURO_FLY_THROUGH_DURATION_MS = 1600;
+
+// Smooth fly-through animation — `direction` is world-space ray from camera through click (use raycaster.ray.direction)
+function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, duration = NEURO_FLY_THROUGH_DURATION_MS) {
   if (isFlyingThroughSpace) return; // Prevent overlapping flights
+  if (!direction || direction.lengthSq() < 1e-10) return;
   isFlyingThroughSpace = true;
-  
+
+  const dir = direction.clone().normalize();
+
   const startPos = neurographCamera.position.clone();
   const startTarget = neurographControls.target.clone();
-  
-  // Calculate forward direction
-  const forward = new THREE.Vector3(0, 0, -1);
-  forward.applyQuaternion(neurographCamera.quaternion);
-  forward.normalize();
-  
-  const endPos = startPos.clone().add(forward.clone().multiplyScalar(distance));
-  const endTarget = startTarget.clone().add(forward.clone().multiplyScalar(distance));
+
+  const endPos = startPos.clone().addScaledVector(dir, distance);
+  const endTarget = startTarget.clone().addScaledVector(dir, distance);
   
   const startTime = performance.now();
   
@@ -2587,7 +2589,7 @@ function flyThroughSpace(distance = 50, duration = 1200) {
   }
   
   animateFlight();
-  console.log(`[Neurograph] Flying through space: ${distance} units over ${duration}ms`);
+  console.log(`[Neurograph] Flying through space along click ray: ${distance} units over ${duration}ms`);
 }
 
   // Node pick: OrbitControls (r128) uses touchstart for 1-finger orbit; capture touchstart + pointerdown (mouse/pen).
@@ -2609,11 +2611,12 @@ function flyThroughSpace(distance = 50, duration = 1200) {
       Math.pow(clientX - lastTapPosition.x, 2) +
       Math.pow(clientY - lastTapPosition.y, 2)
     );
-    const isDoubleTap = (now - lastTapTime < 300) && (tapDistance < 50);
+    // ~500ms matches typical OS double-click interval (desktop); 50px keeps it as same spot
+    const isDoubleTap = (now - lastTapTime < 500) && (tapDistance < 50);
 
     if (isDoubleTap && hits.length === 0) {
-      console.log('[Neurograph] Double-tap detected - smooth navigation through space');
-      flyThroughSpace(50, 1200);
+      console.log('[Neurograph] Double-tap on empty space — fly along ray through click');
+      flyThroughSpace(raycaster.ray.direction);
       lastTapTime = 0;
       return 'double-empty';
     }
