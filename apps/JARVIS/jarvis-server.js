@@ -27,8 +27,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '3.2.0';
-const BUILD_DATE = '2026-04-01';
+const VERSION = '3.3.2';
+const BUILD_DATE = '2026-04-02';
 
 // Date formatting utility for consistent date handling
 function formatDateForFilename(date = new Date()) {
