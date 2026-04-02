@@ -1614,7 +1614,7 @@
             z-index: 0;
         }
 
-        /* Fullscreen/Expand mode - true viewport fill (overrides inline width/margin on #transcript) */
+        /* Fullscreen/Expand mode - 85% viewport height, leave room for header and button */
         #transcript.fullscreen {
             position: fixed !important;
             top: 0 !important;
@@ -1624,15 +1624,24 @@
             width: auto !important;
             max-width: none !important;
             height: auto !important;
-            max-height: none !important;
+            max-height: 85vh !important;
             margin: 0 !important;
-            padding: 0 20px 24px 20px;
+            padding: 0 20px 60px 20px;
             box-sizing: border-box;
             border-radius: 0;
             z-index: 5000;
             border-color: rgba(0, 255, 255, 0.8);
             box-shadow: none;
             transform: none !important;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Make transcript text area scrollable with min-height */
+        #transcript.fullscreen #transcript-text {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
         }
 
         /* Expand button in transcript header - icon-only, subtle */
@@ -1772,6 +1781,7 @@
             box-sizing: border-box;
             background: rgba(10, 15, 30, 0.92);
             backdrop-filter: blur(8px) saturate(1.1);
+            flex-shrink: 0;
         }
 
         /* Transcript header text - smaller and subtler */
