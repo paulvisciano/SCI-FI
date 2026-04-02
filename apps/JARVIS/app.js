@@ -904,30 +904,45 @@ function checkServerStatus() {
       console.log('[checkServerStatus] Health response:', data);
       const indicator = document.getElementById('server-indicator');
       const statusText = document.getElementById('server-status-text');
+      const drawerIndicator = document.getElementById('drawer-server-indicator');
+      const drawerStatusText = document.getElementById('drawer-server-status-text');
 
       // Check if JARVIS process is alive (from /health endpoint)
       // Response: { status: 'ok', version: VERSION, build: BUILD_DATE, jarvis: { pid, memory, uptime } }
       if (data.status === 'ok') {
-        indicator.style.background = '#00ffff';
-        indicator.style.boxShadow = '0 0 8px #00ffff';
-        // Server version from /health endpoint (reads jarvis-server.js VERSION constant)
-        const serverVersion = data.version ? `v${data.version}` : 'v?';
-        const pid = data.jarvis?.pid || '?';
-        const memory = data.jarvis?.memory || '?';
-        const uptime = data.jarvis?.uptime || '?';
+        // Update main status if elements exist
+        if (indicator) {
+          indicator.style.background = '#00ffff';
+          indicator.style.boxShadow = '0 0 8px #00ffff';
+        }
+        if (statusText) {
+          const serverVersion = data.version ? `v${data.version}` : 'v?';
+          const pid = data.jarvis?.pid || '?';
+          const memory = data.jarvis?.memory || '?';
+          const uptime = data.jarvis?.uptime || '?';
+          statusText.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
+        }
+        
+        // Update drawer status if elements exist
+        if (drawerIndicator) {
+          drawerIndicator.style.background = '#00ffff';
+          drawerIndicator.style.boxShadow = '0 0 8px #00ffff';
+        }
+        if (drawerStatusText) {
+          const serverVersion = data.version ? `v${data.version}` : 'v?';
+          const pid = data.jarvis?.pid || '?';
+          const memory = data.jarvis?.memory || '?';
+          const uptime = data.jarvis?.uptime || '?';
+          drawerStatusText.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
+        }
 
-        // Show server info underneath title (version, PID, memory, uptime)
-        const statusEl = document.getElementById('server-status');
-        const statusTextEl = document.getElementById('server-status-text');
-        const wasFaded = statusEl?.classList.contains('faded'); // Preserve fade state
-
-        statusTextEl.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
-
-        console.log('[checkServerStatus] Status text updated:', statusText.textContent);
-
+        console.log('[checkServerStatus] Status updated (main:', statusText?.textContent, 'drawer:', drawerStatusText?.textContent, ')');
+        
         // Restore faded state after updating text (polling doesn't break fade)
-        if (wasFaded && statusEl) {
-          statusEl.classList.add('faded');
+        const mainStatusEl = document.getElementById('server-status');
+        const wasFaded = mainStatusEl?.classList.contains('faded');
+        if (wasFaded && mainStatusEl) {
+          mainStatusEl.classList.add('faded');
         }
 
         // Setup fade-in-out logic on first successful health check
@@ -937,20 +952,43 @@ function checkServerStatus() {
           console.log('[UI v2.9.11] Fade setup called on first health check');
         }
       } else {
-        indicator.style.background = '#ff4444';
-        indicator.style.boxShadow = '0 0 8px #ff4444';
-        document.getElementById('server-status-text').textContent = 'Server: Offline';
-        statusText.style.color = '#ff4444';
+        // Server offline - update both main and drawer status
+        if (indicator) {
+          indicator.style.background = '#ff4444';
+          indicator.style.boxShadow = '0 0 8px #ff4444';
+        }
+        if (statusText) {
+          statusText.textContent = 'Server: Offline';
+          statusText.style.color = '#ff4444';
+        }
+        if (drawerIndicator) {
+          drawerIndicator.style.background = '#ff4444';
+          drawerIndicator.style.boxShadow = '0 0 8px #ff4444';
+        }
+        if (drawerStatusText) {
+          drawerStatusText.textContent = 'Server: Offline';
+          drawerStatusText.style.color = '#ff4444';
+        }
       }
     })
     .catch((err) => {
       console.error('[checkServerStatus] Error:', err);
-      const indicator = document.getElementById('server-indicator');
-      const statusText = document.getElementById('server-status-text');
-      indicator.style.background = '#ff4444';
-      indicator.style.boxShadow = '0 0 8px #ff4444';
-      statusText.textContent = 'Health check failed';
-      statusText.style.color = '#ff4444';
+      if (indicator) {
+        indicator.style.background = '#ff4444';
+        indicator.style.boxShadow = '0 0 8px #ff4444';
+      }
+      if (statusText) {
+        statusText.textContent = 'Health check failed';
+        statusText.style.color = '#ff4444';
+      }
+      if (drawerIndicator) {
+        drawerIndicator.style.background = '#ff4444';
+        drawerIndicator.style.boxShadow = '0 0 8px #ff4444';
+      }
+      if (drawerStatusText) {
+        drawerStatusText.textContent = 'Health check failed';
+        drawerStatusText.style.color = '#ff4444';
+      }
     });
 }
 
@@ -1016,13 +1054,26 @@ function setupMobileDrawer() {
     }
     
     // Update drawer memory toggle to match current state
-    if (drawerMemoryToggle && memoryToggle) {
+    if (drawerMemoryToggle) {
       if (currentMemorySource === 'user') {
         drawerMemoryToggle.classList.add('active');
         document.getElementById('drawer-memory-label').textContent = '🧠 User Memory';
       } else {
         drawerMemoryToggle.classList.remove('active');
         document.getElementById('drawer-memory-label').textContent = '🧠 Jarvis Memory';
+      }
+    }
+    
+    // Update hidden main memory toggle for sync
+    const mainMemoryToggle = document.getElementById('main-memory-toggle');
+    const mainMemoryLabel = document.getElementById('main-memory-label');
+    if (mainMemoryToggle && mainMemoryLabel) {
+      if (currentMemorySource === 'user') {
+        mainMemoryToggle.classList.add('active');
+        mainMemoryLabel.textContent = '🧠 User Memory';
+      } else {
+        mainMemoryToggle.classList.remove('active');
+        mainMemoryLabel.textContent = '🧠 Jarvis Memory';
       }
     }
     
@@ -3510,7 +3561,7 @@ function toggleMemorySource() {
   // Switch source
   currentMemorySource = currentMemorySource === 'jarvis' ? 'user' : 'jarvis';
   
-  // Update UI toggle button
+  // Update UI toggle button (main - for desktop)
   const memoryToggle = document.getElementById('memory-toggle');
   const toggleHandle = document.getElementById('memory-toggle-handle');
   const toggleSwitch = document.getElementById('memory-toggle-switch');
@@ -3520,22 +3571,52 @@ function toggleMemorySource() {
   const memoryColor = '#00ffff';
   
   if (currentMemorySource === 'user') {
-    memoryToggle.classList.add('active');
-    memoryLabel.textContent = '🧠 User Memory';
-    memoryLabel.style.color = memoryColor;
+    if (memoryToggle) {
+      memoryToggle.classList.add('active');
+      memoryLabel.textContent = '🧠 User Memory';
+      memoryLabel.style.color = memoryColor;
+    }
     if (toggleSwitch) toggleSwitch.style.background = '#333';
     if (toggleHandle) {
       toggleHandle.style.left = '22px';
       toggleHandle.style.background = memoryColor;
     }
   } else {
-    memoryToggle.classList.remove('active');
-    memoryLabel.textContent = '🧠 Jarvis Memory';
-    memoryLabel.style.color = memoryColor;
+    if (memoryToggle) {
+      memoryToggle.classList.remove('active');
+      memoryLabel.textContent = '🧠 Jarvis Memory';
+      memoryLabel.style.color = memoryColor;
+    }
     if (toggleSwitch) toggleSwitch.style.background = '#333';
     if (toggleHandle) {
       toggleHandle.style.left = '2px';
       toggleHandle.style.background = memoryColor;
+    }
+  }
+  
+  // Update drawer memory toggle
+  const drawerMemoryToggle = document.getElementById('drawer-memory-toggle');
+  const drawerMemoryLabel = document.getElementById('drawer-memory-label');
+  if (drawerMemoryToggle && drawerMemoryLabel) {
+    if (currentMemorySource === 'user') {
+      drawerMemoryToggle.classList.add('active');
+      drawerMemoryLabel.textContent = '🧠 User Memory';
+    } else {
+      drawerMemoryToggle.classList.remove('active');
+      drawerMemoryLabel.textContent = '🧠 Jarvis Memory';
+    }
+  }
+  
+  // Update hidden main memory toggle for sync
+  const mainMemoryToggle = document.getElementById('main-memory-toggle');
+  const mainMemoryLabel = document.getElementById('main-memory-label');
+  if (mainMemoryToggle && mainMemoryLabel) {
+    if (currentMemorySource === 'user') {
+      mainMemoryToggle.classList.add('active');
+      mainMemoryLabel.textContent = '🧠 User Memory';
+    } else {
+      mainMemoryToggle.classList.remove('active');
+      mainMemoryLabel.textContent = '🧠 Jarvis Memory';
     }
   }
   
