@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.0';
+const CLIENT_VERSION = '3.3.1';
 const CLIENT_BUILD_DATE = '2026-04-02';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -2232,6 +2232,8 @@ function clearNeuroInfoPanel() {
 let neurographFocusTarget = null;
 let neurographFlyActive = false;
 const neurographFocusDir = new THREE.Vector3(0, 0, 1);
+// OrbitControls clamps camera–target distance to [minDistance, maxDistance]; the fly must end
+// inside that range or the first update() after re-enabling controls jumps the camera.
 const NEUROGRAPH_FOCUS_DISTANCE = 44;
 const NEUROGRAPH_FLY_DURATION_MS = 3400;
 const _neuroDesiredCam = new THREE.Vector3();
@@ -2399,6 +2401,7 @@ function clearNeurographNodeFocus() {
   neurographFlyActive = false;
   if (neurographControls) {
     neurographControls.enabled = true;
+    neurographControls.enableDamping = true;
   }
   // Do not move camera or orbit target — user stays in the same view (first-person continuity)
   clearNeuroInfoPanel();
@@ -2436,6 +2439,11 @@ function focusNeurographNode(neuron) {
   hoveredNode = neuron;
   setNeurographSphereFocusVisual(neuron, true);
   neuroFocusStyledMesh = neuron;
+  // OrbitControls.update() re-derives the camera from spherical + damping; that fights lerped
+  // positions during fly. Flush inertia, then skip update() until the snap at u>=1.
+  neurographControls.enabled = false;
+  neurographControls.enableDamping = false;
+  neurographControls.update();
   const panel = getNeuroInfoPanel();
   panel.innerHTML = createNodeLabel(neuron.userData);
   panel.style.opacity = '1';
@@ -2498,18 +2506,24 @@ function animateNeurograph() {
   if (neurographFlyActive && neurographFocusTarget && neurographCamera && neurographControls) {
     neurographControls.enabled = false;
     const tpos = neurographFocusTarget.position;
-    _neuroDesiredCam.copy(tpos).addScaledVector(neurographFocusDir, NEUROGRAPH_FOCUS_DISTANCE);
+    const focusPull = Math.max(NEUROGRAPH_FOCUS_DISTANCE, neurographControls.minDistance);
+    _neuroDesiredCam.copy(tpos).addScaledVector(neurographFocusDir, focusPull);
     const elapsed = performance.now() - neurographFlyStartTime;
     const u = Math.min(1, elapsed / NEUROGRAPH_FLY_DURATION_MS);
     const e = easeInOutCubicNeuro(u);
     neurographCamera.position.copy(neurographFlyFromCam).lerp(_neuroDesiredCam, e);
     neurographControls.target.copy(neurographFlyFromTarget).lerp(tpos, e);
-    neurographControls.update();
+    neurographCamera.lookAt(neurographControls.target);
+    // Do not call neurographControls.update() here — it overwrites the camera from internal
+    // spherical state + sphericalDelta and causes end-of-fly flicker.
     if (u >= 1) {
       neurographCamera.position.copy(_neuroDesiredCam);
       neurographControls.target.copy(tpos);
+      neurographCamera.lookAt(tpos);
       neurographFlyActive = false;
       neurographControls.enabled = true;
+      neurographControls.enableDamping = true;
+      neurographControls.update();
     }
   } else if (neurographControls) {
     neurographControls.enabled = true;
