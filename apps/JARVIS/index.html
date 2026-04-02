@@ -1602,6 +1602,31 @@
             background: rgba(0, 255, 255, 0.1);
             border-radius: 8px;
         }
+
+        /* Drawer: server line wraps to at most two lines */
+        .drawer-footer .drawer-server-status {
+            align-items: flex-start;
+            gap: 10px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .drawer-footer .drawer-server-status .indicator {
+            margin-top: 3px;
+            margin-right: 0;
+        }
+
+        .drawer-footer #drawer-server-status-text {
+            flex: 1;
+            min-width: 0;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            line-height: 1.35;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
         
         /* Drawer memory toggle — larger touch target (above server row) */
         #drawer-memory-toggle {

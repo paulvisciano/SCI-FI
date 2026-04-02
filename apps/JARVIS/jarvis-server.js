@@ -56,7 +56,7 @@ function isValidInput(input) {
 }
 
 const CONFIG = {
-  port: process.env.VOICE_PORT || 18787,
+  port: process.env.VOICE_PORT || 18797,
   inboxDir: process.env.VOICE_INBOX_DIR || path.join(process.env.HOME, 'JARVIS', 'inbox'),
   liveDir: process.env.VOICE_LIVE_DIR || path.join(process.env.HOME, 'JARVIS', 'live'),
   modelDir: process.env.VOICE_MODEL_DIR || path.join(__dirname, 'assets'),

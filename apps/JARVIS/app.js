@@ -1099,11 +1099,11 @@ function setupMobileDrawer() {
     }
   }
   
-  // Attach event listeners
+  // Attach event listeners — hamburger toggles open/closed
   if (menuToggle) {
     menuToggle.addEventListener('click', (e) => {
       e.stopPropagation();
-      openDrawer();
+      toggleDrawer();
     });
     console.log('[MobileDrawer] Menu toggle listener attached');
   }
@@ -1123,13 +1123,23 @@ function setupMobileDrawer() {
     console.log('[MobileDrawer] Backdrop click listener attached');
   }
   
-  // Drawer server status - click to open vitals
+  // Drawer server status — open vitals overlay (same as desktop #server-status; vitals-toggle is optional/legacy)
   if (drawerServerStatus) {
-    drawerServerStatus.addEventListener('click', () => {
-      // Trigger vitals toggle
-      vitalsToggle.click();
+    function openVitalsFromDrawer() {
+      const vitalsOverlay = document.getElementById('vitals-overlay');
+      if (typeof window.refreshVitals === 'function') {
+        window.refreshVitals();
+      }
+      if (vitalsOverlay) {
+        vitalsOverlay.classList.add('active');
+      }
       closeDrawer();
-    });
+    }
+    drawerServerStatus.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      openVitalsFromDrawer();
+    }, { passive: false });
     console.log('[MobileDrawer] Drawer server status listener attached');
   }
   
