@@ -2134,29 +2134,89 @@ let isPanelExpanded = false;
 function getNeuroInfoPanel() {
   if (!neuroInfoPanel) {
     neuroInfoPanel = document.createElement('div');
-    neuroInfoPanel.className = 'neuro-node-panel';
+    neuroInfoPanel.className = 'neuro-info-panel-host';
     neuroInfoPanel.style.cssText = `
       position: fixed;
-      background: rgba(5, 5, 16, 0.96);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(0, 255, 255, 0.4);
-      border-radius: 12px;
-      padding: 16px;
-      min-width: 280px;
-      max-width: 420px;
-      max-height: 60vh;
-      overflow-y: auto;
-      z-index: 6000;
-      pointer-events: auto;
       opacity: 0;
-      transform: scale(0.95) translateY(10px);
-      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      transform: scale(0.98) translateY(6px);
+      transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
     `;
     document.body.appendChild(neuroInfoPanel);
     console.log('[NeuroInfoPanel] Panel created');
   }
   return neuroInfoPanel;
+}
+
+/** Desktop (769px+): anchor panel beside projected sphere so it does not cover the orb. */
+function neuroPanelUseInlineDesktopLayout() {
+  return typeof window !== 'undefined' && window.matchMedia('(min-width: 769px)').matches;
+}
+
+function positionNeuroInfoPanelNearMesh(mesh) {
+  const panel = neuroInfoPanel;
+  if (!panel || !mesh || !neurographCamera || !neurographRenderer) {return;}
+
+  if (!neuroPanelUseInlineDesktopLayout()) {
+    panel.style.position = 'fixed';
+    panel.style.left = '50%';
+    panel.style.right = 'auto';
+    panel.style.top = 'auto';
+    panel.style.bottom = 'max(16px, env(safe-area-inset-bottom, 0px))';
+    panel.style.transform = 'translateX(-50%)';
+    panel.style.maxWidth = 'min(420px, calc(100vw - 24px))';
+    return;
+  }
+
+  const canvas = neurographRenderer.domElement;
+  const crect = canvas.getBoundingClientRect();
+  const pos = mesh.position.clone();
+  pos.project(neurographCamera);
+  if (pos.z > 1) {
+    if (!neurographFocusTarget) {
+      panel.style.opacity = '0';
+    }
+    return;
+  }
+
+  const cx = (pos.x * 0.5 + 0.5) * crect.width + crect.left;
+  const cy = (-(pos.y * 0.5) + 0.5) * crect.height + crect.top;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const margin = 12;
+  const spherePad = 40;
+
+  panel.style.position = 'fixed';
+  panel.style.bottom = 'auto';
+  panel.style.right = 'auto';
+  panel.style.maxWidth = isPanelExpanded ? 'min(420px, 42vw)' : 'min(300px, 34vw)';
+  panel.style.transform = 'none';
+
+  const pw = panel.offsetWidth || (isPanelExpanded ? 360 : 260);
+  const ph = panel.offsetHeight || (isPanelExpanded ? 220 : 100);
+
+  const spaceRight = vw - cx - spherePad - margin;
+  const spaceLeft = cx - spherePad - margin;
+  let left;
+  if (spaceRight >= pw + margin || spaceRight >= spaceLeft) {
+    left = cx + spherePad + margin;
+  } else {
+    left = cx - spherePad - margin - pw;
+  }
+  left = Math.max(margin, Math.min(left, vw - pw - margin));
+
+  let top = cy - ph / 2;
+  top = Math.max(margin, Math.min(top, vh - ph - margin));
+
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(top)}px`;
+}
+
+function scheduleNeuroInfoPanelPosition(mesh) {
+  if (!mesh) {return;}
+  requestAnimationFrame(() => {
+    positionNeuroInfoPanelNearMesh(mesh);
+    requestAnimationFrame(() => positionNeuroInfoPanelNearMesh(mesh));
+  });
 }
 
 // Clear the single info panel
@@ -2343,7 +2403,6 @@ function clearNeurographNodeFocus() {
   // Do not move camera or orbit target — user stays in the same view (first-person continuity)
   clearNeuroInfoPanel();
   hoveredNode = null;
-  hoveredNode = null;
   
   if (neuroFocusStyledMesh) {
     setNeurographSphereFocusVisual(neuroFocusStyledMesh, false);
@@ -2386,6 +2445,7 @@ function focusNeurographNode(neuron) {
   panel.style.visibility = 'visible';
   isPanelExpanded = true;
   console.log('[NeuroInfoPanel] Panel shown for focused node, opacity=1, display=block');
+  scheduleNeuroInfoPanelPosition(neuron);
 }
 
 // Animation loop
@@ -2522,6 +2582,16 @@ function animateNeurograph() {
     }
   }
 
+  if (neuroInfoPanel) {
+    const op = neuroInfoPanel.style.opacity;
+    if (op !== '0' && op !== '' && parseFloat(op) > 0.01) {
+      const m = neurographFocusTarget || hoveredNode;
+      if (m) {
+        positionNeuroInfoPanelNearMesh(m);
+      }
+    }
+  }
+
   neurographRenderer.render(neurographScene, neurographCamera);
 }
 
@@ -2539,11 +2609,18 @@ function onNeurographWindowResize() {
     neurographRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, NEURO_MAX_PIXEL_RATIO));
     neurographRenderer.setSize(window.innerWidth, window.innerHeight);
   }
+  const m = neurographFocusTarget || hoveredNode;
+  if (m && neuroInfoPanel) {
+    scheduleNeuroInfoPanelPosition(m);
+  }
 }
 
 function setupNeurographHover() {
   // Initialize the single info panel
   getNeuroInfoPanel();
+
+  let neuroLastPointerX = 0;
+  let neuroLastPointerY = 0;
 
   // Double-tap tracking for mobile navigation (smooth animated fly-through)
 let lastTapTime = 0;
@@ -2671,16 +2748,34 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     { capture: true, passive: false }
   );
 
-  // Clear hover when pointer leaves canvas
-  neurographRenderer.domElement.addEventListener('pointerleave', () => {
+  // Clear hover when pointer leaves canvas — keep focus panel; don't clear if moving onto the info panel
+  neurographRenderer.domElement.addEventListener('pointerleave', (e) => {
     clearNeurographHoverVisual();
-    if (hoveredNode) {
-      const panel = getNeuroInfoPanel();
-      if (panel) {
-        panel.style.opacity = '0';
-      }
-      hoveredNode = null;
+    if (neurographFocusTarget) {
+      return;
     }
+    const rt = e.relatedTarget;
+    if (rt && neuroInfoPanel && (neuroInfoPanel === rt || neuroInfoPanel.contains(rt))) {
+      return;
+    }
+    const hideHoverIfLeftCanvas = () => {
+      if (neurographFocusTarget) {return;}
+      const panel = neuroInfoPanel;
+      let overPanel = false;
+      if (panel) {
+        const el = document.elementFromPoint(neuroLastPointerX, neuroLastPointerY);
+        overPanel = el && (panel === el || panel.contains(el));
+      }
+      if (overPanel) {return;}
+      if (hoveredNode) {
+        const p = getNeuroInfoPanel();
+        if (p) {
+          p.style.opacity = '0';
+        }
+        hoveredNode = null;
+      }
+    };
+    requestAnimationFrame(hideHoverIfLeftCanvas);
   });
 
   // Escape key - collapse the panel
@@ -2750,10 +2845,15 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
 
   // Document-level pointermove for hover - unified mouse/touch support
   document.addEventListener('pointermove', (e) => {
+    neuroLastPointerX = e.clientX;
+    neuroLastPointerY = e.clientY;
     if (!neurographScene) return;
     
     // Don't update hover while focus/camera is active
     if (neurographFocusTarget) {return;}
+    if (neuroInfoPanel && neuroInfoPanel.contains(e.target)) {
+      return;
+    }
 
     // Calculate mouse position in normalized device coordinates
     const rect = neurographRenderer.domElement.getBoundingClientRect();
@@ -2780,6 +2880,7 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
           panel.innerHTML = createCollapsedNodeLabel(nodeData);
           panel.style.opacity = '1';
           isPanelExpanded = false;
+          scheduleNeuroInfoPanelPosition(intersected);
         }
       }
     } else {
@@ -2796,10 +2897,15 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
 
   // Document-level move so hover clears when cursor is over UI above the canvas
   document.addEventListener('mousemove', (e) => {
+    neuroLastPointerX = e.clientX;
+    neuroLastPointerY = e.clientY;
     if (!neurographScene) return;
     
     // Don't update hover while focus/camera is active
     if (neurographFocusTarget) {return;}
+    if (neuroInfoPanel && neuroInfoPanel.contains(e.target)) {
+      return;
+    }
 
     // Calculate mouse position in normalized device coordinates
     const rect = neurographRenderer.domElement.getBoundingClientRect();
@@ -2826,6 +2932,7 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
           panel.innerHTML = createCollapsedNodeLabel(nodeData);
           panel.style.opacity = '1';
           isPanelExpanded = false;
+          scheduleNeuroInfoPanelPosition(intersected);
         }
       }
     } else {
