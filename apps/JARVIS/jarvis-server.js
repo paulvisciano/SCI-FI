@@ -27,7 +27,7 @@ const HTTPS_OPTIONS = {
 
 // === Configuration (Portable - No Hardcoded Paths) ===
 // VERSION / BUILD_DATE: patch + build date updated by apps/JARVIS/scripts/bump-jarvis-versions.js when this file is staged (see .githooks/pre-commit).
-const VERSION = '3.2.2';
+const VERSION = '3.2.3';
 const BUILD_DATE = '2026-04-02';
 
 // Date formatting utility for consistent date handling
@@ -56,7 +56,7 @@ function isValidInput(input) {
 }
 
 const CONFIG = {
-  port: process.env.VOICE_PORT || 18797,
+  port: process.env.VOICE_PORT || 18787,
   inboxDir: process.env.VOICE_INBOX_DIR || path.join(process.env.HOME, 'JARVIS', 'inbox'),
   liveDir: process.env.VOICE_LIVE_DIR || path.join(process.env.HOME, 'JARVIS', 'live'),
   modelDir: process.env.VOICE_MODEL_DIR || path.join(__dirname, 'assets'),
