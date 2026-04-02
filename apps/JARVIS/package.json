@@ -4,6 +4,7 @@
   "description": "Neuro-graph variant: **Today** view, **single-memory focus**, and **record** to talk to JARVIS. Full-screen JARVIS video plays while you record; audio (and optional transcript) is saved to the local filesystem.",
   "main": "jarvis-server.js",
   "scripts": {
+    "postinstall": "node scripts/setup-jarvis-git-hooks.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

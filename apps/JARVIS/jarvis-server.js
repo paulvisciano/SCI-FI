@@ -26,8 +26,8 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-// VERSION / BUILD_DATE: patch + build date updated by scripts/bump-jarvis-versions.js when this file is staged (see .githooks/pre-commit).
-const VERSION = '3.2.1';
+// VERSION / BUILD_DATE: patch + build date updated by apps/JARVIS/scripts/bump-jarvis-versions.js when this file is staged (see .githooks/pre-commit).
+const VERSION = '3.2.2';
 const BUILD_DATE = '2026-04-02';
 
 // Date formatting utility for consistent date handling
