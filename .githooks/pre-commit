@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Bump apps/JARVIS client/server patch versions when those paths are committed.
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+exec node "$ROOT/scripts/bump-jarvis-versions.js"

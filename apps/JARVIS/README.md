@@ -450,7 +450,9 @@ Commits that touch **client** files (`apps/JARVIS/app.js`, `index.html`, or `ass
 ./scripts/setup-jarvis-git-hooks.sh
 ```
 
-This sets `git config core.hooksPath .githooks` so the tracked `pre-commit` hook runs.
+This sets `git config core.hooksPath .githooks` so the tracked `pre-commit` hook runs. That setting is **per local clone** (not committed); without it, commits will not auto-bump versions.
+
+The hook runs `node scripts/bump-jarvis-versions.js` on every commit that stages JARVIS client or server paths listed above.
 
 ---
 

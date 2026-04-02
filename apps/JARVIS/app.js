@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.2.0';
-const CLIENT_BUILD_DATE = '2026-04-01';
+const CLIENT_VERSION = '3.3.0';
+const CLIENT_BUILD_DATE = '2026-04-02';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
