@@ -2950,47 +2950,80 @@ function flyThroughSpace(distance = 50, duration = 1200) {
   console.log(`[Neurograph] Flying through space: ${distance} units over ${duration}ms`);
 }
 
-// Handle canvas click (node selection) - use pointerdown for unified mouse/touch support
-neurographRenderer.domElement.addEventListener('pointerdown', (e) => {
-  if (!neurographScene || neurons.length === 0) {return;}
-  e.preventDefault(); // Prevent default behavior (zoom, etc.) and avoid double-firing with click
-  e.stopPropagation(); // Stop event from bubbling to document
-  
-  const rect = neurographRenderer.domElement.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(mouse, neurographCamera);
-  const hits = raycaster.intersectObjects(neurons);
-  
-  // Check for double-tap (mobile navigation through space)
-  const now = Date.now();
-  const tapDistance = Math.sqrt(
-    Math.pow(e.clientX - lastTapPosition.x, 2) + 
-    Math.pow(e.clientY - lastTapPosition.y, 2)
-  );
-  const isDoubleTap = (now - lastTapTime < 300) && (tapDistance < 50);
-  
-  if (isDoubleTap && hits.length === 0) {
-    // Double-tap on empty space - smooth fly through space
-    console.log('[Neurograph] Double-tap detected - smooth navigation through space');
-    flyThroughSpace(50, 1200); // Fly 50 units over 1.2 seconds
-    lastTapTime = 0; // Reset
-    return;
-  }
-  
-  lastTapTime = now;
-  lastTapPosition = { x: e.clientX, y: e.clientY };
-  
-  if (hits.length > 0) {
-    const clickedNode = hits[0].object;
-    console.log('[Neurograph] Node tapped:', clickedNode.userData.id);
-    focusNeurographNode(clickedNode);
-  } else {
-    // Click on empty space - clear focus
+  // Node pick: OrbitControls (r128) uses touchstart for 1-finger orbit; capture touchstart + pointerdown (mouse/pen).
+  const ngPickEl = neurographRenderer.domElement;
+
+  function runNeurographTapPick(clientX, clientY) {
+    if (!neurographScene || neurons.length === 0) {return 'skip';}
+    const rect = ngPickEl.getBoundingClientRect();
+    const rw = rect.width;
+    const rh = rect.height;
+    if (rw <= 0 || rh <= 0) {return 'skip';}
+    mouse.x = ((clientX - rect.left) / rw) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rh) * 2 + 1;
+    raycaster.setFromCamera(mouse, neurographCamera);
+    const hits = raycaster.intersectObjects(neurons);
+
+    const now = Date.now();
+    const tapDistance = Math.sqrt(
+      Math.pow(clientX - lastTapPosition.x, 2) +
+      Math.pow(clientY - lastTapPosition.y, 2)
+    );
+    const isDoubleTap = (now - lastTapTime < 300) && (tapDistance < 50);
+
+    if (isDoubleTap && hits.length === 0) {
+      console.log('[Neurograph] Double-tap detected - smooth navigation through space');
+      flyThroughSpace(50, 1200);
+      lastTapTime = 0;
+      return 'double-empty';
+    }
+
+    lastTapTime = now;
+    lastTapPosition = { x: clientX, y: clientY };
+
+    if (hits.length > 0) {
+      const clickedNode = hits[0].object;
+      console.log('[Neurograph] Node tapped:', clickedNode.userData.id);
+      focusNeurographNode(clickedNode);
+      return 'node';
+    }
     console.log('[Neurograph] Empty space tapped - clearing focus');
     clearNeurographNodeFocus();
+    return 'empty';
   }
-});
+
+  ngPickEl.addEventListener(
+    'touchstart',
+    (e) => {
+      if (!neurographScene || neurons.length === 0) {return;}
+      if (e.touches.length !== 1) {return;}
+      const t = e.touches[0];
+      const outcome = runNeurographTapPick(t.clientX, t.clientY);
+      if (outcome === 'skip') {return;}
+      if (outcome === 'node' || outcome === 'double-empty') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') {e.stopImmediatePropagation();}
+      }
+    },
+    { capture: true, passive: false }
+  );
+
+  ngPickEl.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (!neurographScene || neurons.length === 0) {return;}
+      if (e.pointerType === 'touch') {return;}
+      const outcome = runNeurographTapPick(e.clientX, e.clientY);
+      if (outcome === 'skip') {return;}
+      e.preventDefault();
+      e.stopPropagation();
+      if (outcome === 'node' || outcome === 'double-empty') {
+        if (typeof e.stopImmediatePropagation === 'function') {e.stopImmediatePropagation();}
+      }
+    },
+    { capture: true, passive: false }
+  );
 
   // Clear hover when pointer leaves canvas
   neurographRenderer.domElement.addEventListener('pointerleave', () => {
@@ -3023,10 +3056,24 @@ neurographRenderer.domElement.addEventListener('pointerdown', (e) => {
       return;
     }
     
-    // Don't hide if clicking on canvas (canvas has its own handler)
+    // Canvas: dismiss when the tap misses every orb (tap "outside" any sphere).
+    // Canvas capture handlers run first; this bubble fallback covers edge cases where focus stayed set.
     const canvasEl = neurographRenderer && neurographRenderer.domElement;
     if (canvasEl && canvasEl.contains(e.target)) {
-      console.log('[NeuroInfoPanel] Click on canvas - keeping open');
+      if (neurographScene && neurons.length > 0) {
+        const rect = canvasEl.getBoundingClientRect();
+        const rw = rect.width;
+        const rh = rect.height;
+        if (rw > 0 && rh > 0) {
+          mouse.x = ((e.clientX - rect.left) / rw) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rh) * 2 + 1;
+          raycaster.setFromCamera(mouse, neurographCamera);
+          const hits = raycaster.intersectObjects(neurons);
+          if (hits.length === 0) {
+            clearNeurographNodeFocus();
+          }
+        }
+      }
       return;
     }
     
