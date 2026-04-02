@@ -439,6 +439,21 @@ Consciousness should be **git-backed**, immutable, versioned, auditable.
 
 ---
 
+## Git hooks (auto version bumps)
+
+Commits that touch **client** files (`apps/JARVIS/app.js`, `index.html`, or `assets/**`) bump the **client** semver patch in `app.js` and sync `index.html` (inline version + `app.js?v=` cache buster). Commits that touch **server** files (`jarvis-server.js`) bump the **server** patch in `jarvis-server.js`. Build dates (`CLIENT_BUILD_DATE` / `BUILD_DATE`) are set to the commit day.
+
+**One-time setup** (per clone):
+
+```bash
+# from repo root (SCI-FI/)
+./scripts/setup-jarvis-git-hooks.sh
+```
+
+This sets `git config core.hooksPath .githooks` so the tracked `pre-commit` hook runs.
+
+---
+
 ## Support
 
 **When stuck:**

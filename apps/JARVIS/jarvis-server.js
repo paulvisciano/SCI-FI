@@ -12,7 +12,6 @@ const fs = require('fs');
 const path = require('path');
 const { exec, execFile, execSync } = require('child_process');
 const QRCode = require('qrcode');
-const deviceRegistry = require('./device-registry');
 const os = require('os');
 
 // CPU usage tracking
@@ -378,93 +377,6 @@ function handleRequest(req, res) {
         res.end(JSON.stringify({ url, qr: dataUrl, ip }));
       });
     });
-    return;
-  }
-
-  // Device registry API - list all devices
-  if (req.method === 'GET' && req.url === '/api/devices') {
-    const devices = deviceRegistry.listDevices();
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ devices }));
-    return;
-  }
-
-  // Device registry API - register/update device
-  if (req.method === 'POST' && req.url === '/api/register-device') {
-    const chunks = [];
-    req.on('data', chunk => chunks.push(chunk));
-    req.on('end', () => {
-      try {
-        const body = Buffer.concat(chunks).toString();
-        const data = JSON.parse(body);
-        const { mac, name, owner } = data;
-          
-        // Validate MAC address format (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
-        const macRegex = /^([0-9A-Fa-f]{2}[:|-]?){5}([0-9A-Fa-f]{2})$/;
-        if (!mac) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'MAC address required' }));
-          return;
-        }
-        if (!macRegex.test(mac)) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Invalid MAC address format. Use XX:XX:XX:XX:XX:XX' }));
-          return;
-        }
-          
-        // Validate name length and sanitize
-        if (!name || name.trim().length === 0) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Device name required' }));
-          return;
-        }
-        if (name.length > 50) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Device name must be 50 characters or less' }));
-          return;
-        }
-          
-        // Validate owner length
-        const sanitizedOwner = (owner || 'unknown').trim().toLowerCase();
-        if (sanitizedOwner.length > 20) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Owner must be 20 characters or less' }));
-          return;
-        }
-          
-        const device = deviceRegistry.updateDevice(mac, { name: name.trim(), owner: sanitizedOwner });
-        if (device) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, device }));
-        } else {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Device not found' }));
-        }
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid JSON' }));
-      }
-    });
-    return;
-  }
-
-  // Device registry API - delete device
-  if (req.method === 'DELETE' && req.url.startsWith('/api/delete-device')) {
-    const mac = req.url.split('=')[1];
-    if (!mac) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'MAC address required' }));
-      return;
-    }
-      
-    const removed = deviceRegistry.deleteDevice(mac);
-    if (removed) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true, device: removed }));
-    } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Device not found' }));
-    }
     return;
   }
 
@@ -1024,32 +936,13 @@ function handleRequest(req, res) {
       cacheHeaders['ETag'] = `"${stats.ino}-${stats.size}-${stats.mtimeMs}"`;
       cacheHeaders['Last-Modified'] = stats.mtime.toUTCString();
             
-      // Device fingerprinting on root path (index.html)
       if (urlPath === '/') {
         const userAgent = req.headers['user-agent'] || 'Unknown';
         const ip = req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
-        const cleanIp = ip.replace('::ffff:', ''); // Strip IPv6 prefix
-                
-        console.log(`[Device Fingerprint] UA: ${userAgent.substring(0, 80)}..., IP: ${cleanIp}`);
-                
-        // Get MAC from ARP table
-        const mac = deviceRegistry.getMacFromArp(cleanIp);
-                
-        if (mac) {
-          const device = deviceRegistry.findOrCreateDevice(mac, userAgent, cleanIp);
-          console.log(`[Device] ${device.name} (${device.mac}) - Visit #${device.connection_count}`);
-                    
-          // Pass device info to frontend via custom headers
-          cacheHeaders['X-Device-Id'] = device.id;
-          cacheHeaders['X-Device-Name'] = device.name;
-          cacheHeaders['X-Device-Mac'] = device.mac;
-          cacheHeaders['X-Device-Last-Seen'] = device.last_seen;
-          cacheHeaders['X-Device-Connection-Count'] = String(device.connection_count);
-        } else {
-          console.log(`[Device] MAC lookup failed for IP: ${cleanIp}`);
-        }
+        const cleanIp = ip.replace('::ffff:', '');
+        console.log(`[index] UA: ${userAgent.substring(0, 80)}..., IP: ${cleanIp}`);
       }
-            
+
       fs.readFile(filePath, (err, data) => {
         if (err) {
           res.writeHead(500);

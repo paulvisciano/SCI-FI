@@ -1258,31 +1258,13 @@ if (document.readyState === 'loading') {
   }
 }
 
-// === Network Dots Integration (with Device Identity) ===
+// === Network Dots Integration ===
 (function() {
   const protocol = window.location.protocol;
   const host = window.location.host || 'localhost:18787';
   const API_BASE_NET = `${protocol}//${host}`;
   let devices = [];
-  let deviceRegistry = {}; // MAC -> device info from registry
   let dotElements = [];
-
-  // Load device registry from server
-  async function loadDeviceRegistry() {
-    try {
-      const res = await fetch(`${API_BASE_NET}/api/devices`);
-      const data = await res.json();
-      if (data.devices) {
-        deviceRegistry = {};
-        data.devices.forEach(d => {
-          deviceRegistry[d.mac.toUpperCase()] = d;
-        });
-        if (DEBUG) {console.log('[DeviceIdentity] Loaded', data.devices.length, 'devices from registry');}
-      }
-    } catch (err) {
-      console.warn('[DeviceIdentity] Registry fetch failed:', err);
-    }
-  }
 
   async function loadDevices() {
     try {
@@ -1294,22 +1276,6 @@ if (document.readyState === 'loading') {
     } catch (err) {
       console.warn('Network fetch failed:', err);
     }
-  }
-
-  function formatLastSeen(isoString) {
-    if (!isoString) {return 'Unknown';}
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) {return 'Just now';}
-    if (diffMins < 60) {return `${diffMins}m ago`;}
-    if (diffHours < 24) {return `${diffHours}h ago`;}
-    if (diffDays < 7) {return `${diffDays}d ago`;}
-    return date.toLocaleDateString();
   }
 
   function renderDots() {
@@ -1343,22 +1309,8 @@ if (document.readyState === 'loading') {
       dot.style.top = `${y - dotHalf}px`;
       dot.style.animationDelay = `${idx * 0.5}s`;
 
-      // Look up device in registry
-      const macKey = device.mac.toUpperCase();
-      const registeredDevice = deviceRegistry[macKey];
-
-      const displayName = registeredDevice ? registeredDevice.name : device.manufacturer;
-      const owner = registeredDevice ? registeredDevice.owner : 'unknown';
-      const lastSeen = registeredDevice ? formatLastSeen(registeredDevice.last_seen) : 'First seen';
-      const connectionCount = registeredDevice ? registeredDevice.connection_count : 1;
-
-      // Color by owner
-      let borderColor = '#00d9ff'; // Default cyan
-      if (owner === 'paul') {borderColor = '#00ff88';} // Green
-      else if (owner === 'eric') {borderColor = '#00d9ff';} // Cyan
-      else if (registeredDevice) {borderColor = '#ffcc00';} // Yellow for known unknown
-      if (device.isGateway) {borderColor = '#00ff88';} // Gateway always green
-
+      const displayName = device.manufacturer || device.deviceType || 'Device';
+      const borderColor = device.isGateway ? '#00ff88' : '#00d9ff';
       dot.style.borderColor = borderColor;
       if (device.isGateway) {
         dot.style.background = 'radial-gradient(circle, #00ff88 0%, transparent 70%)';
@@ -1366,27 +1318,12 @@ if (document.readyState === 'loading') {
 
       const tooltip = document.createElement('div');
       tooltip.className = 'network-dot-tooltip';
-
-      console.log('[QR] Rendering tooltip for device:', device);
-      if (registeredDevice) {
-        // Show friendly name from registry
-        tooltip.innerHTML = `
-                    <h4>${displayName}</h4>
-                    <p>Owner: ${owner}</p>
-                    <p>MAC: ${device.mac.toUpperCase()}</p>
-                    <p>Visits: ${connectionCount}</p>
-                    <p>Last seen: ${lastSeen}</p>
-                    <span class="qr-btn" onclick="showQRCode('${device.ip}')">📱 Show QR</span>
-                `;
-      } else {
-        // Unknown device - show device info only (no registration fields)
-        tooltip.innerHTML = `
+      tooltip.innerHTML = `
                     <h4>${displayName}</h4>
                     <p>MAC: ${device.mac.toUpperCase()}</p>
-                    <p>Type: ${device.deviceType}</p>
+                    <p>Type: ${device.deviceType || 'Unknown'}</p>
                     <span class="qr-btn" onclick="showQRCode('${device.ip}')">📱 Show QR</span>
                 `;
-      }
 
       dot.appendChild(tooltip);
       container.appendChild(dot);
@@ -1405,38 +1342,6 @@ if (document.readyState === 'loading') {
       }
     };
   }
-
-  // Register unknown device
-  window.registerDevice = async function(idx, mac) {
-    const nameInput = document.getElementById(`reg-name-${idx}`);
-    const ownerInput = document.getElementById(`reg-owner-${idx}`);
-    const name = nameInput.value.trim();
-    const owner = ownerInput.value.trim().toLowerCase();
-
-    if (!name) {
-      alert('Please enter a device name');
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE_NET}/api/register-device`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mac, name, owner: owner || 'unknown' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        console.log('[DeviceIdentity] Registered:', data.device.name);
-        // Reload registry and re-render
-        await loadDeviceRegistry();
-        renderDots();
-      } else {
-        alert('Registration failed: ' + (data.error || 'Unknown error'));
-      }
-    } catch (err) {
-      alert('Registration failed: ' + err.message);
-    }
-  };
 
   function showQRCode(ip) {
     let modal = document.getElementById('qr-modal');
@@ -2751,6 +2656,9 @@ function flyThroughSpace(distance = 50, duration = 1200) {
       if (e.pointerType === 'touch') {return;}
       const outcome = runNeurographTapPick(e.clientX, e.clientY);
       if (outcome === 'skip') {return;}
+      // Empty background: still clear focus in runNeurographTapPick, but do not steal the
+      // event — OrbitControls needs mousedown/pointer for click-drag rotate on desktop.
+      if (outcome === 'empty') {return;}
       e.preventDefault();
       e.stopPropagation();
       if (outcome === 'node' || outcome === 'double-empty') {
