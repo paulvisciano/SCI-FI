@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.1.5';
-const CLIENT_BUILD_DATE = '2026-03-31';
+const CLIENT_VERSION = '3.3.2';
+const CLIENT_BUILD_DATE = '2026-04-02';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
@@ -201,8 +201,8 @@ jarvisOrb.addEventListener('mouseleave', () => {
   }
 });
 
-// ORB click handler - engage/disengage JARVIS
-jarvisOrbContainer.addEventListener('click', () => {
+// ORB pointerdown handler - engage/disengage JARVIS (works for both mouse click and mobile tap)
+jarvisOrbContainer.addEventListener('pointerdown', () => {
   isOrbEngaged = !isOrbEngaged;
 
   if (isOrbEngaged) {
@@ -229,17 +229,18 @@ if (!hasMediaDevices) {
   console.warn('MediaDevices check failed, but attempting recording anyway...');
 }
 
-// ORB click/tap - start/stop recording (works on mobile + desktop)
+// ORB pointerdown/tap - start/stop recording (works on mobile + desktop)
 // Mobile: tap orb (no Space key)
 // Desktop: can use Space key OR tap orb (both work)
-jarvisOrb.addEventListener('click', async (e) => {
+jarvisOrb.addEventListener('pointerdown', async (e) => {
+  e.preventDefault(); // Prevent default behavior and double-firing
   e.stopPropagation();
   if (!isRecording) {
     await startRecording();
   } else {
     await stopRecording();
   }
-  if (DEBUG) {console.log('[Orb click] Recording toggled');}
+  if (DEBUG) {console.log('[Orb pointerdown] Recording toggled');}
 });
 
 // Double-click also toggles recording (for users who prefer it)
@@ -498,6 +499,9 @@ function initTtsPlayer() {
 function playTtsAudio(filename) {
   if (!filename) return;
   
+  // Store filename for click-to-play
+  lastTtsFilename = filename;
+  
   console.log('[TTS] playTtsAudio called with filename:', filename);
   
   // Initialize if not already done
@@ -532,8 +536,8 @@ function playTtsAudio(filename) {
     paused: ttsAudioPlayer.paused
   });
   
-  // Add visual indicator that audio is playing
-  showAudioPlayingIndicator();
+  // Add visual indicator that audio is ready (not yet playing due to autoplay policy)
+  showAudioReadyIndicator();
   
   // Play with error handling
   ttsAudioPlayer.play()
@@ -545,6 +549,7 @@ function playTtsAudio(filename) {
         currentTime: ttsAudioPlayer.currentTime,
         duration: ttsAudioPlayer.duration
       });
+      updateAudioIndicatorToPlaying();
     })
     .catch((err) => {
       console.error('[TTS] Audio playback failed:', err);
@@ -554,14 +559,99 @@ function playTtsAudio(filename) {
         readyState: ttsAudioPlayer.readyState
       });
       
-      // Check for autoplay policy error
       if (err.name === 'NotAllowedError') {
         console.warn('[TTS] Autoplay policy blocked playback - user interaction required');
-        console.warn('[TTS] TTS toggle may need to be enabled first');
+        updateAudioIndicatorToClickToPlay();
       }
     });
 }
 
+// Show audio ready indicator (waiting for user to click)
+function showAudioReadyIndicator() {
+  // Remove existing indicators first
+  removeAudioIndicators();
+  
+  // Create new indicator with "Ready" state
+  const indicator = document.createElement('div');
+  indicator.id = 'tts-ready-indicator';
+  indicator.className = 'tts-ready-indicator';
+  indicator.innerHTML = '<span>🔊 TTS ready - click to play</span>';
+  indicator.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 215, 0, 0.9);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    cursor: pointer;
+    transition: opacity 0.3s ease, transform 0.2s ease;
+    user-select: none;
+  `;
+  indicator.addEventListener('click', () => {
+    // User clicked - try to play again
+    playTtsAudio(lastTtsFilename);
+  });
+  indicator.addEventListener('mouseenter', () => {
+    indicator.style.transform = 'scale(1.02)';
+  });
+  indicator.addEventListener('mouseleave', () => {
+    indicator.style.transform = 'scale(1)';
+  });
+  document.body.appendChild(indicator);
+  
+  // Auto-hide after 10 seconds if user doesn't interact
+  setTimeout(() => {
+    if (indicator.parentNode) {
+      indicator.style.opacity = '0';
+      setTimeout(() => {
+        if (indicator.parentNode) {
+          document.body.removeChild(indicator);
+        }
+      }, 300);
+    }
+  }, 10000);
+}
+
+// Update indicator to "Playing" state
+function updateAudioIndicatorToPlaying() {
+  const indicator = document.getElementById('tts-ready-indicator');
+  if (indicator) {
+    indicator.innerHTML = '<span>🔊 Playing</span>';
+    indicator.style.background = 'rgba(0, 255, 0, 0.8)';
+    indicator.style.cursor = 'default';
+  }
+}
+
+// Update indicator to "Click to Play" state
+function updateAudioIndicatorToClickToPlay() {
+  const indicator = document.getElementById('tts-ready-indicator');
+  if (indicator) {
+    indicator.innerHTML = '<span>🔊 Click to play</span>';
+    indicator.style.background = 'rgba(255, 100, 50, 0.9)';
+    indicator.style.cursor = 'pointer';
+  }
+}
+
+// Remove all audio indicators
+function removeAudioIndicators() {
+  ['tts-ready-indicator', 'tts-playing-indicator'].forEach(id => {
+    const indicator = document.getElementById(id);
+    if (indicator && indicator.parentNode) {
+      indicator.parentNode.removeChild(indicator);
+    }
+  });
+}
+
+// Track last TTS filename for click-to-play
+let lastTtsFilename = null;
+
+// Show visual indicator that audio is playing (keep for backward compatibility)
 // Show visual indicator that audio is playing
 function showAudioPlayingIndicator() {
   // Create or update an indicator element
@@ -814,30 +904,45 @@ function checkServerStatus() {
       console.log('[checkServerStatus] Health response:', data);
       const indicator = document.getElementById('server-indicator');
       const statusText = document.getElementById('server-status-text');
+      const drawerIndicator = document.getElementById('drawer-server-indicator');
+      const drawerStatusText = document.getElementById('drawer-server-status-text');
 
       // Check if JARVIS process is alive (from /health endpoint)
       // Response: { status: 'ok', version: VERSION, build: BUILD_DATE, jarvis: { pid, memory, uptime } }
       if (data.status === 'ok') {
-        indicator.style.background = '#00ffff';
-        indicator.style.boxShadow = '0 0 8px #00ffff';
-        // Server version from /health endpoint (reads jarvis-server.js VERSION constant)
-        const serverVersion = data.version ? `v${data.version}` : 'v?';
-        const pid = data.jarvis?.pid || '?';
-        const memory = data.jarvis?.memory || '?';
-        const uptime = data.jarvis?.uptime || '?';
+        // Update main status if elements exist
+        if (indicator) {
+          indicator.style.background = '#00ffff';
+          indicator.style.boxShadow = '0 0 8px #00ffff';
+        }
+        if (statusText) {
+          const serverVersion = data.version ? `v${data.version}` : 'v?';
+          const pid = data.jarvis?.pid || '?';
+          const memory = data.jarvis?.memory || '?';
+          const uptime = data.jarvis?.uptime || '?';
+          statusText.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
+        }
+        
+        // Update drawer status if elements exist
+        if (drawerIndicator) {
+          drawerIndicator.style.background = '#00ffff';
+          drawerIndicator.style.boxShadow = '0 0 8px #00ffff';
+        }
+        if (drawerStatusText) {
+          const serverVersion = data.version ? `v${data.version}` : 'v?';
+          const pid = data.jarvis?.pid || '?';
+          const memory = data.jarvis?.memory || '?';
+          const uptime = data.jarvis?.uptime || '?';
+          drawerStatusText.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
+        }
 
-        // Show server info underneath title (version, PID, memory, uptime)
-        const statusEl = document.getElementById('server-status');
-        const statusTextEl = document.getElementById('server-status-text');
-        const wasFaded = statusEl?.classList.contains('faded'); // Preserve fade state
-
-        statusTextEl.textContent = `Server: ${serverVersion} • PID ${pid} • ${memory} • ${uptime}`;
-
-        console.log('[checkServerStatus] Status text updated:', statusText.textContent);
-
+        console.log('[checkServerStatus] Status updated (main:', statusText?.textContent, 'drawer:', drawerStatusText?.textContent, ')');
+        
         // Restore faded state after updating text (polling doesn't break fade)
-        if (wasFaded && statusEl) {
-          statusEl.classList.add('faded');
+        const mainStatusEl = document.getElementById('server-status');
+        const wasFaded = mainStatusEl?.classList.contains('faded');
+        if (wasFaded && mainStatusEl) {
+          mainStatusEl.classList.add('faded');
         }
 
         // Setup fade-in-out logic on first successful health check
@@ -847,20 +952,43 @@ function checkServerStatus() {
           console.log('[UI v2.9.11] Fade setup called on first health check');
         }
       } else {
-        indicator.style.background = '#ff4444';
-        indicator.style.boxShadow = '0 0 8px #ff4444';
-        document.getElementById('server-status-text').textContent = 'Server: Offline';
-        statusText.style.color = '#ff4444';
+        // Server offline - update both main and drawer status
+        if (indicator) {
+          indicator.style.background = '#ff4444';
+          indicator.style.boxShadow = '0 0 8px #ff4444';
+        }
+        if (statusText) {
+          statusText.textContent = 'Server: Offline';
+          statusText.style.color = '#ff4444';
+        }
+        if (drawerIndicator) {
+          drawerIndicator.style.background = '#ff4444';
+          drawerIndicator.style.boxShadow = '0 0 8px #ff4444';
+        }
+        if (drawerStatusText) {
+          drawerStatusText.textContent = 'Server: Offline';
+          drawerStatusText.style.color = '#ff4444';
+        }
       }
     })
     .catch((err) => {
       console.error('[checkServerStatus] Error:', err);
-      const indicator = document.getElementById('server-indicator');
-      const statusText = document.getElementById('server-status-text');
-      indicator.style.background = '#ff4444';
-      indicator.style.boxShadow = '0 0 8px #ff4444';
-      statusText.textContent = 'Health check failed';
-      statusText.style.color = '#ff4444';
+      if (indicator) {
+        indicator.style.background = '#ff4444';
+        indicator.style.boxShadow = '0 0 8px #ff4444';
+      }
+      if (statusText) {
+        statusText.textContent = 'Health check failed';
+        statusText.style.color = '#ff4444';
+      }
+      if (drawerIndicator) {
+        drawerIndicator.style.background = '#ff4444';
+        drawerIndicator.style.boxShadow = '0 0 8px #ff4444';
+      }
+      if (drawerStatusText) {
+        drawerStatusText.textContent = 'Health check failed';
+        drawerStatusText.style.color = '#ff4444';
+      }
     });
 }
 
@@ -892,6 +1020,137 @@ function setupTtsToggle() {
 
 updateOrbVersion();
 setupTtsToggle();
+
+// === Mobile Drawer Setup ===
+function setupMobileDrawer() {
+  const menuToggle = document.getElementById('menu-toggle');
+  const menuClose = document.getElementById('menu-close');
+  const menuBackdrop = document.getElementById('menu-backdrop');
+  const mobileDrawer = document.getElementById('mobile-drawer');
+  const drawerServerStatus = document.getElementById('drawer-server-status');
+  const drawerMemoryToggle = document.getElementById('drawer-memory-toggle');
+  
+  let isDrawerOpen = false;
+  
+  // Open drawer
+  function openDrawer() {
+    if (!menuToggle || !mobileDrawer || !menuBackdrop) return;
+    
+    isDrawerOpen = true;
+    mobileDrawer.classList.add('open');
+    menuBackdrop.classList.add('visible');
+    
+    // Update drawer elements with current state
+    if (drawerServerStatus) {
+      // Sync with main server status
+      const indicator = document.getElementById('server-indicator');
+      const text = document.getElementById('server-status-text');
+      if (indicator && text) {
+        drawerServerStatus.innerHTML = `
+          <span class="indicator" id="drawer-server-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 10px;"></span>
+          <span id="drawer-server-status-text" style="color: #00ffff;">${text.textContent}</span>
+        `;
+      }
+    }
+    
+    // Update drawer memory toggle to match current state
+    if (drawerMemoryToggle) {
+      if (currentMemorySource === 'user') {
+        drawerMemoryToggle.classList.add('active');
+        document.getElementById('drawer-memory-label').textContent = '🧠 User Memory';
+      } else {
+        drawerMemoryToggle.classList.remove('active');
+        document.getElementById('drawer-memory-label').textContent = '🧠 Jarvis Memory';
+      }
+    }
+    
+    // Update hidden main memory toggle for sync
+    const mainMemoryToggle = document.getElementById('main-memory-toggle');
+    const mainMemoryLabel = document.getElementById('main-memory-label');
+    if (mainMemoryToggle && mainMemoryLabel) {
+      if (currentMemorySource === 'user') {
+        mainMemoryToggle.classList.add('active');
+        mainMemoryLabel.textContent = '🧠 User Memory';
+      } else {
+        mainMemoryToggle.classList.remove('active');
+        mainMemoryLabel.textContent = '🧠 Jarvis Memory';
+      }
+    }
+    
+    console.log('[MobileDrawer] Drawer opened');
+  }
+  
+  // Close drawer
+  function closeDrawer() {
+    if (!mobileDrawer || !menuBackdrop) return;
+    
+    isDrawerOpen = false;
+    mobileDrawer.classList.remove('open');
+    menuBackdrop.classList.remove('visible');
+    console.log('[MobileDrawer] Drawer closed');
+  }
+  
+  // Toggle drawer
+  function toggleDrawer() {
+    if (isDrawerOpen) {
+      closeDrawer();
+    } else {
+      openDrawer();
+    }
+  }
+  
+  // Attach event listeners — hamburger toggles open/closed
+  if (menuToggle) {
+    menuToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleDrawer();
+    });
+    console.log('[MobileDrawer] Menu toggle listener attached');
+  }
+  
+  if (menuClose) {
+    menuClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeDrawer();
+    });
+    console.log('[MobileDrawer] Menu close listener attached');
+  }
+  
+  if (menuBackdrop) {
+    menuBackdrop.addEventListener('click', () => {
+      closeDrawer();
+    });
+    console.log('[MobileDrawer] Backdrop click listener attached');
+  }
+  
+  // Drawer server status — open vitals overlay (same as desktop #server-status; vitals-toggle is optional/legacy)
+  if (drawerServerStatus) {
+    function openVitalsFromDrawer() {
+      const vitalsOverlay = document.getElementById('vitals-overlay');
+      if (typeof window.refreshVitals === 'function') {
+        window.refreshVitals();
+      }
+      if (vitalsOverlay) {
+        vitalsOverlay.classList.add('active');
+      }
+      closeDrawer();
+    }
+    drawerServerStatus.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      openVitalsFromDrawer();
+    }, { passive: false });
+    console.log('[MobileDrawer] Drawer server status listener attached');
+  }
+  
+  // Drawer memory toggle - sync with main toggle
+  if (drawerMemoryToggle) {
+    drawerMemoryToggle.addEventListener('click', toggleMemorySource);
+    console.log('[MobileDrawer] Drawer memory toggle listener attached');
+  }
+}
+
+setupMobileDrawer();
 
 // Server status check interval with cleanup on page unload
 console.log('[UI] Starting server status interval...');
@@ -928,6 +1187,16 @@ if (document.readyState === 'loading') {
     console.log('[UI] DOMContentLoaded - calling checkServerStatus');
     checkServerStatus();
     
+    // Set up memory toggle event listener (use pointerdown for mobile tap support)
+    const memoryToggle = document.getElementById('memory-toggle');
+    if (memoryToggle) {
+      memoryToggle.addEventListener('pointerdown', () => {
+        console.log('[MemoryToggle] pointerdown fired! Current source:', currentMemorySource);
+        toggleMemorySource();
+      });
+      console.log('[MemoryToggle] pointerdown event listener attached');
+    }
+    
     // Show preview badge if in preview mode
     if (IS_PREVIEW) {
       const previewBadge = document.getElementById('preview-badge');
@@ -942,6 +1211,42 @@ if (document.readyState === 'loading') {
   console.log('[UI] DOM already ready - calling checkServerStatus');
   checkServerStatus();
   
+  // Set up memory toggle event listener (DOM already ready case)
+  const memoryToggle = document.getElementById('memory-toggle');
+  if (memoryToggle) {
+    memoryToggle.addEventListener('pointerdown', () => {
+      console.log('[MemoryToggle] pointerdown fired (DOM ready)! Current source:', currentMemorySource);
+      toggleMemorySource();
+    });
+    console.log('[MemoryToggle] pointerdown event listener attached (DOM already ready)');
+  }
+  
+  // Add pointerleave handler to clear hover state on toggle
+  memoryToggle.addEventListener('pointerleave', () => {
+    memoryToggle.classList.remove('hovered');
+  });
+  
+  // Also add handler to inner toggle handle for better mobile tap response
+  const toggleSwitch = document.getElementById('memory-toggle-switch');
+  if (toggleSwitch) {
+    toggleSwitch.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); // Prevent bubbling
+      toggleMemorySource();
+    });
+    console.log('[MemoryToggle] Toggle switch pointerdown handler attached');
+  }
+  
+  const toggleHandle = document.getElementById('memory-toggle-handle');
+  if (toggleHandle) {
+    toggleHandle.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); // Prevent bubbling
+      toggleMemorySource();
+    });
+    console.log('[MemoryToggle] Toggle handle pointerdown handler attached');
+  }
+  
+  console.log('[MemoryToggle] Event listener attached (DOM already ready)');
+  
   // Show preview badge if in preview mode
   if (IS_PREVIEW) {
     const previewBadge = document.getElementById('preview-badge');
@@ -953,31 +1258,13 @@ if (document.readyState === 'loading') {
   }
 }
 
-// === Network Dots Integration (with Device Identity) ===
+// === Network Dots Integration ===
 (function() {
   const protocol = window.location.protocol;
   const host = window.location.host || 'localhost:18787';
   const API_BASE_NET = `${protocol}//${host}`;
   let devices = [];
-  let deviceRegistry = {}; // MAC -> device info from registry
   let dotElements = [];
-
-  // Load device registry from server
-  async function loadDeviceRegistry() {
-    try {
-      const res = await fetch(`${API_BASE_NET}/api/devices`);
-      const data = await res.json();
-      if (data.devices) {
-        deviceRegistry = {};
-        data.devices.forEach(d => {
-          deviceRegistry[d.mac.toUpperCase()] = d;
-        });
-        if (DEBUG) {console.log('[DeviceIdentity] Loaded', data.devices.length, 'devices from registry');}
-      }
-    } catch (err) {
-      console.warn('[DeviceIdentity] Registry fetch failed:', err);
-    }
-  }
 
   async function loadDevices() {
     try {
@@ -989,22 +1276,6 @@ if (document.readyState === 'loading') {
     } catch (err) {
       console.warn('Network fetch failed:', err);
     }
-  }
-
-  function formatLastSeen(isoString) {
-    if (!isoString) {return 'Unknown';}
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) {return 'Just now';}
-    if (diffMins < 60) {return `${diffMins}m ago`;}
-    if (diffHours < 24) {return `${diffHours}h ago`;}
-    if (diffDays < 7) {return `${diffDays}d ago`;}
-    return date.toLocaleDateString();
   }
 
   function renderDots() {
@@ -1038,22 +1309,8 @@ if (document.readyState === 'loading') {
       dot.style.top = `${y - dotHalf}px`;
       dot.style.animationDelay = `${idx * 0.5}s`;
 
-      // Look up device in registry
-      const macKey = device.mac.toUpperCase();
-      const registeredDevice = deviceRegistry[macKey];
-
-      const displayName = registeredDevice ? registeredDevice.name : device.manufacturer;
-      const owner = registeredDevice ? registeredDevice.owner : 'unknown';
-      const lastSeen = registeredDevice ? formatLastSeen(registeredDevice.last_seen) : 'First seen';
-      const connectionCount = registeredDevice ? registeredDevice.connection_count : 1;
-
-      // Color by owner
-      let borderColor = '#00d9ff'; // Default cyan
-      if (owner === 'paul') {borderColor = '#00ff88';} // Green
-      else if (owner === 'eric') {borderColor = '#00d9ff';} // Cyan
-      else if (registeredDevice) {borderColor = '#ffcc00';} // Yellow for known unknown
-      if (device.isGateway) {borderColor = '#00ff88';} // Gateway always green
-
+      const displayName = device.manufacturer || device.deviceType || 'Device';
+      const borderColor = device.isGateway ? '#00ff88' : '#00d9ff';
       dot.style.borderColor = borderColor;
       if (device.isGateway) {
         dot.style.background = 'radial-gradient(circle, #00ff88 0%, transparent 70%)';
@@ -1061,27 +1318,12 @@ if (document.readyState === 'loading') {
 
       const tooltip = document.createElement('div');
       tooltip.className = 'network-dot-tooltip';
-
-      console.log('[QR] Rendering tooltip for device:', device);
-      if (registeredDevice) {
-        // Show friendly name from registry
-        tooltip.innerHTML = `
-                    <h4>${displayName}</h4>
-                    <p>Owner: ${owner}</p>
-                    <p>MAC: ${device.mac.toUpperCase()}</p>
-                    <p>Visits: ${connectionCount}</p>
-                    <p>Last seen: ${lastSeen}</p>
-                    <span class="qr-btn" onclick="showQRCode('${device.ip}')">📱 Show QR</span>
-                `;
-      } else {
-        // Unknown device - show device info only (no registration fields)
-        tooltip.innerHTML = `
+      tooltip.innerHTML = `
                     <h4>${displayName}</h4>
                     <p>MAC: ${device.mac.toUpperCase()}</p>
-                    <p>Type: ${device.deviceType}</p>
+                    <p>Type: ${device.deviceType || 'Unknown'}</p>
                     <span class="qr-btn" onclick="showQRCode('${device.ip}')">📱 Show QR</span>
                 `;
-      }
 
       dot.appendChild(tooltip);
       container.appendChild(dot);
@@ -1100,38 +1342,6 @@ if (document.readyState === 'loading') {
       }
     };
   }
-
-  // Register unknown device
-  window.registerDevice = async function(idx, mac) {
-    const nameInput = document.getElementById(`reg-name-${idx}`);
-    const ownerInput = document.getElementById(`reg-owner-${idx}`);
-    const name = nameInput.value.trim();
-    const owner = ownerInput.value.trim().toLowerCase();
-
-    if (!name) {
-      alert('Please enter a device name');
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE_NET}/api/register-device`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mac, name, owner: owner || 'unknown' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        console.log('[DeviceIdentity] Registered:', data.device.name);
-        // Reload registry and re-render
-        await loadDeviceRegistry();
-        renderDots();
-      } else {
-        alert('Registration failed: ' + (data.error || 'Unknown error'));
-      }
-    } catch (err) {
-      alert('Registration failed: ' + err.message);
-    }
-  };
 
   function showQRCode(ip) {
     let modal = document.getElementById('qr-modal');
@@ -1482,332 +1692,6 @@ if (document.readyState === 'loading') {
   window.closeSettingsModal = closeSettingsModal;
   window.saveSettings = saveSettings;
 
-  // === Breathe / Relaxation Functions ===
-
-  // Breathe cycle state
-  let breathState = {
-    isAnimating: false,
-    phase: 'ready', // ready, inhale, hold, exhale
-    depth: 'normal',
-    startTime: null,
-    elapsedTime: 0
-  };
-
-  // Heartbeat state
-  let heartbeatState = {
-    bpm: 60,
-    lastBeat: null,
-    steady: true
-  };
-
-  // Update heartbeat display
-  function updateHeartbeatDisplay() {
-    const rhythmEl = document.getElementById('heartbeat-rhythm');
-    const statusEl = document.getElementById('heartbeat-status');
-    const lastBeatEl = document.getElementById('heartbeat-last-beat');
-    const heartbeatPulse = document.getElementById('heartbeat-pulse');
-
-    if (rhythmEl) {
-      rhythmEl.textContent = `${heartbeatState.bpm} BPM`;
-    }
-
-    if (statusEl) {
-      statusEl.textContent = heartbeatState.steady ? 'Steady' : 'Irregular';
-    }
-
-    if (lastBeatEl) {
-      const now = new Date();
-      lastBeatEl.textContent = heartbeatState.lastBeat
-        ? now.toLocaleTimeString()
-        : '--';
-    }
-
-    // Toggle heartbeat pulse class (new CSS classes)
-    if (heartbeatPulse) {
-      // Reset all classes first
-      heartbeatPulse.classList.remove('steady', 'irregular', 'stopped');
-
-      if (heartbeatState.steady) {
-        heartbeatPulse.classList.add('steady');
-      } else {
-        heartbeatPulse.classList.add('irregular');
-      }
-    }
-  }
-
-  // Update breath display
-  function updateBreathDisplay() {
-    const cycleEl = document.getElementById('breath-cycle');
-    const phaseEl = document.getElementById('breath-phase');
-    const depthEl = document.getElementById('breath-depth');
-    const breathCircle = document.getElementById('breath-circle');
-
-    if (cycleEl) {
-      let cycleTime = 8; // Default 8s cycle
-      if (breathState.depth === 'shallow') {cycleTime = 6;}
-      if (breathState.depth === 'deep') {cycleTime = 10;}
-      if (breathState.depth === 'hold') {cycleTime = 4;}
-      cycleEl.textContent = `${cycleTime}s cycle`;
-    }
-
-    if (phaseEl) {
-      phaseEl.textContent = breathState.phase.charAt(0).toUpperCase() + breathState.phase.slice(1);
-    }
-
-    if (depthEl) {
-      depthEl.textContent = breathState.depth.charAt(0).toUpperCase() + breathState.depth.slice(1);
-    }
-
-    // Update breath circle animation
-    if (breathCircle) {
-      if (breathState.isAnimating) {
-        breathCircle.style.animation = 'breathe-full 8s linear infinite';
-        breathCircle.style.animationPlayState = 'running';
-      } else {
-        breathCircle.style.animationPlayState = 'paused';
-      }
-    }
-  }
-
-  // Trigger breath cycle via API
-  async function triggerBreathe() {
-    try {
-      console.log('[Breathe] Triggering breath cycle...');
-      const response = await fetch(`${API_BASE}/api/breathe/trigger`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[Breathe] API response:', data);
-
-        // Start animation
-        startBreathCycle();
-
-        return { success: true, timestamp: data.timestamp };
-      } else {
-        throw new Error(`Breathe API error: ${response.status}`);
-      }
-    } catch (err) {
-      console.error('[Breathe] Trigger failed:', err);
-
-      // Still start animation even if API fails
-      startBreathCycle();
-
-      return { success: false, error: err.message };
-    }
-  }
-
-  // Start breath cycle animation
-  function startBreathCycle() {
-    breathState.isAnimating = true;
-    breathState.phase = 'inhale';
-    breathState.startTime = Date.now();
-
-    // Reset circle animation
-    const breathCircle = document.getElementById('breath-circle');
-    if (breathCircle) {
-      breathCircle.style.animation = 'none';
-      void breathCircle.offsetWidth; // Trigger reflow
-      breathCircle.style.animation = 'breathe-full 8s linear infinite';
-    }
-
-    updateBreathDisplay();
-
-    console.log('[Breathe] Animation started');
-  }
-
-  // Manual breath control (for UI interaction)
-  function manualBreatheControl() {
-    const btn = document.getElementById('take-a-breath-btn');
-
-    if (!btn) {return;}
-
-    // Check if already animating
-    if (breathState.isAnimating) {
-      // Pause
-      breathState.isAnimating = false;
-      btn.textContent = '✨ Take a Breath';
-      btn.classList.remove('active');
-
-      // Pause animation
-      const breathCircle = document.getElementById('breath-circle');
-      if (breathCircle) {
-        breathCircle.style.animationPlayState = 'paused';
-      }
-    } else {
-      // Start
-      triggerBreathe().then(result => {
-        if (result.success) {
-          btn.textContent = '⏹️ Pause Breath';
-          btn.classList.add('active');
-        }
-      });
-    }
-  }
-
-  // Initialize breath circle element
-  function initBreathCircle() {
-    const breathCircle = document.getElementById('breath-circle');
-    if (breathCircle) {
-      // Create breath circle if not exists
-      breathCircle.style.cssText = `
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: radial-gradient(circle, #00d9ff 0%, #00ff88 100%);
-        box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
-      `;
-    }
-
-    // Setup breathe depth select
-    const depthSelect = document.getElementById('breath-depth-select');
-    if (depthSelect) {
-      depthSelect.addEventListener('change', (e) => {
-        breathState.depth = e.target.value;
-        updateBreathDisplay();
-      });
-    }
-
-    // Setup "Take a Breath" button
-    const takeBreathBtn = document.getElementById('take-a-breath-btn');
-    if (takeBreathBtn) {
-      takeBreathBtn.addEventListener('click', manualBreatheControl);
-    }
-
-    // Initial display update
-    updateBreathDisplay();
-  }
-
-  // Initialize heartbeat
-  function initHeartbeat() {
-    // Simulate heartbeat rhythm
-    heartbeatState.bpm = 60;
-    heartbeatState.steady = true;
-    heartbeatState.lastBeat = new Date();
-
-    // Simulate beats
-    setInterval(() => {
-      heartbeatState.lastBeat = new Date();
-      updateHeartbeatDisplay();
-    }, 5000); // Update every 5 seconds
-  }
-
-  // Initialize breathe UI with CSS classes
-  function initBreathCircleEnhanced() {
-    const breathCircle = document.getElementById('breath-circle');
-    const depthSelect = document.getElementById('breath-depth-select');
-    const takeBreathBtn = document.getElementById('take-a-breath-btn');
-
-    // Initialize breath circle with CSS class-based animation
-    if (breathCircle) {
-      // Apply CSS classes based on depth
-      updateBreathCSS(breathState.depth);
-    }
-
-    // Setup depth selector to update CSS classes
-    if (depthSelect) {
-      depthSelect.addEventListener('change', (e) => {
-        breathState.depth = e.target.value;
-        if (breathCircle) {
-          updateBreathCSS(breathState.depth);
-        }
-        updateBreathDisplay();
-      });
-    }
-
-    // Setup "Take a Breath" button with enhanced functionality
-    if (takeBreathBtn) {
-      takeBreathBtn.addEventListener('click', () => {
-        if (breathState.isAnimating) {
-          // Pause
-          breathState.isAnimating = false;
-          takeBreathBtn.innerHTML = '✨ Take a Breath';
-          takeBreathBtn.style.background = 'rgba(255, 215, 0, 0.15)';
-          takeBreathBtn.style.borderColor = 'rgba(255, 215, 0, 0.3)';
-
-          // Pause animation
-          if (breathCircle) {
-            breathCircle.style.animationPlayState = 'paused';
-          }
-        } else {
-          // Start
-          startBreathCycle();
-          takeBreathBtn.innerHTML = '⏹️ Stop Relaxation';
-          takeBreathBtn.style.background = 'rgba(255, 68, 68, 0.15)';
-          takeBreathBtn.style.borderColor = 'rgba(255, 68, 68, 0.3)';
-        }
-      });
-    }
-
-    // Initial display update
-    updateBreathDisplay();
-  }
-
-  // Update breath circle with CSS classes
-  function updateBreathCSS(depth) {
-    const breathCircle = document.getElementById('breath-circle');
-    if (!breathCircle) {return;}
-
-    // Reset all depth classes
-    breathCircle.classList.remove('shallow', 'normal', 'deep', 'hold');
-
-    // Add current depth class
-    if (depth === 'shallow') {
-      breathCircle.classList.add('shallow');
-    } else if (depth === 'normal') {
-      breathCircle.classList.add('normal');
-    } else if (depth === 'deep') {
-      breathCircle.classList.add('deep');
-    } else if (depth === 'hold') {
-      breathCircle.classList.add('hold');
-    }
-
-    // If animating, ensure animation is running
-    if (breathState.isAnimating) {
-      breathCircle.style.animationPlayState = 'running';
-    }
-  }
-
-  // Initialize heartbeat with CSS classes
-  function initHeartbeatEnhanced() {
-    const heartbeatPulse = document.getElementById('heartbeat-pulse');
-    const heartbeatRhythmEl = document.getElementById('heartbeat-rhythm');
-    const heartbeatStatusEl = document.getElementById('heartbeat-status');
-
-    // Apply CSS class based on rhythm state
-    if (heartbeatPulse) {
-      if (heartbeatState.steady) {
-        heartbeatPulse.classList.add('steady');
-        heartbeatPulse.classList.remove('irregular', 'stopped');
-      } else {
-        heartbeatPulse.classList.add('irregular');
-        heartbeatPulse.classList.remove('steady', 'stopped');
-      }
-    }
-
-    // Update display text
-    if (heartbeatRhythmEl) {
-      heartbeatRhythmEl.textContent = `${heartbeatState.bpm} BPM`;
-    }
-
-    if (heartbeatStatusEl) {
-      heartbeatStatusEl.textContent = heartbeatState.steady ? 'Steady' : 'Irregular';
-      heartbeatStatusEl.style.color = heartbeatState.steady ? '#00ff88' : '#ffd700';
-    }
-
-    // Simulate heartbeat rhythm updates
-    setInterval(() => {
-      heartbeatState.lastBeat = new Date();
-      updateHeartbeatDisplay();
-    }, 5000);
-  }
-
-  // Initialize enhanced UI components
-  initBreathCircleEnhanced();
-  initHeartbeatEnhanced();
-
   // Initialize text input
   function initTextInput() {
     console.log('[TextInput] Initializing text input handlers');
@@ -1825,8 +1709,8 @@ if (document.readyState === 'loading') {
       return;
     }
     
-    // Orb click - show text input if hidden, or hide if visible
-    jarvisOrbContainer.addEventListener('click', () => {
+    // Orb pointerdown - show text input if hidden, or hide if visible (works for both mouse and touch)
+    jarvisOrbContainer.addEventListener('pointerdown', () => {
       if (!isTextInputVisible) {
         console.log('[TextInput] Showing text input');
       // Also toggle engagement (visual feedback)
@@ -2001,6 +1885,7 @@ let synapses = [];
 let neurographData = null;
 let idleRotation = 0;
 let isNeurographLoaded = false;
+let currentMemorySource = 'jarvis'; // 'jarvis' or 'user'
 /** Repulsion is O(n²); throttle + pass budget cuts steady-state CPU without touching pointer/hover. */
 let neurographAnimFrame = 0;
 let neuroRepulsionPasses = 0;
@@ -2244,29 +2129,20 @@ const mouse = new THREE.Vector2();
 // Single info panel (collapsed on hover, expanded on click)
 let neuroInfoPanel = null;
 let isPanelExpanded = false;
+// While a node is focused (expanded panel), secondary hover uses this host (collapsed label only).
+let neuroHoverPreviewPanel = null;
+let neuroHoverPreviewTarget = null;
 
 // Create or get the single info panel
 function getNeuroInfoPanel() {
   if (!neuroInfoPanel) {
     neuroInfoPanel = document.createElement('div');
-    neuroInfoPanel.className = 'neuro-node-panel';
+    neuroInfoPanel.className = 'neuro-info-panel-host';
     neuroInfoPanel.style.cssText = `
       position: fixed;
-      background: rgba(5, 5, 16, 0.96);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(0, 255, 255, 0.4);
-      border-radius: 12px;
-      padding: 16px;
-      min-width: 280px;
-      max-width: 420px;
-      max-height: 60vh;
-      overflow-y: auto;
-      z-index: 6000;
-      pointer-events: auto;
       opacity: 0;
-      transform: scale(0.95) translateY(10px);
-      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      transform: scale(0.98) translateY(6px);
+      transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
     `;
     document.body.appendChild(neuroInfoPanel);
     console.log('[NeuroInfoPanel] Panel created');
@@ -2274,34 +2150,170 @@ function getNeuroInfoPanel() {
   return neuroInfoPanel;
 }
 
-function updateNeuroInfoPanelPosition(node, panel = neuroInfoPanel) {
-  if (!node || !panel || !neurographCamera || !neurographRenderer) {return;}
-  const rect = neurographRenderer.domElement.getBoundingClientRect();
-  const projected = node.position.clone().project(neurographCamera);
+/** Desktop (769px+): anchor panel beside projected sphere so it does not cover the orb. */
+function neuroPanelUseInlineDesktopLayout() {
+  return typeof window !== 'undefined' && window.matchMedia('(min-width: 769px)').matches;
+}
 
-  // Skip positioning when node is behind camera.
-  if (projected.z > 1) {return;}
+function positionNeuroInfoPanelNearMesh(mesh) {
+  const panel = neuroInfoPanel;
+  if (!panel || !mesh || !neurographCamera || !neurographRenderer) {return;}
 
-  const nodeX = rect.left + (projected.x * 0.5 + 0.5) * rect.width;
-  const nodeY = rect.top + (-(projected.y * 0.5) + 0.5) * rect.height;
+  if (!neuroPanelUseInlineDesktopLayout()) {
+    panel.style.position = 'fixed';
+    panel.style.left = '50%';
+    panel.style.right = 'auto';
+    panel.style.top = 'auto';
+    panel.style.bottom = 'max(16px, env(safe-area-inset-bottom, 0px))';
+    panel.style.transform = 'translateX(-50%)';
+    panel.style.maxWidth = 'min(420px, calc(100vw - 24px))';
+    return;
+  }
 
-  // First pass for measurements before final clamping.
-  const offsetX = 16;
-  const offsetY = 16;
-  panel.style.left = `${Math.round(nodeX + offsetX)}px`;
-  panel.style.top = `${Math.round(nodeY - offsetY)}px`;
+  const canvas = neurographRenderer.domElement;
+  const crect = canvas.getBoundingClientRect();
+  const pos = mesh.position.clone();
+  pos.project(neurographCamera);
+  if (pos.z > 1) {
+    if (!neurographFocusTarget) {
+      panel.style.opacity = '0';
+    }
+    return;
+  }
 
-  const panelRect = panel.getBoundingClientRect();
-  const margin = 10;
-  const minLeft = rect.left + margin;
-  const maxLeft = rect.right - panelRect.width - margin;
-  const minTop = rect.top + margin;
-  const maxTop = rect.bottom - panelRect.height - margin;
+  const cx = (pos.x * 0.5 + 0.5) * crect.width + crect.left;
+  const cy = (-(pos.y * 0.5) + 0.5) * crect.height + crect.top;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const margin = 12;
+  const spherePad = 40;
 
-  const clampedLeft = Math.max(minLeft, Math.min(panel.offsetLeft, maxLeft));
-  const clampedTop = Math.max(minTop, Math.min(panel.offsetTop, maxTop));
-  panel.style.left = `${Math.round(clampedLeft)}px`;
-  panel.style.top = `${Math.round(clampedTop)}px`;
+  panel.style.position = 'fixed';
+  panel.style.bottom = 'auto';
+  panel.style.right = 'auto';
+  panel.style.maxWidth = isPanelExpanded ? 'min(420px, 42vw)' : 'min(300px, 34vw)';
+  panel.style.transform = 'none';
+
+  const pw = panel.offsetWidth || (isPanelExpanded ? 360 : 260);
+  const ph = panel.offsetHeight || (isPanelExpanded ? 220 : 100);
+
+  const spaceRight = vw - cx - spherePad - margin;
+  const spaceLeft = cx - spherePad - margin;
+  let left;
+  if (spaceRight >= pw + margin || spaceRight >= spaceLeft) {
+    left = cx + spherePad + margin;
+  } else {
+    left = cx - spherePad - margin - pw;
+  }
+  left = Math.max(margin, Math.min(left, vw - pw - margin));
+
+  let top = cy - ph / 2;
+  top = Math.max(margin, Math.min(top, vh - ph - margin));
+
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(top)}px`;
+}
+
+function scheduleNeuroInfoPanelPosition(mesh) {
+  if (!mesh) {return;}
+  requestAnimationFrame(() => {
+    positionNeuroInfoPanelNearMesh(mesh);
+    requestAnimationFrame(() => positionNeuroInfoPanelNearMesh(mesh));
+  });
+}
+
+function getNeuroHoverPreviewPanel() {
+  if (!neuroHoverPreviewPanel) {
+    neuroHoverPreviewPanel = document.createElement('div');
+    neuroHoverPreviewPanel.className = 'neuro-info-panel-host neuro-info-panel-hover-preview';
+    neuroHoverPreviewPanel.style.cssText = `
+      position: fixed;
+      z-index: 5999;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: scale(0.98) translateY(6px);
+      transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    `;
+    document.body.appendChild(neuroHoverPreviewPanel);
+  }
+  return neuroHoverPreviewPanel;
+}
+
+function hideNeuroHoverPreview() {
+  if (neuroHoverPreviewPanel) {
+    neuroHoverPreviewPanel.style.opacity = '0';
+    neuroHoverPreviewPanel.style.visibility = 'hidden';
+  }
+  neuroHoverPreviewTarget = null;
+}
+
+function positionNeuroHoverPreviewPanelNearMesh(mesh) {
+  const panel = neuroHoverPreviewPanel;
+  if (!panel || !mesh || !neurographCamera || !neurographRenderer) {return;}
+
+  if (!neuroPanelUseInlineDesktopLayout()) {
+    panel.style.position = 'fixed';
+    panel.style.left = '50%';
+    panel.style.right = 'auto';
+    panel.style.top = 'auto';
+    panel.style.bottom = 'max(16px, env(safe-area-inset-bottom, 0px))';
+    panel.style.transform = 'translateX(-50%)';
+    panel.style.maxWidth = 'min(360px, calc(100vw - 24px))';
+    return;
+  }
+
+  const canvas = neurographRenderer.domElement;
+  const crect = canvas.getBoundingClientRect();
+  const pos = mesh.position.clone();
+  pos.project(neurographCamera);
+  if (pos.z > 1) {
+    panel.style.opacity = '0';
+    return;
+  }
+
+  panel.style.opacity = '1';
+  panel.style.visibility = 'visible';
+
+  const cx = (pos.x * 0.5 + 0.5) * crect.width + crect.left;
+  const cy = (-(pos.y * 0.5) + 0.5) * crect.height + crect.top;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const margin = 12;
+  const spherePad = 40;
+
+  panel.style.position = 'fixed';
+  panel.style.bottom = 'auto';
+  panel.style.right = 'auto';
+  panel.style.maxWidth = 'min(300px, 34vw)';
+  panel.style.transform = 'none';
+
+  const pw = panel.offsetWidth || 260;
+  const ph = panel.offsetHeight || 100;
+
+  const spaceRight = vw - cx - spherePad - margin;
+  const spaceLeft = cx - spherePad - margin;
+  let left;
+  if (spaceRight >= pw + margin || spaceRight >= spaceLeft) {
+    left = cx + spherePad + margin;
+  } else {
+    left = cx - spherePad - margin - pw;
+  }
+  left = Math.max(margin, Math.min(left, vw - pw - margin));
+
+  let top = cy - ph / 2;
+  top = Math.max(margin, Math.min(top, vh - ph - margin));
+
+  panel.style.left = `${Math.round(left)}px`;
+  panel.style.top = `${Math.round(top)}px`;
+}
+
+function scheduleNeuroHoverPreviewPanelPosition(mesh) {
+  if (!mesh) {return;}
+  requestAnimationFrame(() => {
+    positionNeuroHoverPreviewPanelNearMesh(mesh);
+    requestAnimationFrame(() => positionNeuroHoverPreviewPanelNearMesh(mesh));
+  });
 }
 
 // Clear the single info panel
@@ -2311,12 +2323,19 @@ function clearNeuroInfoPanel() {
   }
   neuroInfoPanel = null;
   isPanelExpanded = false;
+  if (neuroHoverPreviewPanel && neuroHoverPreviewPanel.parentNode) {
+    document.body.removeChild(neuroHoverPreviewPanel);
+  }
+  neuroHoverPreviewPanel = null;
+  neuroHoverPreviewTarget = null;
 }
 
 // Click-to-focus: fly camera to a node and pin the same label as hover
 let neurographFocusTarget = null;
 let neurographFlyActive = false;
 const neurographFocusDir = new THREE.Vector3(0, 0, 1);
+// OrbitControls clamps camera–target distance to [minDistance, maxDistance]; the fly must end
+// inside that range or the first update() after re-enabling controls jumps the camera.
 const NEUROGRAPH_FOCUS_DISTANCE = 44;
 const NEUROGRAPH_FLY_DURATION_MS = 3400;
 const _neuroDesiredCam = new THREE.Vector3();
@@ -2388,7 +2407,8 @@ function clearNeurographHoverVisual() {
 }
 
 function applyNeurographHoverVisual(mesh) {
-  if (!mesh || neurographFocusTarget) {return;}
+  if (!mesh) {return;}
+  if (neurographFocusTarget && mesh === neurographFocusTarget) {return;}
   neuroHoverDesiredMesh = mesh;
   if (neuroHoverHighlightedMesh !== mesh) {
     neuroHoverHighlightedMesh = mesh;
@@ -2482,12 +2502,13 @@ function clearNeuroTooltip() {
 function clearNeurographNodeFocus() {
   neurographFocusTarget = null;
   neurographFlyActive = false;
+  hideNeuroHoverPreview();
   if (neurographControls) {
     neurographControls.enabled = true;
+    neurographControls.enableDamping = true;
   }
   // Do not move camera or orbit target — user stays in the same view (first-person continuity)
   clearNeuroInfoPanel();
-  hoveredNode = null;
   hoveredNode = null;
   
   if (neuroFocusStyledMesh) {
@@ -2499,6 +2520,8 @@ function clearNeurographNodeFocus() {
 
 function focusNeurographNode(neuron) {
   if (!neuron || !neurographCamera || !neurographControls) {return;}
+  if (neurographFocusTarget === neuron) {return;}
+  hideNeuroHoverPreview();
   clearNeurographHoverVisual();
   if (neuroHoverAnimMesh) {
     restoreNeurographSphereMaterial(neuroHoverAnimMesh);
@@ -2522,11 +2545,21 @@ function focusNeurographNode(neuron) {
   hoveredNode = neuron;
   setNeurographSphereFocusVisual(neuron, true);
   neuroFocusStyledMesh = neuron;
+  // OrbitControls.update() re-derives the camera from spherical + damping; that fights lerped
+  // positions during fly. Flush inertia, then skip update() until the snap at u>=1.
+  neurographControls.enabled = false;
+  neurographControls.enableDamping = false;
+  neurographControls.update();
   const panel = getNeuroInfoPanel();
   panel.innerHTML = createNodeLabel(neuron.userData);
   panel.style.opacity = '1';
-  updateNeuroInfoPanelPosition(neuron, panel);
+  panel.style.transform = 'scale(1) translateY(0)';
+  panel.style.pointerEvents = 'auto';
+  panel.style.display = 'block';
+  panel.style.visibility = 'visible';
   isPanelExpanded = true;
+  console.log('[NeuroInfoPanel] Panel shown for focused node, opacity=1, display=block');
+  scheduleNeuroInfoPanelPosition(neuron);
 }
 
 // Animation loop
@@ -2579,18 +2612,24 @@ function animateNeurograph() {
   if (neurographFlyActive && neurographFocusTarget && neurographCamera && neurographControls) {
     neurographControls.enabled = false;
     const tpos = neurographFocusTarget.position;
-    _neuroDesiredCam.copy(tpos).addScaledVector(neurographFocusDir, NEUROGRAPH_FOCUS_DISTANCE);
+    const focusPull = Math.max(NEUROGRAPH_FOCUS_DISTANCE, neurographControls.minDistance);
+    _neuroDesiredCam.copy(tpos).addScaledVector(neurographFocusDir, focusPull);
     const elapsed = performance.now() - neurographFlyStartTime;
     const u = Math.min(1, elapsed / NEUROGRAPH_FLY_DURATION_MS);
     const e = easeInOutCubicNeuro(u);
     neurographCamera.position.copy(neurographFlyFromCam).lerp(_neuroDesiredCam, e);
     neurographControls.target.copy(neurographFlyFromTarget).lerp(tpos, e);
-    neurographControls.update();
+    neurographCamera.lookAt(neurographControls.target);
+    // Do not call neurographControls.update() here — it overwrites the camera from internal
+    // spherical state + sphericalDelta and causes end-of-fly flicker.
     if (u >= 1) {
       neurographCamera.position.copy(_neuroDesiredCam);
       neurographControls.target.copy(tpos);
+      neurographCamera.lookAt(tpos);
       neurographFlyActive = false;
       neurographControls.enabled = true;
+      neurographControls.enableDamping = true;
+      neurographControls.update();
     }
   } else if (neurographControls) {
     neurographControls.enabled = true;
@@ -2634,9 +2673,6 @@ function animateNeurograph() {
     ? 0
     : Math.min(0.08, (now - neurographHoverLastTime) / 1000);
   neurographHoverLastTime = now;
-  if (neurographFocusTarget) {
-    neuroHoverDesiredMesh = null;
-  }
   if (dt > 0 && neurographScene && neurons.length > 0) {
     const speedIn = 5.2;
     const speedOut = 4.2;
@@ -2657,17 +2693,29 @@ function animateNeurograph() {
         neuroHoverAnimMesh = null;
       }
     }
-    if (neuroHoverAnimMesh && neuroHoverBlend > 0 && !neurographFocusTarget) {
-      const u = easeInOutCubicNeuro(neuroHoverBlend);
-      applyNeurographHoverLerp(neuroHoverAnimMesh, u);
+    if (neuroHoverAnimMesh && neuroHoverBlend > 0) {
+      const skipHoverLerp = neurographFocusTarget && neuroHoverAnimMesh === neurographFocusTarget;
+      if (!skipHoverLerp) {
+        const u = easeInOutCubicNeuro(neuroHoverBlend);
+        applyNeurographHoverLerp(neuroHoverAnimMesh, u);
+      }
     }
   }
 
-  if (neuroInfoPanel && neuroInfoPanel.style.opacity === '1') {
-    if (neurographFocusTarget) {
-      updateNeuroInfoPanelPosition(neurographFocusTarget, neuroInfoPanel);
-    } else if (hoveredNode) {
-      updateNeuroInfoPanelPosition(hoveredNode, neuroInfoPanel);
+  if (neuroInfoPanel) {
+    const op = neuroInfoPanel.style.opacity;
+    if (op !== '0' && op !== '' && parseFloat(op) > 0.01) {
+      const m = neurographFocusTarget || hoveredNode;
+      if (m) {
+        positionNeuroInfoPanelNearMesh(m);
+      }
+    }
+  }
+
+  if (neuroHoverPreviewPanel) {
+    const op = neuroHoverPreviewPanel.style.opacity;
+    if (op !== '0' && op !== '' && parseFloat(op) > 0.01 && neuroHoverPreviewTarget) {
+      positionNeuroHoverPreviewPanelNearMesh(neuroHoverPreviewTarget);
     }
   }
 
@@ -2688,27 +2736,252 @@ function onNeurographWindowResize() {
     neurographRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, NEURO_MAX_PIXEL_RATIO));
     neurographRenderer.setSize(window.innerWidth, window.innerHeight);
   }
+  const m = neurographFocusTarget || hoveredNode;
+  if (m && neuroInfoPanel) {
+    scheduleNeuroInfoPanelPosition(m);
+  }
+  if (neuroHoverPreviewTarget && neuroHoverPreviewPanel) {
+    scheduleNeuroHoverPreviewPanelPosition(neuroHoverPreviewTarget);
+  }
+}
+
+function updateNeurographPointerHover(clientX, clientY, eventTarget) {
+  if (!neurographScene) {return;}
+
+  if (neuroInfoPanel && neuroInfoPanel.contains(eventTarget)) {
+    if (neurographFocusTarget) {
+      hideNeuroHoverPreview();
+      clearNeurographHoverVisual();
+    }
+    return;
+  }
+  if (neuroHoverPreviewPanel && neuroHoverPreviewPanel.contains(eventTarget)) {
+    return;
+  }
+
+  const rect = neurographRenderer.domElement.getBoundingClientRect();
+  mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, neurographCamera);
+  const intersects = raycaster.intersectObjects(neurons);
+
+  if (neurographFocusTarget) {
+    if (intersects.length > 0) {
+      const intersected = intersects[0].object;
+      if (intersected === neurographFocusTarget) {
+        hideNeuroHoverPreview();
+        clearNeurographHoverVisual();
+      } else {
+        applyNeurographHoverVisual(intersected);
+        if (intersected !== neuroHoverPreviewTarget) {
+          const p = getNeuroHoverPreviewPanel();
+          p.innerHTML = createCollapsedNodeLabel(intersected.userData);
+          p.style.opacity = '1';
+          p.style.visibility = 'visible';
+          p.style.transform = 'scale(1) translateY(0)';
+          neuroHoverPreviewTarget = intersected;
+          scheduleNeuroHoverPreviewPanelPosition(intersected);
+        }
+      }
+    } else {
+      hideNeuroHoverPreview();
+      clearNeurographHoverVisual();
+    }
+    return;
+  }
+
+  if (intersects.length > 0) {
+    const intersected = intersects[0].object;
+    applyNeurographHoverVisual(intersected);
+    if (intersected !== hoveredNode) {
+      const panel = getNeuroInfoPanel();
+      if (panel) {
+        if (hoveredNode) {
+          panel.style.opacity = '0';
+        }
+        hoveredNode = intersected;
+        const nodeData = hoveredNode.userData;
+        panel.innerHTML = createCollapsedNodeLabel(nodeData);
+        panel.style.opacity = '1';
+        isPanelExpanded = false;
+        scheduleNeuroInfoPanelPosition(intersected);
+      }
+    }
+  } else {
+    clearNeurographHoverVisual();
+    if (hoveredNode) {
+      const panel = getNeuroInfoPanel();
+      if (panel) {
+        panel.style.opacity = '0';
+      }
+      hoveredNode = null;
+    }
+  }
 }
 
 function setupNeurographHover() {
   // Initialize the single info panel
   getNeuroInfoPanel();
 
-  // Handle canvas click (node selection)
-  neurographRenderer.domElement.addEventListener('click', (e) => {
-    if (!neurographScene || neurons.length === 0) {return;}
-    const rect = neurographRenderer.domElement.getBoundingClientRect();
-    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  let neuroLastPointerX = 0;
+  let neuroLastPointerY = 0;
+
+  // Double-tap tracking for mobile navigation (smooth animated fly-through)
+let lastTapTime = 0;
+let lastTapPosition = { x: 0, y: 0 };
+let isFlyingThroughSpace = false;
+
+// Double-tap / double-click fly-through: direction follows the ray through screen (clientX/Y).
+const NEURO_FLY_THROUGH_DISTANCE = 165;
+const NEURO_FLY_THROUGH_DURATION_MS = 1600;
+
+// Smooth fly-through animation — `direction` is world-space ray from camera through click (use raycaster.ray.direction)
+function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, duration = NEURO_FLY_THROUGH_DURATION_MS) {
+  if (isFlyingThroughSpace) return; // Prevent overlapping flights
+  if (!direction || direction.lengthSq() < 1e-10) return;
+  isFlyingThroughSpace = true;
+
+  const dir = direction.clone().normalize();
+
+  const startPos = neurographCamera.position.clone();
+  const startTarget = neurographControls.target.clone();
+
+  const endPos = startPos.clone().addScaledVector(dir, distance);
+  const endTarget = startTarget.clone().addScaledVector(dir, distance);
+  
+  const startTime = performance.now();
+  
+  function animateFlight() {
+    const elapsed = performance.now() - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    
+    // Smooth ease-in-out cubic
+    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    
+    neurographCamera.position.lerpVectors(startPos, endPos, eased);
+    neurographControls.target.lerpVectors(startTarget, endTarget, eased);
+    
+    if (t < 1) {
+      requestAnimationFrame(animateFlight);
+    } else {
+      isFlyingThroughSpace = false;
+      console.log('[Neurograph] Flight complete');
+    }
+  }
+  
+  animateFlight();
+  console.log(`[Neurograph] Flying through space along click ray: ${distance} units over ${duration}ms`);
+}
+
+  // Node pick: OrbitControls (r128) uses touchstart for 1-finger orbit; capture touchstart + pointerdown (mouse/pen).
+  const ngPickEl = neurographRenderer.domElement;
+
+  function runNeurographTapPick(clientX, clientY) {
+    if (!neurographScene || neurons.length === 0) {return 'skip';}
+    const rect = ngPickEl.getBoundingClientRect();
+    const rw = rect.width;
+    const rh = rect.height;
+    if (rw <= 0 || rh <= 0) {return 'skip';}
+    mouse.x = ((clientX - rect.left) / rw) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rh) * 2 + 1;
     raycaster.setFromCamera(mouse, neurographCamera);
     const hits = raycaster.intersectObjects(neurons);
+
+    const now = Date.now();
+    const tapDistance = Math.sqrt(
+      Math.pow(clientX - lastTapPosition.x, 2) +
+      Math.pow(clientY - lastTapPosition.y, 2)
+    );
+    // ~500ms matches typical OS double-click interval (desktop); 50px keeps it as same spot
+    const isDoubleTap = (now - lastTapTime < 500) && (tapDistance < 50);
+
+    if (isDoubleTap && hits.length === 0) {
+      console.log('[Neurograph] Double-tap on empty space — fly along ray through click');
+      flyThroughSpace(raycaster.ray.direction);
+      lastTapTime = 0;
+      return 'double-empty';
+    }
+
+    lastTapTime = now;
+    lastTapPosition = { x: clientX, y: clientY };
+
     if (hits.length > 0) {
       const clickedNode = hits[0].object;
+      console.log('[Neurograph] Node tapped:', clickedNode.userData.id);
       focusNeurographNode(clickedNode);
-    } else {
-      // Click on empty space - clear focus
-      clearNeurographNodeFocus();
+      return 'node';
     }
+    console.log('[Neurograph] Empty space tapped - clearing focus');
+    clearNeurographNodeFocus();
+    return 'empty';
+  }
+
+  ngPickEl.addEventListener(
+    'touchstart',
+    (e) => {
+      if (!neurographScene || neurons.length === 0) {return;}
+      if (e.touches.length !== 1) {return;}
+      const t = e.touches[0];
+      const outcome = runNeurographTapPick(t.clientX, t.clientY);
+      if (outcome === 'skip') {return;}
+      if (outcome === 'node' || outcome === 'double-empty') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') {e.stopImmediatePropagation();}
+      }
+    },
+    { capture: true, passive: false }
+  );
+
+  ngPickEl.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (!neurographScene || neurons.length === 0) {return;}
+      if (e.pointerType === 'touch') {return;}
+      const outcome = runNeurographTapPick(e.clientX, e.clientY);
+      if (outcome === 'skip') {return;}
+      // Empty background: still clear focus in runNeurographTapPick, but do not steal the
+      // event — OrbitControls needs mousedown/pointer for click-drag rotate on desktop.
+      if (outcome === 'empty') {return;}
+      e.preventDefault();
+      e.stopPropagation();
+      if (outcome === 'node' || outcome === 'double-empty') {
+        if (typeof e.stopImmediatePropagation === 'function') {e.stopImmediatePropagation();}
+      }
+    },
+    { capture: true, passive: false }
+  );
+
+  // Clear hover when pointer leaves canvas — keep focus panel; don't clear if moving onto the info panel
+  neurographRenderer.domElement.addEventListener('pointerleave', (e) => {
+    clearNeurographHoverVisual();
+    if (neurographFocusTarget) {
+      hideNeuroHoverPreview();
+      return;
+    }
+    const rt = e.relatedTarget;
+    if (rt && neuroInfoPanel && (neuroInfoPanel === rt || neuroInfoPanel.contains(rt))) {
+      return;
+    }
+    const hideHoverIfLeftCanvas = () => {
+      if (neurographFocusTarget) {return;}
+      const panel = neuroInfoPanel;
+      let overPanel = false;
+      if (panel) {
+        const el = document.elementFromPoint(neuroLastPointerX, neuroLastPointerY);
+        overPanel = el && (panel === el || panel.contains(el));
+      }
+      if (overPanel) {return;}
+      if (hoveredNode) {
+        const p = getNeuroInfoPanel();
+        if (p) {
+          p.style.opacity = '0';
+        }
+        hoveredNode = null;
+      }
+    };
+    requestAnimationFrame(hideHoverIfLeftCanvas);
   });
 
   // Escape key - collapse the panel
@@ -2718,61 +2991,76 @@ function setupNeurographHover() {
     }
   });
 
-  // Click outside the info panel (e.g. dock, transcript) - hide panel
-  document.addEventListener('click', (e) => {
+  // Pointerdown outside the info panel (e.g. dock, transcript) - hide panel (works for both mouse and touch)
+  // Use longer timeout to prevent premature closing on mobile
+  document.addEventListener('pointerdown', (e) => {
     if (!neurographFocusTarget) {return;}
     
-    // Don't hide if clicking inside panel or canvas
-    if (neuroInfoPanel && neuroInfoPanel.contains(e.target)) {return;}
-    const canvasEl = neurographRenderer && neurographRenderer.domElement;
-    if (canvasEl && canvasEl.contains(e.target)) {return;}
+    // Don't hide if clicking inside panel
+    const panel = getNeuroInfoPanel();
+    if (panel && panel.contains(e.target)) {
+      console.log('[NeuroInfoPanel] Click inside panel - keeping open');
+      return;
+    }
     
-    // Click outside - clear focus
-    clearNeurographNodeFocus();
+    // Canvas: dismiss when the tap misses every orb (tap "outside" any sphere).
+    // Canvas capture handlers run first; this bubble fallback covers edge cases where focus stayed set.
+    const canvasEl = neurographRenderer && neurographRenderer.domElement;
+    if (canvasEl && canvasEl.contains(e.target)) {
+      if (neurographScene && neurons.length > 0) {
+        const rect = canvasEl.getBoundingClientRect();
+        const rw = rect.width;
+        const rh = rect.height;
+        if (rw > 0 && rh > 0) {
+          mouse.x = ((e.clientX - rect.left) / rw) * 2 - 1;
+          mouse.y = -((e.clientY - rect.top) / rh) * 2 + 1;
+          raycaster.setFromCamera(mouse, neurographCamera);
+          const hits = raycaster.intersectObjects(neurons);
+          if (hits.length === 0) {
+            clearNeurographNodeFocus();
+          }
+        }
+      }
+      return;
+    }
+    
+    // Don't hide if clicking on UI elements (dock, toggle, etc.)
+    const bottomDock = document.querySelector('.jarvis-bottom-dock');
+    if (bottomDock && bottomDock.contains(e.target)) {
+      console.log('[NeuroInfoPanel] Click on dock - keeping open');
+      return;
+    }
+    if (e.target.closest('#memory-toggle')) {
+      console.log('[NeuroInfoPanel] Click on toggle - keeping open');
+      return;
+    }
+    if (e.target.closest('#server-status')) {
+      console.log('[NeuroInfoPanel] Click on server-status - keeping open');
+      return;
+    }
+    
+    // Click outside - clear focus after a longer delay (300ms for mobile)
+    console.log('[NeuroInfoPanel] Click outside - will clear focus in 300ms');
+    setTimeout(() => {
+      if (neurographFocusTarget) {
+        console.log('[NeuroInfoPanel] Clearing focus (timeout)');
+        clearNeurographNodeFocus();
+      }
+    }, 300);
+  });
+
+  // Document-level pointermove for hover - unified mouse/touch support
+  document.addEventListener('pointermove', (e) => {
+    neuroLastPointerX = e.clientX;
+    neuroLastPointerY = e.clientY;
+    updateNeurographPointerHover(e.clientX, e.clientY, e.target);
   });
 
   // Document-level move so hover clears when cursor is over UI above the canvas
   document.addEventListener('mousemove', (e) => {
-    if (!neurographScene) return;
-    
-    // Don't update hover while focus/camera is active
-    if (neurographFocusTarget) {return;}
-
-    // Calculate mouse position in normalized device coordinates
-    const rect = neurographRenderer.domElement.getBoundingClientRect();
-    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-    // Update raycaster
-    raycaster.setFromCamera(mouse, neurographCamera);
-    const intersects = raycaster.intersectObjects(neurons);
-
-    if (intersects.length > 0) {
-      const intersected = intersects[0].object;
-      applyNeurographHoverVisual(intersected);
-      if (intersected !== hoveredNode) {
-        // New node hovered - show collapsed panel
-        const panel = getNeuroInfoPanel();  // Create panel if it doesn't exist
-        if (panel) {
-          if (hoveredNode) {
-            panel.style.opacity = '0';
-          }
-          hoveredNode = intersected;
-          // Show collapsed panel with minimal content
-          const nodeData = hoveredNode.userData;
-          panel.innerHTML = createCollapsedNodeLabel(nodeData);
-          panel.style.opacity = '1';
-          updateNeuroInfoPanelPosition(hoveredNode, panel);
-          isPanelExpanded = false;
-        }
-      }
-    } else {
-      clearNeurographHoverVisual();
-      if (hoveredNode && neuroInfoPanel) {
-        neuroInfoPanel.style.opacity = '0';
-        hoveredNode = null;
-      }
-    }
+    neuroLastPointerX = e.clientX;
+    neuroLastPointerY = e.clientY;
+    updateNeurographPointerHover(e.clientX, e.clientY, e.target);
   });
 }
 
@@ -3041,35 +3329,176 @@ function createNodeLabel(nodeData) {
 
 // Load neurograph data from API
 function loadNeurographData() {
-  fetch('/api/neurograph')
+  loadNeurographFromSource(currentMemorySource);
+}
+
+// Load neurograph data from a specific memory source
+function loadNeurographFromSource(source) {
+  const endpoint = source === 'user' ? '/api/memory/user' : '/api/memory/jarvis';
+  console.log(`[MemoryToggle] Loading ${source} memory from ${endpoint}`);
+  
+  fetch(endpoint)
     .then(res => {
       if (!res.ok) {
-        throw new Error(`Neurograph API error: ${res.status}`);
+        throw new Error(`Memory API error: ${res.status}`);
       }
       return res.json();
     })
     .then(data => {
-      console.log('[Neurograph] Raw data loaded:', data);
-      console.log('[Neurograph] Nodes count:', (data.nodes || []).length);
-      console.log('[Neurograph] Synapses count:', (data.synapses || data.connections || []).length);
+      console.log(`[MemoryToggle] Raw data loaded (${source}):`, data);
+      console.log(`[MemoryToggle] Nodes count:`, (data.nodes || []).length);
+      console.log(`[MemoryToggle] Synapses count:`, (data.synapses || data.connections || []).length);
 
       // Check for undefined sources in synapses
       const synapses = data.synapses || data.connections || [];
       const undefinedSources = synapses.filter(s => !s.source).length;
       const undefinedTargets = synapses.filter(s => !s.target).length;
-      console.log('[Neurograph] Synapses with undefined source:', undefinedSources);
-      console.log('[Neurograph] Synapses with undefined target:', undefinedTargets);
+      console.log(`[MemoryToggle] Synapses with undefined source:`, undefinedSources);
+      console.log(`[MemoryToggle] Synapses with undefined target:`, undefinedTargets);
 
       neurographData = data;
       createNeurograph(data);
       isNeurographLoaded = true;
+      
+      // Hide loading overlay after graph is rendered
+      setTimeout(() => {
+        hideMemoryLoadingOverlay();
+      }, 500);
     })
     .catch(err => {
-      console.warn('[Neurograph] Failed to load data:', err);
+      console.error(`[MemoryToggle] Failed to load ${source} data:`, err);
       // Create fallback neurograph if API fails
       createFallbackNeurograph();
       isNeurographLoaded = true;
+      hideMemoryLoadingOverlay();
     });
+}
+
+// Toggle between Jarvis and User memory sources
+function toggleMemorySource() {
+  // Switch source
+  currentMemorySource = currentMemorySource === 'jarvis' ? 'user' : 'jarvis';
+  
+  // Update UI toggle button (main - for desktop)
+  const memoryToggle = document.getElementById('memory-toggle');
+  const toggleHandle = document.getElementById('memory-toggle-handle');
+  const toggleSwitch = document.getElementById('memory-toggle-switch');
+  const memoryLabel = document.getElementById('memory-label');
+  
+  // Color scheme: Always cyan (#00ffff) - easy to read, consistent
+  const memoryColor = '#00ffff';
+  
+  if (currentMemorySource === 'user') {
+    if (memoryToggle) {
+      memoryToggle.classList.add('active');
+      memoryLabel.textContent = '🧠 User Memory';
+      memoryLabel.style.color = memoryColor;
+    }
+    if (toggleSwitch) toggleSwitch.style.background = '#333';
+    if (toggleHandle) {
+      toggleHandle.style.left = '22px';
+      toggleHandle.style.background = memoryColor;
+    }
+  } else {
+    if (memoryToggle) {
+      memoryToggle.classList.remove('active');
+      memoryLabel.textContent = '🧠 Jarvis Memory';
+      memoryLabel.style.color = memoryColor;
+    }
+    if (toggleSwitch) toggleSwitch.style.background = '#333';
+    if (toggleHandle) {
+      toggleHandle.style.left = '2px';
+      toggleHandle.style.background = memoryColor;
+    }
+  }
+  
+  // Update drawer memory toggle
+  const drawerMemoryToggle = document.getElementById('drawer-memory-toggle');
+  const drawerMemoryLabel = document.getElementById('drawer-memory-label');
+  if (drawerMemoryToggle && drawerMemoryLabel) {
+    if (currentMemorySource === 'user') {
+      drawerMemoryToggle.classList.add('active');
+      drawerMemoryLabel.textContent = '🧠 User Memory';
+    } else {
+      drawerMemoryToggle.classList.remove('active');
+      drawerMemoryLabel.textContent = '🧠 Jarvis Memory';
+    }
+  }
+  
+  // Update hidden main memory toggle for sync
+  const mainMemoryToggle = document.getElementById('main-memory-toggle');
+  const mainMemoryLabel = document.getElementById('main-memory-label');
+  if (mainMemoryToggle && mainMemoryLabel) {
+    if (currentMemorySource === 'user') {
+      mainMemoryToggle.classList.add('active');
+      mainMemoryLabel.textContent = '🧠 User Memory';
+    } else {
+      mainMemoryToggle.classList.remove('active');
+      mainMemoryLabel.textContent = '🧠 Jarvis Memory';
+    }
+  }
+  
+  console.log('[MemoryToggle] Switched to', currentMemorySource);
+  
+  // Show loading overlay during memory switch
+  showMemoryLoadingOverlay(currentMemorySource);
+  
+  // Reload neurograph data from new source
+  loadNeurographFromSource(currentMemorySource);
+}
+
+// Show loading overlay when switching memory sources
+function showMemoryLoadingOverlay(source) {
+  let overlay = document.getElementById('memory-loading-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'memory-loading-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(5, 10, 20, 0.92);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(overlay);
+  }
+  
+  const sourceName = source === 'user' ? 'User Memory' : 'Jarvis Memory';
+  overlay.innerHTML = `
+    <div style="width: 48px; height: 48px; border: 3px solid rgba(0, 255, 255, 0.3); border-top-color: #00ffff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <div style="color: #64ffda; font-size: 1.1em; font-weight: 500; letter-spacing: 0.5px;">Loading ${sourceName}...</div>
+  `;
+  overlay.style.opacity = '1';
+  overlay.style.pointerEvents = 'auto';
+  
+  // Add spin animation if not already present
+  if (!document.getElementById('memory-loading-spin-style')) {
+    const style = document.createElement('style');
+    style.id = 'memory-loading-spin-style';
+    style.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`;
+    document.head.appendChild(style);
+  }
+}
+
+// Hide loading overlay
+function hideMemoryLoadingOverlay() {
+  const overlay = document.getElementById('memory-loading-overlay');
+  if (overlay) {
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+    setTimeout(() => {
+      if (overlay) overlay.style.display = 'none';
+    }, 300);
+  }
 }
 
 // Create neurograph from data

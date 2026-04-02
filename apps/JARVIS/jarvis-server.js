@@ -12,7 +12,6 @@ const fs = require('fs');
 const path = require('path');
 const { exec, execFile, execSync } = require('child_process');
 const QRCode = require('qrcode');
-const deviceRegistry = require('./device-registry');
 const os = require('os');
 
 // CPU usage tracking
@@ -27,8 +26,9 @@ const HTTPS_OPTIONS = {
 
 
 // === Configuration (Portable - No Hardcoded Paths) ===
-const VERSION = '3.1.5';
-const BUILD_DATE = '2026-03-31';
+// VERSION / BUILD_DATE: patch + build date updated by apps/JARVIS/scripts/bump-jarvis-versions.js when this file is staged (see .githooks/pre-commit).
+const VERSION = '3.2.3';
+const BUILD_DATE = '2026-04-02';
 
 // Date formatting utility for consistent date handling
 function formatDateForFilename(date = new Date()) {
@@ -381,93 +381,6 @@ function handleRequest(req, res) {
     return;
   }
 
-  // Device registry API - list all devices
-  if (req.method === 'GET' && req.url === '/api/devices') {
-    const devices = deviceRegistry.listDevices();
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ devices }));
-    return;
-  }
-
-  // Device registry API - register/update device
-  if (req.method === 'POST' && req.url === '/api/register-device') {
-    const chunks = [];
-    req.on('data', chunk => chunks.push(chunk));
-    req.on('end', () => {
-      try {
-        const body = Buffer.concat(chunks).toString();
-        const data = JSON.parse(body);
-        const { mac, name, owner } = data;
-          
-        // Validate MAC address format (XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)
-        const macRegex = /^([0-9A-Fa-f]{2}[:|-]?){5}([0-9A-Fa-f]{2})$/;
-        if (!mac) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'MAC address required' }));
-          return;
-        }
-        if (!macRegex.test(mac)) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Invalid MAC address format. Use XX:XX:XX:XX:XX:XX' }));
-          return;
-        }
-          
-        // Validate name length and sanitize
-        if (!name || name.trim().length === 0) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Device name required' }));
-          return;
-        }
-        if (name.length > 50) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Device name must be 50 characters or less' }));
-          return;
-        }
-          
-        // Validate owner length
-        const sanitizedOwner = (owner || 'unknown').trim().toLowerCase();
-        if (sanitizedOwner.length > 20) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Owner must be 20 characters or less' }));
-          return;
-        }
-          
-        const device = deviceRegistry.updateDevice(mac, { name: name.trim(), owner: sanitizedOwner });
-        if (device) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, device }));
-        } else {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Device not found' }));
-        }
-      } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid JSON' }));
-      }
-    });
-    return;
-  }
-
-  // Device registry API - delete device
-  if (req.method === 'DELETE' && req.url.startsWith('/api/delete-device')) {
-    const mac = req.url.split('=')[1];
-    if (!mac) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'MAC address required' }));
-      return;
-    }
-      
-    const removed = deviceRegistry.deleteDevice(mac);
-    if (removed) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true, device: removed }));
-    } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Device not found' }));
-    }
-    return;
-  }
-
   // === Config API (JARVIS Config File Integration) ===
   // JARVIS_HOME is where the .jarvis-config.json file lives
   const JARVIS_HOME = process.env.JARVIS_HOME || process.env.HOME + '/JARVIS';
@@ -777,6 +690,76 @@ function handleRequest(req, res) {
     return;
   }
 
+  // === MEMORY SOURCE ENDPOINTS ===
+  // /api/memory/jarvis - Jarvis consciousness graph (default)
+  // /api/memory/user - Paul's personal memory graph
+
+  // GET /api/memory/jarvis - return nodes + synapses for Jarvis memory
+  if (req.method === 'GET' && req.url === '/api/memory/jarvis') {
+    const base = process.env.HOME || '';
+    const brainDir = path.join(base, 'JARVIS', 'RAW', 'memories');
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    const synapsesPath = path.join(brainDir, 'synapses.json');
+    
+    try {
+      const nodesData = fs.readFileSync(nodesPath, 'utf8');
+      const synapsesData = fs.readFileSync(synapsesPath, 'utf8');
+      
+      const nodes = JSON.parse(nodesData);
+      const synapses = JSON.parse(synapsesData);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        nodes: nodes,
+        synapses: synapses,
+        meta: {
+          source: 'jarvis',
+          nodeCount: nodes.length,
+          synapseCount: synapses.length,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    } catch (err) {
+      console.error('Jarvis memory API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to load Jarvis memory data', details: err.message }));
+    }
+    return;
+  }
+
+  // GET /api/memory/user - return nodes + synapses for user (Paul) memory
+  if (req.method === 'GET' && req.url === '/api/memory/user') {
+    const base = process.env.HOME || '';
+    const brainDir = path.join(base, 'RAW', 'memories');
+    const nodesPath = path.join(brainDir, 'nodes.json');
+    const synapsesPath = path.join(brainDir, 'synapses.json');
+    
+    try {
+      const nodesData = fs.readFileSync(nodesPath, 'utf8');
+      const synapsesData = fs.readFileSync(synapsesPath, 'utf8');
+      
+      const nodes = JSON.parse(nodesData);
+      const synapses = JSON.parse(synapsesData);
+      
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        nodes: nodes,
+        synapses: synapses,
+        meta: {
+          source: 'user',
+          nodeCount: nodes.length,
+          synapseCount: synapses.length,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    } catch (err) {
+      console.error('User memory API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to load user memory data', details: err.message }));
+    }
+    return;
+  }
+
   // GET /api/neurograph/node/:id - return full context for a specific neuron
   if (req.method === 'GET' && req.url.startsWith('/api/neurograph/node/')) {
     const brainDir = resolveNeurographBrainDir(req.url);
@@ -954,32 +937,13 @@ function handleRequest(req, res) {
       cacheHeaders['ETag'] = `"${stats.ino}-${stats.size}-${stats.mtimeMs}"`;
       cacheHeaders['Last-Modified'] = stats.mtime.toUTCString();
             
-      // Device fingerprinting on root path (index.html)
       if (urlPath === '/') {
         const userAgent = req.headers['user-agent'] || 'Unknown';
         const ip = req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
-        const cleanIp = ip.replace('::ffff:', ''); // Strip IPv6 prefix
-                
-        console.log(`[Device Fingerprint] UA: ${userAgent.substring(0, 80)}..., IP: ${cleanIp}`);
-                
-        // Get MAC from ARP table
-        const mac = deviceRegistry.getMacFromArp(cleanIp);
-                
-        if (mac) {
-          const device = deviceRegistry.findOrCreateDevice(mac, userAgent, cleanIp);
-          console.log(`[Device] ${device.name} (${device.mac}) - Visit #${device.connection_count}`);
-                    
-          // Pass device info to frontend via custom headers
-          cacheHeaders['X-Device-Id'] = device.id;
-          cacheHeaders['X-Device-Name'] = device.name;
-          cacheHeaders['X-Device-Mac'] = device.mac;
-          cacheHeaders['X-Device-Last-Seen'] = device.last_seen;
-          cacheHeaders['X-Device-Connection-Count'] = String(device.connection_count);
-        } else {
-          console.log(`[Device] MAC lookup failed for IP: ${cleanIp}`);
-        }
+        const cleanIp = ip.replace('::ffff:', '');
+        console.log(`[index] UA: ${userAgent.substring(0, 80)}..., IP: ${cleanIp}`);
       }
-            
+
       fs.readFile(filePath, (err, data) => {
         if (err) {
           res.writeHead(500);
@@ -1532,7 +1496,8 @@ function processRecording(filepath, extension) {
 function transcribeWithWhisper(audioPath, modelPath, extension) {
   const timestamp = new Date().toISOString();
   // Security fix: Use execFile instead of exec to prevent command injection
-  execFile(CONFIG.whisperCli, ['-m', modelPath, '-otxt', audioPath], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+  // Added --language auto for multilingual auto-detection (Burmese + English support)
+  execFile(CONFIG.whisperCli, ['-m', modelPath, '-otxt', audioPath, '--language', 'auto'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
     (error, stdout, stderr) => {
       const txtFile = audioPath + '.txt';
             

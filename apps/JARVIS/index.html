@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -184,248 +184,6 @@
             border-radius: 4px;
         }
 
-        /* Heartbeat Pulse Animation (60 BPM - 1 beat per second) */
-        @keyframes heartbeat {
-            0%, 100% {
-                transform: scale(1);
-                opacity: 0.7;
-                box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
-            }
-            15% {
-                transform: scale(1.15);
-                opacity: 1;
-                box-shadow: 0 0 25px rgba(255, 68, 68, 0.8), 0 0 40px rgba(255, 68, 68, 0.5);
-            }
-            30% {
-                transform: scale(1);
-                opacity: 0.7;
-                box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
-            }
-        }
-
-        /* Irregular heartbeat */
-        @keyframes heartbeat-irregular {
-            0% { transform: scale(1); opacity: 0.7; }
-            12% { transform: scale(1.18); opacity: 1; }
-            25% { transform: scale(1); opacity: 0.7; }
-            40% { transform: scale(1.15); opacity: 1; }
-            50% { transform: scale(1); opacity: 0.7; }
-            65% { transform: scale(1.2); opacity: 1; }
-            75% { transform: scale(1); opacity: 0.7; }
-            90% { transform: scale(1.1); opacity: 1; }
-        }
-
-        /* Stopped heartbeat */
-        @keyframes heartbeat-stopped {
-            0%, 100% { transform: scale(1); opacity: 0.3; }
-            50% { transform: scale(1); opacity: 0.1; }
-        }
-
-        /* Heartbeat Pulse Element */
-        .heartbeat-pulse {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: radial-gradient(circle, #ff4444 0%, #ff8888 100%);
-            border: 2px solid #ff4444;
-            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
-            transition: all 0.3s ease;
-        }
-
-        .heartbeat-pulse.steady {
-            animation: heartbeat 1s ease-in-out infinite;
-        }
-
-        .heartbeat-pulse.irregular {
-            animation: heartbeat-irregular 2.5s ease-in-out infinite;
-        }
-
-        .heartbeat-pulse.stopped {
-            animation: heartbeat-stopped 2s ease-in-out infinite;
-            background: radial-gradient(circle, #ff4444 0%, #550000 100%);
-            border-color: #ff4444;
-        }
-
-        /* Breath Cycle Animation (8-second cycle: inhale→hold→exhale) */
-        @keyframes breathe-inhale {
-            0% { transform: scale(1); opacity: 0.4; }
-            30% { transform: scale(1.35); opacity: 1; }
-            40% { transform: scale(1.35); opacity: 1; }
-        }
-
-        @keyframes breathe-hold {
-            0% { transform: scale(1.35); opacity: 1; }
-            100% { transform: scale(1.35); opacity: 1; }
-        }
-
-        @keyframes breathe-exhale {
-            0% { transform: scale(1.35); opacity: 1; }
-            100% { transform: scale(1); opacity: 0.4; }
-        }
-
-        @keyframes breathe-full {
-            0% { transform: scale(1); opacity: 0.4; }
-            25% { transform: scale(1.35); opacity: 1; }
-            35% { transform: scale(1.35); opacity: 1; }
-            75% { transform: scale(1); opacity: 0.4; }
-            100% { transform: scale(1); opacity: 0.4; }
-        }
-
-        /* Breath Circle Element */
-        .breath-circle {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: radial-gradient(circle, #00d9ff 0%, #00ff88 100%);
-            border: 2px solid #00d9ff;
-            box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
-            transition: all 0.3s ease;
-        }
-
-        .breath-circle.shallow {
-            animation: breathe-full 8s ease-in-out infinite;
-        }
-
-        .breath-circle.normal {
-            animation: breathe-full 8s ease-in-out infinite;
-        }
-
-        .breath-circle.deep {
-            animation: breathe-full 12s ease-in-out infinite;
-        }
-
-        .breath-circle.hold {
-            animation: breathe-full 16s ease-in-out infinite;
-        }
-
-        /* Breathe Visualizer (60s cycle with progress bar) */
-        .breathe-visualizer {
-            position: relative;
-            width: 100%;
-            height: 40px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 8px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-
-        .breathe-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #00ffff 0%, #64ffda 50%, #00ff88 100%);
-            animation: breathe-full 60s linear infinite;
-            transition: width 1s ease;
-        }
-
-        .breathe-bar.animating {
-            animation-play-state: running;
-        }
-
-        .breathe-bar.paused {
-            animation-play-state: paused;
-        }
-
-        .breathe-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #ffffff;
-            font-size: 0.8em;
-            font-weight: 600;
-            text-shadow: 0 0 10px rgba(0,255,255,0.5);
-        }
-
-        .breathe-controls {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin-top: 15px;
-        }
-
-        .breathe-btn {
-            background: rgba(0,255,255,0.1);
-            border: 1px solid rgba(0,255,255,0.3);
-            border-radius: 6px;
-            color: #00ffff;
-            padding: 8px 16px;
-            font-size: 0.9em;
-            cursor: pointer;
-            transition: all 0.2s;
-            min-width: 140px;
-        }
-
-        .breathe-btn:hover {
-            background: rgba(0,255,255,0.2);
-            border-color: rgba(0,255,255,0.6);
-            box-shadow: 0 0 15px rgba(0,255,255,0.2);
-        }
-
-        .breathe-btn.active {
-            background: rgba(0,255,0,0.2);
-            border-color: rgba(0,255,0,0.6);
-            color: #00ff88;
-        }
-
-        /* Irregular heartbeat for more organic feel */
-        .heartbeat-irregular {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        .heartbeat-irregular::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 180px;
-            height: 180px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,68,68,0.15) 0%, rgba(255,68,68,0.08) 35%, transparent 65%);
-            animation: heartbeat-irregular 1.8s ease-in-out infinite;
-        }
-
-        /* Breath cycle indicators */
-        .breath-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin: 0 2px;
-            background: rgba(0,255,255,0.3);
-        }
-
-        .breath-indicator.active {
-            background: #00ff88;
-            box-shadow: 0 0 10px #00ff88;
-        }
-
-        .breath-indicator.hold {
-            background: #00ffff;
-            box-shadow: 0 0 10px #00ffff;
-        }
-
-        .breath-indicator.exhale {
-            background: #64ffda;
-            box-shadow: 0 0 10px #64ffda;
-        }
-
-        .breath-cycle-controls {
-            display: flex;
-            justify-content: center;
-            gap: 4px;
-            margin-top: 10px;
-        }
-
         .vitals-card {
             background: rgba(0, 24, 48, 0.45);
             border: 1px solid rgba(0, 212, 255, 0.18);
@@ -520,33 +278,6 @@
             line-height: 1;
         }
 
-        .vitals-card--heartbeat {
-            border-color: rgba(255, 100, 100, 0.25);
-            background: rgba(40, 12, 16, 0.35);
-        }
-
-        .vitals-card--breath {
-            border-color: rgba(0, 200, 255, 0.22);
-            background: rgba(0, 32, 48, 0.45);
-        }
-
-        .vitals-card--relax {
-            border-color: rgba(255, 200, 80, 0.22);
-            background: rgba(36, 28, 8, 0.35);
-        }
-
-        .vitals-card--accent-red .vitals-card__title {
-            color: #ff8a8a;
-        }
-
-        .vitals-card--accent-cyan .vitals-card__title {
-            color: #66dfff;
-        }
-
-        .vitals-card--accent-gold .vitals-card__title {
-            color: #ffd78a;
-        }
-
         .vitals-card__title {
             color: #7eefff;
             font-weight: 700;
@@ -594,49 +325,6 @@
             text-align: right;
         }
 
-        .vitals-btn {
-            background: rgba(0, 212, 255, 0.1);
-            border: 1px solid rgba(0, 212, 255, 0.35);
-            color: #7eefff;
-            padding: 9px 18px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.88em;
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .vitals-btn:hover {
-            background: rgba(0, 212, 255, 0.2);
-            border-color: rgba(0, 212, 255, 0.55);
-            box-shadow: 0 0 16px rgba(0, 200, 255, 0.12);
-        }
-
-        .vitals-btn--gold {
-            width: 100%;
-            background: rgba(255, 200, 80, 0.1);
-            border-color: rgba(255, 200, 80, 0.35);
-            color: #ffd78a;
-        }
-
-        .vitals-btn--gold:hover {
-            background: rgba(255, 200, 80, 0.18);
-            border-color: rgba(255, 215, 0, 0.5);
-            box-shadow: 0 0 20px rgba(255, 200, 80, 0.12);
-        }
-
-        .vitals-select {
-            flex: 1;
-            background: rgba(0, 217, 255, 0.08);
-            border: 1px solid rgba(0, 217, 255, 0.28);
-            color: #b8ecff;
-            padding: 8px 10px;
-            border-radius: 8px;
-            font-size: 0.78em;
-            cursor: pointer;
-        }
-
         .vitals-footer {
             flex-shrink: 0;
             text-align: center;
@@ -661,29 +349,6 @@
         .vitals-footer-refresh:hover {
             background: rgba(0, 212, 255, 0.12);
             color: #b8f4ff;
-        }
-
-        .vitals-row-inline {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-top: 8px;
-        }
-
-        .vitals-row-inline--stack {
-            flex-direction: column;
-            margin-top: 0;
-            align-items: stretch;
-        }
-
-        .vitals-heartbeat-wrap,
-        .vitals-breath-visual {
-            position: relative;
-            margin-top: 12px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
         /* Network device map (lives inside System Vitals overlay) */
@@ -892,41 +557,69 @@
             width: 100%;
         }
 
-        .neuro-node-panel {
-            position: relative;
-            flex: 1 1 auto;
-            min-height: 0;
-            max-height: 100%;
+        /* Floating neuro info shell — single scroll on host so all body content is reachable */
+        .neuro-info-panel-host {
+            z-index: 6000;
+            pointer-events: auto;
+            min-width: 260px;
+            max-width: 420px;
+            max-height: min(72vh, 92dvh);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-        }
-
-        .neuro-node-panel__scroll {
-            overflow-y: auto;
             overflow-x: hidden;
-            padding: 14px 16px 16px;
-            flex: 1 1 auto;
-            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: thin;
-            scrollbar-color: rgba(0, 212, 255, 0.35) transparent;
+            scrollbar-color: rgba(0, 212, 255, 0.4) transparent;
+            background: rgba(5, 8, 18, 0.97);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(0, 220, 255, 0.28);
+            border-radius: 10px;
+            box-shadow:
+                0 4px 24px rgba(0, 0, 0, 0.45),
+                0 0 0 1px rgba(0, 255, 255, 0.06) inset;
         }
 
-        .neuro-node-panel__scroll::-webkit-scrollbar {
-            width: 6px;
+        .neuro-info-panel-host::-webkit-scrollbar {
+            width: 8px;
         }
 
-        .neuro-node-panel__scroll::-webkit-scrollbar-thumb {
+        .neuro-info-panel-host::-webkit-scrollbar-thumb {
             background: rgba(0, 212, 255, 0.35);
             border-radius: 4px;
         }
 
+        .neuro-info-panel-host > .neuro-node-panel {
+            flex: 0 0 auto;
+            min-width: 0;
+        }
+
+        .neuro-node-panel {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: visible;
+            transition: opacity 0.22s ease;
+        }
+
+        .neuro-node-panel__scroll {
+            overflow: visible;
+            padding: 8px 12px 12px;
+            flex: 0 0 auto;
+        }
+
         .neuro-node-panel__head {
             flex-shrink: 0;
-            padding: 14px 16px 12px;
-            border-bottom: 1px solid rgba(0, 200, 255, 0.15);
-            background: linear-gradient(180deg, rgba(0, 40, 60, 0.35) 0%, transparent 100%);
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            padding: 10px 12px 8px;
+            border-bottom: 1px solid rgba(0, 200, 255, 0.12);
+            background: linear-gradient(180deg, rgba(6, 12, 24, 0.98) 0%, rgba(6, 12, 24, 0.92) 70%, rgba(6, 12, 24, 0.75) 100%);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
 
         .neuro-node-panel__chips {
@@ -982,7 +675,11 @@
         }
 
         .neuro-node-panel__sec {
-            margin-top: 14px;
+            margin-top: 10px;
+        }
+
+        .neuro-node-panel__sec:first-of-type {
+            margin-top: 0;
         }
 
         .neuro-node-panel__sec-title {
@@ -1099,7 +796,7 @@
         }
 
         .neuro-node-panel__empty {
-            padding: 16px;
+            padding: 10px 0;
             color: #8ab;
         }
 
@@ -1154,27 +851,20 @@
         }
 
         /* Neurograph Tooltip Styles (hover minimized, click expanded) */
-        /* Single neuro-info-panel with collapsed/expanded states */
-        .neuro-node-panel {
-            position: relative;
-            flex: 1 1 auto;
-            min-height: 0;
-            max-height: 100%;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+        /* Host (.neuro-info-panel-host) owns vertical scroll — inner panels stay overflow:visible */
+
+        /* Panel collapsed state content (direct child of .neuro-info-panel-host) */
+        .neuro-info-panel-host > .neuro-panel-collapsed {
+            padding: 10px 12px 12px;
+            flex: 0 0 auto;
+            min-width: 0;
         }
 
-        .neuro-node-panel.collapsed {
-            max-height: 140px;
-            overflow: hidden;
-        }
-
-        /* Panel collapsed state content */
         .neuro-panel-collapsed {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
+            margin: 0;
         }
 
         .neuro-panel-title {
@@ -1194,13 +884,9 @@
 
         .neuro-panel-hint {
             font-size: 10px;
-            color: #667788;
-            text-align: center;
-        }
-
-        /* Smooth transition for collapsed/expanded */
-        .neuro-node-panel {
-            transition: max-height 0.25s ease, opacity 0.25s ease;
+            color: rgba(120, 150, 170, 0.85);
+            text-align: left;
+            margin-top: 2px;
         }
 
         @keyframes spin {
@@ -1227,28 +913,31 @@
             to { text-shadow: 0 0 30px rgba(0, 255, 255, 0.8), 0 0 60px rgba(0, 255, 255, 0.5); }
         }
 
-        /* Orb + server: stacked bottom-left; dock centered in stack */
+        /* Orb + title: anchored bottom-left (safe-area aware) */
         .jarvis-bottom-left-stack {
             position: fixed;
-            bottom: 12px;
-            left: 18px;
+            bottom: max(12px, env(safe-area-inset-bottom, 0px));
+            left: max(12px, env(safe-area-inset-left, 0px));
+            right: auto;
+            transform: none;
             z-index: 1001;
             display: flex;
             flex-direction: column;
             align-items: flex-start;
             gap: 0;
             width: max-content;
-            max-width: min(calc(100vw - 36px), 96vw);
+            max-width: min(calc(100vw - 24px), 96vw);
             pointer-events: none;
         }
 
         .jarvis-bottom-left-stack .jarvis-bottom-dock,
-        .jarvis-bottom-left-stack #server-status {
+        .jarvis-bottom-left-stack #server-status,
+        .jarvis-bottom-left-stack #memory-toggle {
             pointer-events: auto;
         }
 
         .jarvis-bottom-left-stack .jarvis-bottom-dock {
-            align-self: center;
+            align-self: flex-start;
             margin-bottom: -10px;
         }
 
@@ -1256,14 +945,16 @@
             display: flex;
             flex-direction: row;
             align-items: center;
-            gap: 18px;
+            justify-content: flex-start;
+            gap: 0;
             width: max-content;
+            max-width: 100%;
         }
 
         .jarvis-bottom-dock .title-row {
             justify-content: flex-start;
             flex-shrink: 0;
-            margin-left: -30px;
+            margin-left: -14px;
         }
 
         .jarvis-bottom-dock h1.futuristic-title {
@@ -1359,6 +1050,299 @@
             background: #ff4444;
             box-shadow: 0 0 10px #ff4444;
             animation: pulse-red 2s ease-in-out infinite;
+        }
+
+        /* Memory toggle switch */
+        .memory-toggle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 8px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        
+        .memory-toggle:hover {
+            background: rgba(0, 255, 255, 0.1);
+        }
+        
+        .memory-label {
+            font-size: 0.75em;
+            color: #64ffda;
+            transition: color 0.3s;
+        }
+        
+        .toggle-switch {
+            width: 40px;
+            height: 20px;
+            background: #333;
+            border-radius: 20px;
+            cursor: pointer;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            transition: background 0.3s;
+        }
+        
+        .toggle-handle {
+            width: 16px;
+            height: 16px;
+            background: #00ffff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            transition: left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        
+        /* User memory state - cyan color (easy to read, consistent with Jarvis) */
+        .memory-toggle.active .memory-label {
+            color: #00ffff;
+        }
+        
+        .memory-toggle.active .toggle-switch {
+            background: #333;
+        }
+        
+        .memory-toggle.active .toggle-handle {
+            left: 22px;
+            background: #00ffff;
+        }
+        
+        /* === Mobile Menu Drawer Styles === */
+        /* Hamburger button - top-right, fixed position */
+        .menu-toggle {
+            position: fixed;
+            top: max(16px, env(safe-area-inset-top, 0px));
+            right: max(16px, env(safe-area-inset-right, 0px));
+            left: auto;
+            z-index: 10000;
+            width: 48px;
+            height: 48px;
+            border: none;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .menu-toggle:hover {
+            background: rgba(0, 255, 255, 0.15);
+            transform: scale(1.05);
+        }
+        
+        .menu-toggle:active {
+            transform: scale(0.95);
+        }
+        
+        .menu-toggle .menu-lines {
+            width: 24px;
+            height: 16px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .menu-toggle .menu-lines span {
+            display: block;
+            width: 24px;
+            height: 3px;
+            background: #00ffff;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+        
+        /* Drawer - slide from right */
+        .mobile-drawer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: auto;
+            bottom: 0;
+            width: min(320px, 92vw);
+            background: rgba(5, 5, 16, 0.98);
+            backdrop-filter: blur(20px);
+            box-shadow: -8px 0 32px rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .mobile-drawer.open {
+            transform: translateX(0);
+        }
+        
+        .drawer-content {
+            min-height: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            box-sizing: border-box;
+        }
+
+        .drawer-footer {
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            width: 100%;
+        }
+        
+        .drawer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+        }
+        
+        .drawer-title {
+            font-size: 1.2em;
+            color: #00ffff;
+            font-weight: 600;
+        }
+        
+        .menu-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: none;
+            color: #00ffff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        
+        .menu-close:hover {
+            background: rgba(0, 255, 255, 0.1);
+        }
+        
+        .close-icon {
+            display: block;
+            line-height: 1;
+        }
+        
+        .drawer-footer .drawer-section {
+            padding: 16px 24px;
+            border-top: 1px solid rgba(0, 255, 255, 0.08);
+            border-bottom: none;
+        }
+        
+        .drawer-footer .drawer-section:first-child {
+            border-top: none;
+        }
+
+        .drawer-footer .drawer-section-server {
+            padding-bottom: 20px;
+        }
+        
+        .drawer-version {
+            font-family: monospace;
+            color: #64ffda;
+            letter-spacing: 2px;
+        }
+        
+        /* Backdrop - dark overlay when drawer is open */
+        .menu-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9998;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .menu-backdrop.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Drawer server status - simplified for drawer */
+        .drawer-server-status {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .drawer-server-status .indicator {
+            width: 10px;
+            height: 10px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        
+        .drawer-server-status:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        /* Drawer: server line wraps to at most two lines */
+        .drawer-footer .drawer-server-status {
+            align-items: flex-start;
+            gap: 10px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .drawer-footer .drawer-server-status .indicator {
+            margin-top: 3px;
+            margin-right: 0;
+        }
+
+        .drawer-footer #drawer-server-status-text {
+            flex: 1;
+            min-width: 0;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            line-height: 1.35;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* Drawer memory toggle — larger touch target (above server row) */
+        #drawer-memory-toggle {
+            align-items: center;
+            margin-top: 0;
+            padding: 20px 24px 16px;
+            gap: 14px;
+        }
+
+        #drawer-memory-toggle .memory-label {
+            font-size: 1.05rem !important;
+            font-weight: 600;
+        }
+
+        #drawer-memory-toggle .toggle-switch {
+            width: 72px !important;
+            height: 38px !important;
+            border-radius: 19px !important;
+            margin-top: 0 !important;
+        }
+
+        #drawer-memory-toggle .toggle-handle {
+            width: 32px !important;
+            height: 32px !important;
+            top: 3px !important;
+            left: 3px !important;
+        }
+
+        #drawer-memory-toggle.active .toggle-handle {
+            left: 37px !important; /* 72 - 3 - 32 */
         }
 
         @keyframes pulse-green {
@@ -1980,9 +1964,113 @@
             color: #fff;
         }
     </style>
+    
+    <!-- Mobile Responsive Styles -->
+    <style>
+        /* Mobile: orb + version bottom-left above home indicator */
+        @media (max-width: 768px) {
+            .jarvis-bottom-left-stack {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                justify-content: flex-end;
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                transform: none;
+                width: 100%;
+                max-width: 100vw;
+                padding: 8px max(12px, env(safe-area-inset-right, 0px))
+                    max(12px, env(safe-area-inset-bottom, 0px))
+                    max(12px, env(safe-area-inset-left, 0px));
+                box-sizing: border-box;
+                z-index: 1001;
+                pointer-events: none;
+            }
+
+            .jarvis-bottom-dock {
+                flex-wrap: wrap;
+                justify-content: flex-start;
+            }
+
+            .jarvis-bottom-dock .title-row {
+                margin-left: 0;
+            }
+
+            .jarvis-bottom-dock h1.futuristic-title {
+                font-size: clamp(1rem, 4.5vw, 1.4rem);
+            }
+        }
+
+        /* Desktop: bottom stack layout (drawer + hamburger same as mobile) */
+        @media (min-width: 769px) {
+            .jarvis-bottom-left-stack {
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+                align-items: flex-start;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                transform: none;
+                width: 100%;
+                max-width: none;
+                padding: 16px max(16px, env(safe-area-inset-right, 0px))
+                    max(16px, env(safe-area-inset-bottom, 0px))
+                    max(16px, env(safe-area-inset-left, 0px));
+                box-sizing: border-box;
+                z-index: 1000;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- Orb + title above server status, bottom-left -->
+    <!-- Hamburger Menu Button - top-right -->
+    <button type="button" id="menu-toggle" class="menu-toggle" title="Open menu" aria-label="Open menu">
+        <span class="menu-lines">
+            <span></span><span></span><span></span>
+        </span>
+    </button>
+    
+    <!-- Drawer Backdrop - semi-transparent overlay when drawer is open -->
+    <div id="menu-backdrop" class="menu-backdrop" aria-hidden="true"></div>
+    
+    <!-- Slide-out Drawer (from right) — memory toggle above server row at bottom -->
+    <div id="mobile-drawer" class="mobile-drawer" aria-hidden="true">
+        <div class="drawer-content">
+            <div class="drawer-footer">
+                <div class="drawer-section drawer-section-memory">
+                    <div id="drawer-memory-toggle" class="memory-toggle" title="Switch between Jarvis Memory and User Memory">
+                        <span class="memory-label" id="drawer-memory-label" style="color: #64ffda;">🧠 Jarvis Memory</span>
+                        <div class="toggle-switch" id="drawer-memory-toggle-switch" style="background: #333; cursor: pointer; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);">
+                            <div class="toggle-handle" id="drawer-memory-toggle-handle" style="background: #00ffff; border-radius: 50%; position: absolute; box-shadow: 0 2px 4px rgba(0,0,0,0.4); transition: left 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="drawer-section drawer-section-server">
+                    <div class="server-status drawer-server-status" id="drawer-server-status" title="Click to view system vitals">
+                        <span class="indicator" id="drawer-server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px; flex-shrink: 0;"></span>
+                        <span id="drawer-server-status-text" style="color: #00ffff; font-size: 0.95em;">Server: v? • PID ? • ?</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- Hidden elements for JavaScript sync (server status and memory toggle are now in drawer) -->
+    <div id="main-server-status" style="display: none;">
+        <span class="indicator" id="main-server-indicator"></span>
+        <span id="main-server-status-text"></span>
+    </div>
+    <div id="main-memory-toggle" style="display: none;">
+        <span class="memory-label" id="main-memory-label"></span>
+        <div class="toggle-switch" id="main-memory-toggle-switch"></div>
+    </div>
+    
+    <!-- Orb + title — bottom-left, fixed above safe area on mobile -->
     <div class="jarvis-bottom-left-stack">
         <div class="jarvis-bottom-dock">
             <div class="jarvis-orb-container" id="jarvis-orb-container">
@@ -1993,12 +2081,8 @@
             </div>
             <div class="title-row">
                 <h1 class="futuristic-title" style="margin: 0;">J.A.R.V.I.S</h1>
-                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.1.4</span>
+                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.2</span>
             </div>
-        </div>
-        <div class="server-status" id="server-status" title="Click to view system vitals">
-            <span class="indicator" id="server-indicator" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #00ffff; box-shadow: 0 0 8px #00ffff; margin-right: 8px; flex-shrink: 0;"></span>
-            <span id="server-status-text" style="color: #00ffff;">Server: v? • PID ? • ?</span>
         </div>
         
         <!-- Preview Mode Badge - only visible when preview server (port 18788) -->
@@ -2122,69 +2206,6 @@
                         <span class="vitals-settings-cta-chevron" aria-hidden="true">›</span>
                     </button>
                 </div>
-
-                <!-- Heartbeat Visualization -->
-                <div class="vitals-card vitals-card--heartbeat vitals-card--accent-red">
-                    <div class="vitals-card__title">Heartbeat</div>
-                    <div class="vitals-card__body">
-                        <div class="vital-row">
-                            <span class="vital-label">Rhythm</span>
-                            <span id="heartbeat-rhythm" class="vital-value" style="color: #00ff88;">60 BPM</span>
-                        </div>
-                        <div class="vital-row">
-                            <span class="vital-label">Status</span>
-                            <span id="heartbeat-status" class="vital-value">Steady</span>
-                        </div>
-                        <div class="vitals-heartbeat-wrap">
-                            <div id="heartbeat-pulse" class="heartbeat-pulse"></div>
-                        </div>
-                        <div class="vital-row">
-                            <span class="vital-label">Last Beat</span>
-                            <span id="heartbeat-last-beat" class="vital-value" style="color: #64ffda; font-size: 0.8em;">--</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Breath Cycle Visualization -->
-                <div class="vitals-card vitals-card--breath vitals-card--accent-cyan">
-                    <div class="vitals-card__title">Breath Cycle</div>
-                    <div class="vitals-card__body">
-                        <div class="vital-row">
-                            <span class="vital-label">Cycle</span>
-                            <span id="breath-cycle" class="vital-value" style="color: #00ff88;">8s</span>
-                        </div>
-                        <div class="vital-row">
-                            <span class="vital-label">Phase</span>
-                            <span id="breath-phase" class="vital-value">Ready</span>
-                        </div>
-                        <div class="vitals-breath-visual breath-visual">
-                            <div id="breath-circle" class="breath-circle"></div>
-                        </div>
-                        <div class="vital-row">
-                            <span class="vital-label">Depth</span>
-                            <span id="breath-depth" class="vital-value" style="color: #64ffda; font-size: 0.8em;">Normal</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Take a Breath Control -->
-                <div class="vitals-card vitals-card--relax vitals-card--accent-gold">
-                    <div class="vitals-card__title">Relaxation</div>
-                    <div class="vitals-card__body">
-                        <div class="vitals-row-inline vitals-row-inline--stack">
-                            <button type="button" id="take-a-breath-btn" class="vitals-btn vitals-btn--gold">✨ Take a Breath</button>
-                        </div>
-                        <div class="vitals-row-inline">
-                            <label class="vital-label" for="breath-depth-select">Depth</label>
-                            <select id="breath-depth-select" class="vitals-select">
-                                <option value="shallow">Shallow</option>
-                                <option value="normal" selected>Normal</option>
-                                <option value="deep">Deep</option>
-                                <option value="hold">Hold</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
             </div>
             <div class="vitals-footer">
                 <span id="vitals-last-updated">Last updated: -</span>
@@ -2249,4 +2270,4 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
 
-    <script src="app.js?v=3.1.3"></script>
+    <script src="app.js?v=3.3.2"></script>
