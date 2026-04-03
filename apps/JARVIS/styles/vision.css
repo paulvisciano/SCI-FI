@@ -1,0 +1,756 @@
+/* Vision Feature - Futuristic UI Styles */
+/* Matches Orb aesthetic (version 315) */
+
+/* Vision Button Container */
+.vision-button-container {
+  position: fixed;
+  z-index: 5000;
+  pointer-events: auto;
+}
+
+/* Main Capture Button */
+.vision-btn {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.15) 0%, rgba(0, 180, 255, 0.08) 100%);
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 0 24px rgba(0, 255, 255, 0.12),
+    0 0 4px rgba(0, 255, 255, 0.4) inset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.vision-btn:hover {
+  transform: scale(1.05);
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow:
+    0 0 36px rgba(0, 255, 255, 0.2),
+    0 0 6px rgba(0, 255, 255, 0.6) inset;
+}
+
+.vision-btn:active {
+  transform: scale(0.95);
+}
+
+.vision-btn.capturing {
+  animation: capture-pulse 0.5s ease-in-out infinite;
+  border-color: rgba(255, 100, 100, 0.6);
+}
+
+/* Capture pulse animation */
+@keyframes capture-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 24px rgba(0, 255, 255, 0.12),
+      0 0 4px rgba(0, 255, 255, 0.4) inset;
+  }
+  50% {
+    box-shadow:
+      0 0 48px rgba(255, 100, 100, 0.25),
+      0 0 8px rgba(255, 100, 100, 0.6) inset;
+  }
+}
+
+/* Vision Icon */
+.vision-icon {
+  font-size: 32px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Sci-fi Glow Effect */
+.vision-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(0, 255, 255, 0.3) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.vision-btn:hover .vision-glow {
+  opacity: 1;
+}
+
+/* Sci-fi Ring Effects */
+.vision-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  animation: spin 8s linear infinite;
+}
+
+.vision-ring.delayed {
+  animation-duration: 12s;
+  animation-direction: reverse;
+  border-color: rgba(0, 180, 255, 0.15);
+}
+
+@keyframes spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Desktop Menu */
+.vision-menu {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(5, 10, 20, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.8),
+    0 0 32px rgba(0, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.vision-menu::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 0 8px 10px 8px;
+  border-style: solid;
+  border-color: transparent transparent rgba(0, 255, 255, 0.3) transparent;
+}
+
+/* Menu Items */
+.vision-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.15);
+  color: #c8e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vision-menu-item:hover {
+  background: rgba(0, 255, 255, 0.12);
+  border-color: rgba(0, 255, 255, 0.4);
+  transform: translateX(4px);
+}
+
+.vision-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.menu-icon {
+  font-size: 20px;
+}
+
+.menu-label {
+  flex: 1;
+}
+
+/* Hidden inputs */
+.hidden-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* Mobile positioning */
+@media (max-width: 768px) {
+  .vision-button-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6000;
+  }
+
+  .vision-btn {
+    width: 56px;
+    height: 56px;
+  }
+
+  .vision-icon {
+    font-size: 28px;
+  }
+
+  .vision-menu {
+    position: fixed;
+    top: auto;
+    bottom: 96px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: auto !important;
+    top: 96px;
+  }
+
+  .vision-menu::before {
+    top: auto;
+    bottom: -10px;
+    transform: translateX(-50%) rotate(180deg);
+  }
+}
+
+/* Camera Overlay Viewfinder */
+.camera-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 5500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.camera-overlay video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Sci-fi Viewfinder Overlay */
+.camera-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+}
+
+.camera-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+/* Viewfinder Frame */
+.viewfinder-frame {
+  position: relative;
+  width: min(320px, 80vw);
+  height: min(480px, 80vh);
+  border: 2px solid rgba(0, 255, 255, 0.5);
+  border-radius: 24px;
+  box-shadow:
+    0 0 32px rgba(0, 255, 255, 0.2),
+    0 0 64px rgba(0, 255, 255, 0.08);
+  animation: viewfinder-pulse 3s ease-in-out infinite;
+}
+
+@keyframes viewfinder-pulse {
+  0%, 100% {
+    border-color: rgba(0, 255, 255, 0.5);
+    box-shadow:
+      0 0 32px rgba(0, 255, 255, 0.2),
+      0 0 64px rgba(0, 255, 255, 0.08);
+  }
+  50% {
+    border-color: rgba(0, 255, 255, 0.8);
+    box-shadow:
+      0 0 48px rgba(0, 255, 255, 0.3),
+      0 0 96px rgba(0, 255, 255, 0.12);
+  }
+}
+
+/* Viewfinder Corners */
+.viewfinder-frame::before,
+.viewfinder-frame::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(0, 255, 255, 0.8);
+  transition: all 0.3s ease;
+}
+
+.viewfinder-frame::before {
+  top: -6px;
+  left: -6px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.viewfinder-frame::after {
+  bottom: -6px;
+  right: -6px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Capture Button in Overlay */
+.camera-overlay .capture-btn {
+  position: absolute;
+  bottom: 32px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 255, 255, 0.15);
+  border: 2px solid rgba(0, 255, 255, 0.4);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.camera-overlay .capture-btn:hover {
+  background: rgba(0, 255, 255, 0.25);
+  transform: scale(1.1);
+}
+
+.camera-overlay .capture-btn:active {
+  background: rgba(0, 255, 255, 0.35);
+  transform: scale(0.95);
+}
+
+/* Capture Animation */
+.capture-btn.capturing {
+  animation: capture-ripple 0.6s ease-out;
+  background: rgba(255, 100, 100, 0.3);
+}
+
+@keyframes capture-ripple {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(255, 100, 100, 0);
+  }
+  50% {
+    transform: scale(1.5);
+    box-shadow: 0 0 32px rgba(255, 100, 100, 0.5);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(255, 100, 100, 0);
+  }
+}
+
+/* Camera Status Indicators */
+.camera-status {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  color: #c8e8f0;
+  font-family: monospace;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.camera-status.recording {
+  color: #ff4444;
+}
+
+.camera-status.recording::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff4444;
+  animation: recording-pulse 1s ease-in-out infinite;
+}
+
+@keyframes recording-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Gallery Selection Styles */
+.gallery-container {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(16px);
+  z-index: 5500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+}
+
+.gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  padding: 16px 24px;
+  background: rgba(5, 10, 20, 0.8);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 16px;
+  margin-bottom: 24px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+  overflow-y: auto;
+}
+
+.gallery-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.gallery-item:hover {
+  border-color: rgba(0, 255, 255, 0.4);
+  transform: scale(1.02);
+  box-shadow: 0 0 24px rgba(0, 255, 255, 0.2);
+}
+
+.gallery-item.selected {
+  border-color: rgba(0, 255, 255, 0.8);
+  box-shadow: 0 0 32px rgba(0, 255, 255, 0.3);
+}
+
+.gallery-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, transparent 50%, rgba(0, 255, 255, 0.1) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gallery-item:hover::before,
+.gallery-item.selected::before {
+  opacity: 1;
+}
+
+.gallery-preview {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 90vw;
+  max-height: 90vh;
+  background: rgba(0, 0, 0, 0.95);
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  box-shadow: 0 0 64px rgba(0, 255, 255, 0.15);
+  z-index: 5600;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gallery-preview.active {
+  display: flex;
+}
+
+.gallery-preview img {
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 16px;
+  border: 2px solid rgba(0, 255, 255, 0.3);
+}
+
+/* Drag and Drop Zone (Desktop) */
+.drag-drop-zone {
+  position: fixed;
+  inset: 0;
+  z-index: 4500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.drag-drop-zone.active {
+  display: flex;
+}
+
+.drag-drop-area {
+  width: min(480px, 90vw);
+  height: min(320px, 90vh);
+  border: 2px dashed rgba(0, 255, 255, 0.4);
+  border-radius: 24px;
+  background: rgba(5, 10, 20, 0.9);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.drag-drop-area.drag-over {
+  border-color: rgba(0, 255, 255, 0.8);
+  background: rgba(0, 255, 255, 0.05);
+  transform: scale(1.05);
+}
+
+.drag-drop-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.drag-drop-label {
+  color: #c8e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+}
+
+.drag-drop-hint {
+  color: rgba(0, 255, 255, 0.6);
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+/* Image Preview Card */
+.image-preview-card {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(5, 10, 20, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+  display: none;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 5700;
+  min-width: 280px;
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.image-preview-card.active {
+  display: flex;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateX(-50%) translateY(48px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.image-preview-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  box-shadow: 0 0 24px rgba(0, 255, 255, 0.1);
+}
+
+.image-preview-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.image-preview-meta {
+  flex: 1;
+}
+
+.image-preview-meta h4 {
+  color: #00ffff;
+  font-size: 14px;
+  margin: 0 0 8px 0;
+}
+
+.image-preview-meta p {
+  color: #c8e8f0;
+  font-size: 12px;
+  margin: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.image-preview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.preview-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 255, 255, 0.1);
+  color: #00ffff;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-btn:hover {
+  background: rgba(0, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.preview-btn.delete:hover {
+  background: rgba(255, 68, 68, 0.2);
+  color: #ff4444;
+}
+
+.preview-btn.send:hover {
+  background: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(0, 255, 255, 0.2);
+  border-top: 2px solid rgba(0, 255, 255, 0.8);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Archive Path Display */
+.archive-path {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(5, 10, 20, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 16px;
+  padding: 12px 24px;
+  color: #00d9ff;
+  font-family: monospace;
+  font-size: 12px;
+  z-index: 5800;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.archive-path.visible {
+  opacity: 1;
+}
+
+/* Neural Network Animation Overlay */
+.neural-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5400;
+  opacity: 0.15;
+  overflow: hidden;
+}
+
+.neural-network {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.neural-node {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(0, 255, 255, 0.6);
+}
+
+/* Vision Feedback Toast */
+.vision-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(16px);
+  padding: 24px 48px;
+  border-radius: 24px;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  color: #c8e8f0;
+  font-size: 18px;
+  z-index: 5900;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.vision-toast.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.vision-toast.pulse {
+  animation: toast-pulse 0.6s ease-in-out;
+}
+
+@keyframes toast-pulse {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}

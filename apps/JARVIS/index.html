@@ -2249,4 +2249,56 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
 
+    <!-- Vision Feature UI -->
+    <div id="vision-ui" style="display: none;"></div>
+    <div id="camera-overlay" class="camera-overlay" style="display: none;">
+        <video id="camera-preview" autoplay playsinline muted></video>
+        <div class="camera-status" id="camera-status">
+            <span class="recording-indicator"></span>
+            <span class="status-text">Camera Ready</span>
+        </div>
+        <div class="viewfinder-frame">
+            <div class="viewfinder-corners"></div>
+        </div>
+        <button class="capture-btn" id="camera-capture-btn">📷</button>
+        <button class="close-btn" id="camera-close-btn">❌</button>
+    </div>
+    <div id="gallery-overlay" class="gallery-container" style="display: none;">
+        <div class="gallery-header">
+            <h3>📷 Gallery</h3>
+            <button class="close-btn" id="gallery-close-btn">❌</button>
+        </div>
+        <div class="gallery-grid" id="gallery-grid"></div>
+    </div>
+    <div id="image-preview-card" class="image-preview-card">
+        <img src="" class="image-preview-image" id="preview-image">
+        <div class="image-preview-info">
+            <div class="image-preview-meta">
+                <h4>Image Ready</h4>
+                <p id="preview-filename">vision-xxxxx.jpg</p>
+                <p id="preview-size">0 KB</p>
+                <p id="preview-archived" style="color: #00ff88; font-size: 10px;"></p>
+            </div>
+            <div class="image-preview-actions">
+                <button class="preview-btn delete" id="preview-delete" title="Delete">🗑️</button>
+                <button class="preview-btn send" id="preview-send" title="Send to Jarvis">📤</button>
+            </div>
+        </div>
+    </div>
+    <div id="archive-path" class="archive-path"></div>
+    <div id="neural-overlay" class="neural-overlay">
+        <svg class="neural-network" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <defs>
+                <filter id="glow">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="blur" />
+                    <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0" result="coloredBlur" />
+                    <feComposite in="SourceGraphic" in2="coloredBlur" operator="atop" />
+                </filter>
+            </defs>
+        </svg>
+    </div>
+
     <script src="app.js?v=3.1.3"></script>
+    <script src="components/vision-button.jsx"></script>
+    <script src="hooks/use-vision.js"></script>
+    <script src="styles/vision.css"></script>
