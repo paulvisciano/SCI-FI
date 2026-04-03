@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.1.6';
+const CLIENT_VERSION = '3.2.0';
 const CLIENT_BUILD_DATE = '2026-04-03';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3765,3 +3765,141 @@ function createStarfield() {
 
   console.log('[Neurograph] Starfield created with', starCount, 'stars');
 }
+
+// === Memory Filter Integration (v3.2.0) ===
+// Time-based filter for NeuroGraph - shows only neurons within selected time range
+
+// Store original neurons array for filtering
+let originalNeurons = [];
+let memoryFilterRange = '24h'; // Default: Last 24 hours
+
+/**
+ * Filter neurons by time range
+ */
+function filterNeuronsByTime(nodes, range) {
+  const now = Date.now();
+  const ranges = {
+    '10m': 10 * 60 * 1000,      // 10 minutes
+    '30m': 30 * 60 * 1000,      // 30 minutes
+    '24h': 24 * 60 * 60 * 1000, // 24 hours
+    '7d': 7 * 24 * 60 * 60 * 1000, // 7 days
+    'all': Infinity              // All time (no filter)
+  };
+  
+  const cutoff = now - ranges[range];
+  
+  return nodes.filter(n => {
+    if (range === 'all') return true;
+    if (!n.userData || !n.userData.createdAt) return false;
+    return n.userData.createdAt >= cutoff;
+  });
+}
+
+/**
+ * Get time range label
+ */
+function formatMemoryFilterLabel(range) {
+  const labels = {
+    '10m': 'Last 10 minutes',
+    '30m': 'Last 30 minutes',
+    '24h': 'Last 24 hours',
+    '7d': 'Last 7 days',
+    'all': 'All time'
+  };
+  return labels[range] || labels['24h'];
+}
+
+/**
+ * Memory Filter UI Component (inserted dynamically)
+ */
+function createMemoryFilterUI() {
+  const container = document.getElementById('memory-filter-ui');
+  if (!container) return;
+  
+  // Get neuron count from global neurons array
+  const totalNeuronCount = neurons.length;
+  
+  container.innerHTML = `
+    <div class="memory-filter-container">
+      <button class="memory-filter-btn" id="memory-filter-btn">
+        <span class="filter-icon">⏳</span>
+        <span class="filter-label" id="memory-filter-label">Last 24 hours</span>
+        <span class="filter-arrow">▼</span>
+        <span class="filter-glow"></span>
+        <span class="filter-ring"></span>
+        <span class="filter-ring delayed"></span>
+      </button>
+      <div class="memory-filter-menu" id="memory-filter-menu" style="display: none;">
+        <button class="memory-filter-item" data-range="10m"><span class="item-icon">🕒</span><span class="item-label">Last 10 minutes</span><span class="checkmark">✓</span></button>
+        <button class="memory-filter-item" data-range="30m"><span class="item-icon">🕒</span><span class="item-label">Last 30 minutes</span><span class="checkmark">✓</span></button>
+        <button class="memory-filter-item active" data-range="24h"><span class="item-icon">🕒</span><span class="item-label">Last 24 hours</span><span class="checkmark">✓</span></button>
+        <button class="memory-filter-item" data-range="7d"><span class="item-icon">🕒</span><span class="item-label">Last 7 days</span><span class="checkmark">✓</span></button>
+        <button class="memory-filter-item" data-range="all"><span class="item-icon">⏱️</span><span class="item-label">All time (${totalNeuronCount} nodes)</span><span class="checkmark">✓</span></button>
+      </div>
+      <span class="node-count-display">
+        <span class="count-value" id="memory-filter-count">${totalNeuronCount}</span>
+        <span class="count-label">neurons active</span>
+      </span>
+    </div>
+  `;
+  
+  const filterBtn = document.getElementById('memory-filter-btn');
+  const filterMenu = document.getElementById('memory-filter-menu');
+  const filterLabel = document.getElementById('memory-filter-label');
+  const filterCount = document.getElementById('memory-filter-count');
+  const filterItems = document.querySelectorAll('.memory-filter-item');
+  
+  // Filter button click - toggle menu
+  filterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    filterMenu.style.display = filterMenu.style.display === 'block' ? 'none' : 'block';
+  });
+  
+  // Click outside - close menu
+  document.addEventListener('click', () => {
+    if (filterMenu.style.display === 'block') {
+      filterMenu.style.display = 'none';
+    }
+  });
+  
+  // Menu item click - change filter
+  filterItems.forEach(item => {
+    item.addEventListener('click', (e) => {
+      // Remove active class from all items
+      filterItems.forEach(i => i.classList.remove('active'));
+      // Add active to clicked item
+      item.classList.add('active');
+      
+      // Get selected range
+      const range = item.dataset.range;
+      
+      // Update label
+      filterLabel.textContent = formatMemoryFilterLabel(range);
+      filterBtn.setAttribute('aria-label', formatMemoryFilterLabel(range));
+      
+      // Update menu item for "all time" with current count
+      if (range === 'all') {
+        item.querySelector('.item-label').textContent = `All time (${totalNeuronCount} nodes)`;
+      }
+      
+      // Filter neurons
+      const filtered = filterNeuronsByTime(neurons, range);
+      const count = filtered.length;
+      
+      // Update count display
+      filterCount.textContent = count;
+      
+      // Store range for neurograph rendering
+      memoryFilterRange = range;
+      
+      console.log(`[MemoryFilter] Filter changed to: ${range}, showing ${count} neurons`);
+    });
+  });
+  
+  console.log('[MemoryFilter] UI initialized');
+}
+
+// Initialize memory filter when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  createMemoryFilterUI();
+});
