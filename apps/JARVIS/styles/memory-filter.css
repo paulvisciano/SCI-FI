@@ -1,0 +1,295 @@
+/* Memory Filter UI - Sci-Fi Styling (Orb v315) */
+
+/* Memory Filter Container */
+.memory-filter-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+/* Filter Button */
+.memory-filter-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.15) 0%, rgba(0, 180, 255, 0.08) 100%);
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  backdrop-filter: blur(8px);
+  color: #c8e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.memory-filter-btn:hover {
+  transform: scale(1.05);
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow:
+    0 0 24px rgba(0, 255, 255, 0.15),
+    0 0 4px rgba(0, 255, 255, 0.4) inset;
+}
+
+.memory-filter-btn:active {
+  transform: scale(0.98);
+}
+
+/* Filter Icons */
+.filter-icon {
+  font-size: 16px;
+}
+
+.filter-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-arrow {
+  font-size: 10px;
+  color: rgba(0, 255, 255, 0.7);
+}
+
+/* Filter Glow Effect */
+.filter-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(0, 255, 255, 0.3) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.memory-filter-btn:hover .filter-glow {
+  opacity: 1;
+}
+
+/* Filter Ring Effect */
+.filter-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  animation: spin 8s linear infinite;
+}
+
+.filter-ring.delayed {
+  animation-duration: 12s;
+  animation-direction: reverse;
+  border-color: rgba(0, 180, 255, 0.15);
+}
+
+@keyframes spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Filter Menu */
+.memory-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 240px;
+  background: rgba(5, 10, 20, 0.98);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.8),
+    0 0 32px rgba(0, 255, 255, 0.08);
+  z-index: 5500;
+  max-height: 320px;
+  overflow-y: auto;
+  animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Filter Menu Items */
+.memory-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.1);
+  color: #c8e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.memory-filter-item:hover {
+  background: rgba(0, 255, 255, 0.12);
+  border-color: rgba(0, 255, 255, 0.4);
+  transform: translateX(4px);
+}
+
+.memory-filter-item.active {
+  background: rgba(0, 255, 255, 0.18);
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
+}
+
+.item-icon {
+  font-size: 14px;
+}
+
+.item-label {
+  flex: 1;
+}
+
+.checkmark {
+  font-size: 10px;
+  color: rgba(0, 255, 136, 0.8);
+}
+
+/* Node Count Display */
+.node-count-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: rgba(0, 255, 255, 0.08);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #00ffff;
+  font-family: monospace;
+  font-size: 12px;
+  box-shadow: 0 0 8px rgba(0, 255, 255, 0.08);
+}
+
+.count-value {
+  font-weight: 600;
+  color: #00ffff;
+}
+
+.count-label {
+  font-size: 10px;
+  color: rgba(0, 255, 255, 0.7);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .memory-filter-container {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .memory-filter-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .memory-filter-menu {
+    width: 100%;
+    left: 0;
+  }
+
+  .node-count-display {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Neural Network Animation Overlay */
+.memory-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5400;
+  opacity: 0.1;
+  overflow: hidden;
+}
+
+.memory-network {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.memory-node {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(0, 255, 255, 0.6);
+}
+
+/* Filter Transition Animation */
+.filter-transition {
+  animation: filter-pulse 0.6s ease-out;
+}
+
+@keyframes filter-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Loading State */
+.memory-filter-btn.loading {
+  animation: filter-spin 1s linear infinite;
+}
+
+@keyframes filter-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Selected Range Pulse */
+.memory-filter-item.active {
+  animation: item-active 0.8s ease-out;
+}
+
+@keyframes item-active {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(0, 255, 255, 0);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 24px rgba(0, 255, 255, 0.25);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
+  }
+}
