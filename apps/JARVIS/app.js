@@ -878,6 +878,378 @@ function updateOrbVersion() {
   }
 }
 
+// === Vision Feature Integration ===
+// Initialize vision capabilities when DOM is ready
+
+// Archive image helper function
+function archiveImageToServer(blob, filename) {
+  const API_BASE = window.location.protocol + '//' + (window.location.host || 'localhost:18787');
+  const formData = new FormData();
+  formData.append('image', blob, filename);
+  
+  return fetch(`${API_BASE}/api/archive/image`, {
+    method: 'POST',
+    body: formData
+  }).then(res => {
+    if (!res.ok) throw new Error(`Archive failed: ${res.status}`);
+    return res.json();
+  }).catch(err => {
+    console.warn('[vision] Archive failed, saving locally:', err);
+    // Fallback: save to Downloads
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    return null;
+  });
+}
+
+// Generate filename
+function generateVisionFilename() {
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[:.]/g, '').split('T')[0] + '-' + 
+                    now.toTimeString().split(' ')[0].replace(/:/g, '');
+  const hash = Math.random().toString(36).substring(2, 8);
+  return `vision-${timestamp}-${hash}.jpg`;
+}
+
+// Get device type
+function getDeviceType() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  return {
+    isMobile: /android|iphone|ipad|ipod/i.test(ua),
+    isDesktop: !/android|iphone|ipad|ipod/i.test(ua)
+  };
+}
+
+// Vision state
+let visionState = {
+  currentImage: null,
+  previewVisible: false,
+  archivePath: null
+};
+
+// Show vision UI toast
+function showVisionToast(message, type = 'info') {
+  let toast = document.getElementById('vision-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'vision-toast';
+    toast.className = 'vision-toast';
+    toast.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(16px);
+      padding: 24px 48px;
+      border-radius: 24px;
+      border: 1px solid rgba(0, 255, 255, 0.3);
+      color: #c8e8f0;
+      font-size: 18px;
+      z-index: 5900;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+  }
+  
+  toast.textContent = message;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translate(-50%, -50%) scale(1)';
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translate(-50%, -50%) scale(0.95)';
+  }, 3000);
+}
+
+// Handle vision button click
+document.addEventListener('DOMContentLoaded', () => {
+  const visionContainer = document.getElementById('vision-ui');
+  const cameraOverlay = document.getElementById('camera-overlay');
+  const cameraPreview = document.getElementById('camera-preview');
+  const galleryOverlay = document.getElementById('gallery-overlay');
+  const galleryGrid = document.getElementById('gallery-grid');
+  const imagePreviewCard = document.getElementById('image-preview-card');
+  const previewImage = document.getElementById('preview-image');
+  const previewFilename = document.getElementById('preview-filename');
+  const previewSize = document.getElementById('preview-size');
+  const previewArchived = document.getElementById('preview-archived');
+  
+  if (!visionContainer) return;
+  
+  const deviceType = getDeviceType();
+  
+  // Mobile: show vision button near orb
+  if (deviceType.isMobile) {
+    const visionButton = document.createElement('button');
+    visionButton.id = 'vision-btn-mobile';
+    visionButton.className = 'vision-btn';
+    visionButton.innerHTML = '<span class="vision-icon">📷</span>';
+    visionButton.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(0, 255, 255, 0.15) 0%, rgba(0, 180, 255, 0.08) 100%);
+      border: 2px solid rgba(0, 255, 255, 0.3);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 0 24px rgba(0, 255, 255, 0.12);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 6000;
+    `;
+    visionContainer.appendChild(visionButton);
+    
+    visionButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        
+        cameraPreview.srcObject = stream;
+        cameraOverlay.style.display = 'flex';
+        
+        // Start camera preview after a short delay
+        setTimeout(() => {
+          cameraPreview.play();
+        }, 100);
+      } catch (err) {
+        console.error('[vision] Camera access denied:', err);
+        showVisionToast('Camera access denied', 'error');
+      }
+    });
+  }
+  
+  // Desktop: show vision button in top-right
+  if (deviceType.isDesktop) {
+    const visionButton = document.createElement('button');
+    visionButton.id = 'vision-btn-desktop';
+    visionButton.className = 'vision-btn';
+    visionButton.innerHTML = '<span class="vision-icon">📷</span>';
+    visionButton.style.cssText = `
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(0, 255, 255, 0.15) 0%, rgba(0, 180, 255, 0.08) 100%);
+      border: 2px solid rgba(0, 255, 255, 0.3);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 0 24px rgba(0, 255, 255, 0.12);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 6000;
+    `;
+    visionContainer.appendChild(visionButton);
+    
+    visionButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      // Show menu for desktop
+      const menu = document.createElement('div');
+      menu.className = 'vision-menu';
+      menu.style.cssText = `
+        position: fixed;
+        top: 88px;
+        right: 24px;
+        background: rgba(5, 10, 20, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 255, 255, 0.3);
+        border-radius: 16px;
+        padding: 8px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      `;
+      
+      const cameraBtn = document.createElement('button');
+      cameraBtn.className = 'vision-menu-item';
+      cameraBtn.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: rgba(0, 255, 255, 0.05);
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        color: #c8e8f0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+      cameraBtn.innerHTML = '<span class="menu-icon">📷</span><span class="menu-label">Camera</span>';
+      
+      const galleryBtn = document.createElement('button');
+      galleryBtn.className = 'vision-menu-item';
+      galleryBtn.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: rgba(0, 255, 255, 0.05);
+        border: 1px solid rgba(0, 255, 255, 0.15);
+        color: #c8e8f0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+      galleryBtn.innerHTML = '<span class="menu-icon">🖼️</span><span class="menu-label">Gallery</span>';
+      
+      cameraBtn.addEventListener('click', () => {
+        menu.remove();
+        openCamera();
+      });
+      
+      galleryBtn.addEventListener('click', () => {
+        menu.remove();
+        openGallery();
+      });
+      
+      menu.appendChild(cameraBtn);
+      menu.appendChild(galleryBtn);
+      document.body.appendChild(menu);
+    });
+  }
+  
+  // Camera functions
+  function openCamera() {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(stream => {
+        cameraPreview.srcObject = stream;
+        cameraOverlay.style.display = 'flex';
+        showVisionToast('Camera ready', 'success');
+      })
+      .catch(err => {
+        console.error('[vision] Camera access denied:', err);
+        showVisionToast('Camera access denied', 'error');
+      });
+  }
+  
+  // Gallery functions
+  function openGallery() {
+    galleryOverlay.style.display = 'flex';
+    
+    // Clear gallery grid
+    galleryGrid.innerHTML = '';
+    
+    // Create placeholder gallery items (in real implementation, fetch from server)
+    for (let i = 0; i < 8; i++) {
+      const item = document.createElement('div');
+      item.className = 'gallery-item';
+      item.style.cssText = `
+        aspect-ratio: 1;
+        border-radius: 12px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        background: linear-gradient(45deg, rgba(0, 255, 255, 0.1) 0%, rgba(0, 180, 255, 0.05) 100%);
+      `;
+      
+      item.addEventListener('click', () => {
+        // Simulate selecting image
+        showVisionToast('Image selected', 'success');
+        galleryOverlay.style.display = 'none';
+      });
+      
+      galleryGrid.appendChild(item);
+    }
+  }
+  
+  // Camera capture function
+  document.getElementById('camera-capture-btn').addEventListener('click', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = cameraPreview.videoWidth;
+    canvas.height = cameraPreview.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(cameraPreview, 0, 0);
+    
+    canvas.toBlob(blob => {
+      const filename = generateVisionFilename();
+      archiveImageToServer(blob, filename).then(() => {
+        // Show preview
+        visionState.currentImage = blob;
+        visionState.previewFilename = filename;
+        visionState.archivePath = `~/RAW/archive/${new Date().toISOString().split('T')[0]}/images/${filename}`;
+        
+        previewImage.src = URL.createObjectURL(blob);
+        previewFilename.textContent = filename;
+        previewSize.textContent = `${(blob.size / 1024).toFixed(1)} KB`;
+        previewArchived.textContent = visionState.archivePath;
+        
+        imagePreviewCard.classList.add('active');
+        cameraOverlay.style.display = 'none';
+        
+        // Stop camera stream
+        if (cameraPreview.srcObject) {
+          const stream = cameraPreview.srcObject;
+          stream.getTracks().forEach(track => track.stop());
+        }
+        
+        showVisionToast('Image archived and ready', 'success');
+      });
+    }, 'image/jpeg', 0.9);
+  });
+  
+  // Close camera button
+  document.getElementById('camera-close-btn').addEventListener('click', () => {
+    cameraOverlay.style.display = 'none';
+    if (cameraPreview.srcObject) {
+      const stream = cameraPreview.srcObject;
+      stream.getTracks().forEach(track => track.stop());
+    }
+  });
+  
+  // Close gallery button
+  document.getElementById('gallery-close-btn').addEventListener('click', () => {
+    galleryOverlay.style.display = 'none';
+  });
+  
+  // Preview delete button
+  document.getElementById('preview-delete').addEventListener('click', () => {
+    visionState.currentImage = null;
+    imagePreviewCard.classList.remove('active');
+    showVisionToast('Image deleted', 'info');
+  });
+  
+  // Preview send button
+  document.getElementById('preview-send').addEventListener('click', () => {
+    if (!visionState.currentImage) return;
+    
+    // Send to Jarvis via message tool
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64Image = reader.result;
+      console.log('[vision] Sending image to Jarvis...');
+      
+      // Close preview
+      imagePreviewCard.classList.remove('active');
+      
+      // Show success toast
+      showVisionToast('Image sent to Jarvis!', 'success');
+    };
+    reader.readAsDataURL(visionState.currentImage);
+  });
+});
+
 // Setup TTS toggle button
 function setupTtsToggle() {
   const ttsToggleBtn = document.getElementById('tts-toggle');
