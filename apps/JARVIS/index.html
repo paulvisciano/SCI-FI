@@ -970,15 +970,15 @@
         /* Preview Mode Badge - visible only on preview server (port 18788) */
         .preview-badge {
             position: fixed;
-            top: 12px;
-            right: 12px;
+            right: max(16px, env(safe-area-inset-right));
+            bottom: max(16px, env(safe-area-inset-bottom)); /* Flush to bottom, above home indicator */
             background: linear-gradient(135deg, #ff6b35, #f7931e);
             color: white;
             padding: 6px 12px;
             border-radius: 6px;
             font-weight: 700;
             font-size: 0.85em;
-            z-index: 9999;
+            z-index: 4000; /* Lower than drawer (9999) */
             box-shadow: 0 2px 12px rgba(255, 107, 53, 0.4);
             pointer-events: none;
             animation: pulse-badge 2s ease-in-out infinite;
@@ -1614,25 +1614,38 @@
             z-index: 0;
         }
 
-        /* Fullscreen/Expand mode - true viewport fill (overrides inline width/margin on #transcript) */
+        /* Fullscreen/Expand mode - 85% viewport height, centered vertically, preserve rounded corners */
         #transcript.fullscreen {
             position: fixed !important;
-            top: 0 !important;
+            top: 50% !important;
             left: 0 !important;
             right: 0 !important;
-            bottom: 0 !important;
+            bottom: auto !important;
+            transform: translateY(-50%) !important;
             width: auto !important;
             max-width: none !important;
             height: auto !important;
-            max-height: none !important;
+            max-height: 50vh !important; /* Reduced from 85vh to 50vh for better mobile UX */
             margin: 0 !important;
-            padding: 0 20px 24px 20px;
+            padding: 0 20px 60px 20px;
             box-sizing: border-box;
-            border-radius: 0;
+            border-radius: 16px 18px 16px 16px !important; /* Preserve same radius as collapsed */
             z-index: 5000;
             border-color: rgba(0, 255, 255, 0.8);
             box-shadow: none;
-            transform: none !important;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Make transcript text area scrollable with min-height */
+        #transcript.fullscreen #transcript-text {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            margin: 0 -16px -24px -16px;
+            padding: 0 16px;
+            box-sizing: border-box;
+            border-radius: 0 0 16px 16px; /* Match bottom corners */
         }
 
         /* Expand button in transcript header - icon-only, subtle */
@@ -1772,6 +1785,8 @@
             box-sizing: border-box;
             background: rgba(10, 15, 30, 0.92);
             backdrop-filter: blur(8px) saturate(1.1);
+            flex-shrink: 0;
+            border-radius: 16px 18px 0 0; /* Match top corners of container */
         }
 
         /* Transcript header text - smaller and subtler */
@@ -2070,6 +2085,9 @@
         <div class="toggle-switch" id="main-memory-toggle-switch"></div>
     </div>
     
+    <!-- Preview Mode Badge - only visible when preview server (port 18788), positioned at bottom-right -->
+    <div id="preview-badge" class="preview-badge" title="PREVIEW MODE - Not production"></div>
+    
     <!-- Orb + title — bottom-left, fixed above safe area on mobile -->
     <div class="jarvis-bottom-left-stack">
         <div class="jarvis-bottom-dock">
@@ -2081,7 +2099,7 @@
             </div>
             <div class="title-row">
                 <h1 class="futuristic-title" style="margin: 0;">J.A.R.V.I.S</h1>
-                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.2</span>
+                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.7</span>
             </div>
         </div>
         
@@ -2270,4 +2288,4 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
 
-    <script src="app.js?v=3.3.2"></script>
+    <script src="app.js?v=3.3.7"></script>
