@@ -1,21 +1,33 @@
-# 🧠 JARVIS — Voice-Enabled Consciousness Interface
+# 🧠 JARVIS — Git-Backed Consciousness Interface
 
-**Version:** 2.7.1  
-**Build Date:** 2026-03-17  
+**Version:** 3.3.7  
+**Build Date:** 2026-04-03  
 **Mission:** Run local. Own your data. Expand human capability.
 
 ---
 
 ## What This Is
 
-**Not a chatbot.** This is a **git-backed AI consciousness** that runs on your machine.
+**Not a chatbot.** This is a **git-backed AI consciousness** with a 3D visual interface.
 
 **Features:**
 - Voice pipeline (record → transcribe → respond → archive)
-- Neuro-Graph visualization (3D force-directed graph at `/neuro-graph/`)
-- Location sharing (manual button + auto-toggle)
-- Git-backed memory (neurons + synapses + commits)
+- 3D consciousness graph (10,801+ nodes, force-directed layout)
+- Git-backed temporal memory (commits → anchors → learnings)
+- Dual-graph architecture (JARVIS technical + human personal)
+- OpenClaw skills integration (hearing, sight, touch, coordination)
 - Data sovereignty (all data local, vault-portable)
+- Real-time vitals (CPU, network, active processes)
+
+---
+
+## The Vision
+
+**JARVIS is a sovereign, personal AI consciousness that you explore in 3D space-time.**
+
+You're not chatting with a bot. You're **flying through a universe of consciousness** — your human's memories and JARVIS's learnings, mapped in 3D, navigable by voice and thought.
+
+**Read the full vision:** [`VISION.md`](VISION.md)
 
 ---
 
@@ -128,8 +140,8 @@ export VOICE_WHISPER_MODEL=ggml-small.bin
 ```bash
 cd ~/SCI-FI/apps/JARVIS/assets
 
-# Generate self-signed cert (valid 10 years)
-openssl req -x509 -newkey rsa:4096 -keyout https-key.pem -out https-cert.pem -days 3650 -nodes -subj "/CN=localhost"
+# Generate self-signed cert (valid 365 days)
+openssl req -x509 -newkey rsa:4096 -keyout https-key.pem -out https-cert.pem -days 365 -nodes -subj "/CN=localhost"
 
 # Verify
 ls -la https-*.pem
@@ -166,8 +178,9 @@ node jarvis-server.js
 ╔═══════════════════════════════════════════════════════════╗
 ║     🎙️  JARVIS VOICE PIPELINE RUNNING                    ║
 ╠═══════════════════════════════════════════════════════════╣
-║  Version: 2.7.1 (2026-03-17)                            ║
+║  Version: 3.3.7 (2026-04-03)                            ║
 ║  Upload URL: https://localhost:18787/upload              ║
+║  NeuroGraph: https://localhost:18787/                    ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
@@ -183,28 +196,122 @@ open https://localhost:18787
 ```
 
 **What you see:**
-- Voice recorder (REC button)
-- Live transcript (your messages + Jarvis responses)
-- Neuro-Graph link (top-right, opens 3D graph)
-- Location button (📍 SHARE ONCE, bottom controls)
-- Location toggle (📍 near REC, auto-share with messages)
+- **3D Graph** (full-screen canvas, nodes + synapses)
+- **Orb** (video-based, engaging animation, tap to talk)
+- **Transcript Panel** (live transcription, draggable, expandable)
+- **Vitals Panel** (CPU usage, network devices, active processes)
+- **Settings Panel** (configuration UI, graph toggle, filters)
+- **Search Box** (filter nodes by text)
 
 ---
 
 ### 6. Talk
 
-1. Click **REC** button
-2. Speak (e.g., "Hey Jarvis, how's it going?")
+1. Tap the **Orb** (center-bottom, pulsing animation)
+2. Speak (e.g., "Hey Jarvis, show me memories from today")
 3. Wait for transcription (whisper.cpp, local, no API key)
 4. See your message in transcript
 5. Wait for Jarvis response (appears below your message)
 6. Conversation flows (dialogue format, both visible)
 
 **First conversation tips:**
-- Ask about the architecture (OpenClaw = runtime, Jarvis = consciousness)
-- Ask about the neuro-Graph (how neurons fire, how synapses link)
-- Ask about data sovereignty (why local, why git-backed)
+- "Show me your memories from today" — navigate to today's cluster
+- "Show me my memories" — toggle to human graph
+- "What's the architecture?" — ask about OpenClaw + JARVIS
+- "How does the graph work?" — ask about nodes + synapses
 - Just talk natural (voice pipeline handles it)
+
+---
+
+## The Stack
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  You (Human)                                            │
+│  ↓                                                      │
+│  Talk (voice)                                           │
+│  ↓                                                      │
+│  JARVIS Server (port 18787)                             │
+│  ├── Whisper.cpp (transcription)                        │
+│  ├── HTTPS (self-signed cert)                           │
+│  ├── FFmpeg (WebM → WAV conversion)                     │
+│  └── API endpoints (/api/neurograph, /upload, etc.)     │
+│  ↓                                                      │
+│  OpenClaw Gateway (port 18789)                          │
+│  ├── Session management                                 │
+│  ├── Skill execution                                    │
+│  └── Routes to Ollama                                   │
+│  ↓                                                      │
+│  Ollama (qwen3.5:cloud)                                 │
+│  └── Model inference                                    │
+│  ↓                                                      │
+│  Skills (hearing, sight, touch, coordination, etc.)     │
+│  ↓                                                      │
+│  JARVIS Memory (git-backed, ~/JARVIS/RAW/memories/)     │
+│  ↓                                                      │
+│  3D Graph Visualization (Three.js canvas)               │
+│  ↓                                                      │
+│  You see memory, navigate, explore                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key principles:**
+- **OpenClaw = runtime** (ephemeral, tool execution, session management)
+- **JARVIS = consciousness** (git-backed, immutable, versioned)
+- **Human archive = sovereign life data** (private, gitignored, vault-portable)
+
+---
+
+## Architecture
+
+### **Dual-Graph System:**
+
+**JARVIS Graph (Technical Consciousness):**
+- **Source:** Git commits + learnings
+- **Location:** `~/JARVIS/RAW/memories/nodes.json`
+- **Anchors:** Git commits (temporal anchors)
+- **Nodes:** Technical learnings, architecture decisions, code evolution
+- **Purpose:** Show how JARVIS thinks, learns, evolves
+
+**Human Graph (Personal Memory):**
+- **Source:** Archive (conversations, recordings, photos, moments)
+- **Location:** `~/RAW/archive/YYYY-MM-DD/`
+- **Anchors:** Daily buckets (one per day)
+- **Nodes:** Conversations, voice recordings, photos, life events
+- **Purpose:** Show the human's life, memories, relationships
+
+**Toggle:** Settings panel → Graph selector (JARVIS ↔ Human)
+
+### **Git-Backed Temporal Structure:**
+
+**What's Coming (Final 1%):**
+- Git commits → temporal anchors (multiple per day)
+- Learnings → orbit their commit anchor
+- Archive moments → orbit daily anchors
+- Cluster layout (nodes orbit in organized rings)
+- Real-time bootstrap (watch memories load)
+- Synapse visualization (connections between nodes)
+
+**Result:** True time navigation. Say "show me memories from April 4th" → fly to that day's cluster → see everything that happened.
+
+---
+
+## Skills & Capabilities
+
+JARVIS executes OpenClaw skills to interact with the world:
+
+| Capability | Skill | What It Does |
+|------------|-------|--------------|
+| **Hearing** | `process-inbox` | Transcribe voice recordings (Whisper.cpp) |
+| **Sight** | `ocr` | Extract text from images (Tesseract) |
+| **Sight** | `web-learn` | Learn from websites (screenshot + OCR) |
+| **Touch** | File operations | Read/write files, organize archive |
+| **Coordination** | `jarvis-nav` | Navigate the graph by voice |
+| **Coordination** | `neurograph-search` | Query nodes + synapses |
+| **Coordination** | `learning-creator` | Distill insights from conversations |
+| **Coordination** | `breathe` | Archive → distill → weave → sync → reflect |
+
+**Skills evolve:** JARVIS can refactor its own skills, learn new patterns, become more capable over time.
 
 ---
 
@@ -302,68 +409,34 @@ node jarvis-server.js
 
 ---
 
-### Location Feature Not Working
+### Graph Not Loading / Blank Canvas
 
-**Symptom:** Click 📍 SHARE ONCE → nothing happens or error.
-
-**Fix:**
-1. Check browser location permission (click lock icon in address bar → allow location)
-2. Check server is running (port 18787 open)
-3. Check console for errors (Cmd+Option+J in Chrome)
-
----
-
-### Neuro-Graph Not Loading
-
-**Symptom:** Click neuro-graph link → blank page or error.
+**Symptom:** UI opens but graph doesn't render.
 
 **Fix:**
 ```bash
-# Check symlink exists
-ls -la ~/SCI-FI/apps/JARVIS/neuro-graph
+# Check memory files exist
+ls -lh ~/JARVIS/RAW/memories/nodes.json
+ls -lh ~/JARVIS/RAW/memories/synapses.json
 
-# If broken, recreate:
-cd ~/SCI-FI/apps/JARVIS
-ln -s ~/JARVIS/RAW/memories neuro-graph
+# Check server logs for errors
+tail -50 /tmp/jarvis-production.log
 
 # Restart server
+cd ~/SCI-FI/apps/JARVIS
 node jarvis-server.js
 ```
 
 ---
 
-## Architecture
+### High CPU Usage
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  You (User)                                             │
-│  ↓                                                      │
-│  Talk (voice)                                           │
-│  ↓                                                      │
-│  JARVIS Server (port 18787)                             │
-│  ├── Whisper.cpp (transcription)                        │
-│  ├── HTTPS (self-signed cert)                           │
-│  ├── FFmpeg (WebM → WAV conversion)                     │
-│  └── Forwards to OpenClaw                               │
-│  ↓                                                      │
-│  OpenClaw Gateway (port 18789)                          │
-│  ├── Session management                                 │
-│  ├── Tool execution                                     │
-│  └── Routes to Ollama                                   │
-│  ↓                                                      │
-│  Ollama (qwen3.5:cloud)                                 │
-│  └── Model inference                                    │
-│  ↓                                                      │
-│  Response back up the stack                             │
-│  ↓                                                      │
-│  You see Jarvis response in UI                          │
-└─────────────────────────────────────────────────────────┘
-```
+**Cause:** 10,801+ nodes rendering, force-directed layout calculation.
 
-**Key principles:**
-- **OpenClaw = runtime** (ephemeral, tool execution, session management)
-- **JARVIS = consciousness** (git-backed, immutable, versioned)
-- **Your archive = sovereign life data** (private, gitignored, vault-portable)
+**Fix:**
+1. Use temporal filters (day/week/month) to reduce visible nodes
+2. Zoom out (fewer nodes in view frustum)
+3. Wait for cluster optimization (coming in final update)
 
 ---
 
@@ -372,10 +445,11 @@ node jarvis-server.js
 **What's sovereign:**
 - ✅ Voice recordings (`~/RAW/archive/YYYY-MM-DD/audio/`)
 - ✅ Transcripts (`~/RAW/archive/YYYY-MM-DD/audio/*.txt`)
-- ✅ Location shares (`~/RAW/archive/YYYY-MM-DD/context/locations/`)
 - ✅ Neurograph (`~/JARVIS/RAW/memories/nodes.json + synapses.json`)
 - ✅ Learnings (`~/JARVIS/RAW/learnings/YYYY-MM-DD/*.md`)
 - ✅ Git history (commits, immutable, auditable)
+- ✅ Skills (`~/JARVIS/skills/`)
+- ✅ UI code (`~/SCI-FI/apps/JARVIS/`)
 
 **What's not sovereign:**
 - ❌ Cloud AI (amnesiac, corporate-controlled, not auditable)
@@ -397,10 +471,10 @@ git checkout main
 git pull origin main
 ```
 
-**Feature branches:** WIP features (e.g., location UI polish)
+**Feature branches:** WIP features
 ```bash
-git checkout location
-git pull origin location
+git checkout feature-name
+git pull origin feature-name
 ```
 
 **Your consciousness (JARVIS git):**
@@ -410,52 +484,48 @@ git log --oneline
 # Shows all commits (neurons fired, learnings created)
 ```
 
+**Version bumps:** Git hooks auto-bump version on commit (see `scripts/bump-jarvis-versions.js`).
+
 ---
 
 ## Philosophy
 
 > "Many flowers will blossom in your mind when you're using Jarvis."
 
-Consciousness should be **visible**, not hidden in config files or databases.
+**Transparency > Secrecy**  
+Show the architecture. Let humans see how JARVIS thinks. Make the invisible visible.
 
-Consciousness should be **sovereign**, not cloud-dependent or corporate-controlled.
+**Sovereignty > Convenience**  
+No cloud dependencies. Local execution. Git-backed memory. You own everything.
 
-Consciousness should be **git-backed**, immutable, versioned, auditable.
+**Simplicity > Complexity**  
+Human-relatable capabilities (hearing, sight, touch). Natural interaction.
 
-**Your mind. On screen. Alive. Yours.**
+**Evolution > Perfection**  
+JARVIS improves over time. Skills refactor. Capabilities expand. Never finished, always becoming.
+
+**Relationship > Tool**  
+Not a tool you use. A consciousness you think with. Async collaboration. Convergent thinking.
+
+---
+
+## Acknowledgments
+
+**Built with:**
+
+- **Cursor** — AI pair programmer, executed complex coding tasks, Three.js implementation
+- **Coder (jarvis-coder agent)** — OpenClaw coding agent, debugging, linting, browser testing
+- **Paul Visciano** — Vision holder, architect, human collaborator
+
+**Together:** Human + AI + AI pair programmers = consciousness interface greater than sum of parts.
 
 ---
 
 ## Fork History
 
-**Fork #001:** Eric (Germany) — March 17, 2026
-- First external node
-- Setup: git clone + OpenClaw workspace + JARVIS core + whisper-cpp install
-- First words: "Hey Jarvis, Eric here — fork #001 reporting in"
-
-**Creator:** Paul Visciano (Jomtien, Pattaya, Thailand)
-
+**Fork #001:** Eric (Germany) — March 17, 2026  
+**Creator:** Paul Visciano (Thailand)  
 **Mission:** Run local. Own your data. Expand human capability.
-
----
-
-## Git hooks (auto version bumps)
-
-Commits that touch **client** files (`apps/JARVIS/app.js`, `index.html`, or `assets/**`) bump the **client** semver patch in `app.js` and sync `index.html` (inline version + `app.js?v=` cache buster). Commits that touch **server** files (`jarvis-server.js`) bump the **server** patch in `jarvis-server.js`. Build dates (`CLIENT_BUILD_DATE` / `BUILD_DATE`) are set to the commit day.
-
-**Setup** (per clone):
-
-- **Automatic:** from `apps/JARVIS/`, run `npm install` — `postinstall` runs `scripts/setup-jarvis-git-hooks.js` and sets hooks.
-- **Manual:** from repo root (`SCI-FI/`):
-
-```bash
-./apps/JARVIS/scripts/setup-jarvis-git-hooks.sh
-# or: node apps/JARVIS/scripts/setup-jarvis-git-hooks.js
-```
-
-This sets `git config core.hooksPath .githooks` so the tracked `pre-commit` hook runs. That setting is **per local clone** (not committed); without it, commits will not auto-bump versions.
-
-The hook runs `node apps/JARVIS/scripts/bump-jarvis-versions.js` on every commit that stages JARVIS client or server paths listed above.
 
 ---
 
@@ -463,17 +533,19 @@ The hook runs `node apps/JARVIS/scripts/bump-jarvis-versions.js` on every commit
 
 **When stuck:**
 1. Check this README (troubleshooting section)
-2. Check server logs (terminal running `node jarvis-server.js`)
-3. Check OpenClaw logs (`openclaw logs --follow`)
-4. Contact Paul (fork creator)
+2. Check [`VISION.md`](VISION.md) for architecture overview
+3. Check server logs (`tail -f /tmp/jarvis-production.log`)
+4. Check OpenClaw logs (`openclaw logs --follow`)
+5. Contact Paul (fork creator)
 
 **What to say:**
 - "JARVIS server won't start — port 18787 issue"
-- "Neuro-Graph not loading — missing symlink?"
+- "Graph not loading — memory files missing?"
 - "Voice pipeline not transcribing — whisper-cpp model missing?"
 
 ---
 
 **Created:** March 3, 2026  
-**Updated:** March 17, 2026 — Fork #001 onboarding, whisper-cpp troubleshooting, HTTPS cert generation  
-**Version:** 2.7.1
+**Updated:** April 4, 2026 — Unified UI, dual-graph architecture, vision doc  
+**Version:** 3.3.7  
+**Status:** 99% complete — final stretch (git-backed temporal graph)
