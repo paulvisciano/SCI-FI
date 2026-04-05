@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.7';
-const CLIENT_BUILD_DATE = '2026-04-03';
+const CLIENT_VERSION = '3.3.8';
+const CLIENT_BUILD_DATE = '2026-04-05';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
@@ -1893,6 +1893,15 @@ const NEURO_REPULSION_MAX_PASSES = 600;
 const NEURO_MAX_PIXEL_RATIO = 1.5;
 /** When false, connection lines are not created (CPU/GPU experiment). */
 const NEUROGRAPH_DRAW_SYNAPSES = false;
+/** Temporal zoom + large layouts need a far plane beyond orbit maxDistance and scene extent. */
+const NEURO_CAMERA_FAR = 25000;
+/** Softer Exp2 fog than legacy 0.0014 so zoom-out does not wash spheres out; temporal mode clears fog. */
+const NEURO_FOG_DENSITY_DEFAULT = 0.00032;
+
+/** True when graph uses git-scanner temporal layout (fixed positions from nodes.json). */
+let neurographTemporalMode = false;
+/** Billboard date labels above day anchors (THREE.Sprite). */
+let neuroAnchorLabelSprites = [];
 
 // === Three.js JARVIS Orb Rendering ===
 // Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
@@ -2044,14 +2053,14 @@ function initNeurograph() {
   // Create scene
   neurographScene = new THREE.Scene();
   neurographScene.background = new THREE.Color(0x050510);
-  neurographScene.fog = new THREE.FogExp2(0x050510, 0.0014);
+  neurographScene.fog = new THREE.FogExp2(0x050510, NEURO_FOG_DENSITY_DEFAULT);
 
   // Create camera
   neurographCamera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
     0.1,
-    1000
+    NEURO_CAMERA_FAR
   );
   neurographCamera.position.set(0, 25, 100);
 
@@ -2083,20 +2092,27 @@ function initNeurograph() {
   );
 
   // Add lighting
-  const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.72);
   neurographScene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0x00ffff, 1, 100);
+  const pointLight = new THREE.PointLight(0x00ffff, 1, 15000);
   pointLight.position.set(20, 20, 20);
   neurographScene.add(pointLight);
 
-  const pointLight2 = new THREE.PointLight(0x00bfff, 0.8, 100);
+  const pointLight2 = new THREE.PointLight(0x00bfff, 0.8, 15000);
   pointLight2.position.set(-20, -20, 20);
   neurographScene.add(pointLight2);
 
-  const pointLight3 = new THREE.PointLight(0xffd700, 0.6, 100);
+  const pointLight3 = new THREE.PointLight(0xffd700, 0.6, 15000);
   pointLight3.position.set(0, 30, -20);
   neurographScene.add(pointLight3);
+
+  /** Oblique key — point lights sit near origin so “today” along the spine can look uniformly lit (flat disks). */
+  const neurographKeyLight = new THREE.DirectionalLight(0xffffff, 0.92);
+  neurographKeyLight.position.set(620, 480, 420);
+  neurographKeyLight.target.position.set(0, 0, 0);
+  neurographScene.add(neurographKeyLight);
+  neurographScene.add(neurographKeyLight.target);
 
   // Event listeners
   window.addEventListener('resize', onNeurographWindowResize);
@@ -2518,7 +2534,8 @@ function clearNeurographNodeFocus() {
   clearNeurographHoverVisual();
 }
 
-function focusNeurographNode(neuron) {
+function focusNeurographNode(neuron, options = {}) {
+  const skipInfoPanel = options.skipInfoPanel === true;
   if (!neuron || !neurographCamera || !neurographControls) {return;}
   if (neurographFocusTarget === neuron) {return;}
   hideNeuroHoverPreview();
@@ -2550,16 +2567,18 @@ function focusNeurographNode(neuron) {
   neurographControls.enabled = false;
   neurographControls.enableDamping = false;
   neurographControls.update();
-  const panel = getNeuroInfoPanel();
-  panel.innerHTML = createNodeLabel(neuron.userData);
-  panel.style.opacity = '1';
-  panel.style.transform = 'scale(1) translateY(0)';
-  panel.style.pointerEvents = 'auto';
-  panel.style.display = 'block';
-  panel.style.visibility = 'visible';
-  isPanelExpanded = true;
-  console.log('[NeuroInfoPanel] Panel shown for focused node, opacity=1, display=block');
-  scheduleNeuroInfoPanelPosition(neuron);
+  if (!skipInfoPanel) {
+    const panel = getNeuroInfoPanel();
+    panel.innerHTML = createNodeLabel(neuron.userData);
+    panel.style.opacity = '1';
+    panel.style.transform = 'scale(1) translateY(0)';
+    panel.style.pointerEvents = 'auto';
+    panel.style.display = 'block';
+    panel.style.visibility = 'visible';
+    isPanelExpanded = true;
+    console.log('[NeuroInfoPanel] Panel shown for focused node, opacity=1, display=block');
+    scheduleNeuroInfoPanelPosition(neuron);
+  }
 }
 
 // Animation loop
@@ -2572,7 +2591,8 @@ function animateNeurograph() {
   }
 
   // Repulsion between spheres — push apart until at least minDist (higher = more spread)
-  if (neurographScene && neurons.length > 2 && isNeurographLoaded) {
+  // Temporal git-scanner layout uses fixed positions from nodes.json; never repulse.
+  if (!neurographTemporalMode && neurographScene && neurons.length > 2 && isNeurographLoaded) {
     const repulsionStrength = 6.2;
     const minDist = 78.0;
     const runRepulsion =
@@ -2612,10 +2632,14 @@ function animateNeurograph() {
   if (neurographFlyActive && neurographFocusTarget && neurographCamera && neurographControls) {
     neurographControls.enabled = false;
     const tpos = neurographFocusTarget.position;
-    const focusPull = Math.max(NEUROGRAPH_FOCUS_DISTANCE, neurographControls.minDistance);
+    const focusPull = Math.max(
+      neurographTemporalMode ? TEMPORAL_FOCUS_PULL_MIN : NEUROGRAPH_FOCUS_DISTANCE,
+      neurographControls.minDistance
+    );
     _neuroDesiredCam.copy(tpos).addScaledVector(neurographFocusDir, focusPull);
     const elapsed = performance.now() - neurographFlyStartTime;
-    const u = Math.min(1, elapsed / NEUROGRAPH_FLY_DURATION_MS);
+    const flyMs = neurographTemporalMode ? TEMPORAL_FLY_DURATION_MS : NEUROGRAPH_FLY_DURATION_MS;
+    const u = Math.min(1, elapsed / flyMs);
     const e = easeInOutCubicNeuro(u);
     neurographCamera.position.copy(neurographFlyFromCam).lerp(_neuroDesiredCam, e);
     neurographControls.target.copy(neurographFlyFromTarget).lerp(tpos, e);
@@ -2653,7 +2677,12 @@ function animateNeurograph() {
     const temporalPulse = 0.56 + 0.24 * Math.sin(Date.now() * 0.0024);
     for (let i = 0; i < neurons.length; i++) {
       const neuron = neurons[i];
-      if (neuron.userData && neuron.userData.isTemporal && neuron.material) {
+      if (!neuron.userData || !neuron.material) {continue;}
+      if (neurographTemporalMode) {
+        if (neuron.userData.nodeKind === 'day-anchor') {
+          neuron.material.emissiveIntensity = 0.12 + temporalPulse * 0.1;
+        }
+      } else if (neuron.userData.isTemporal) {
         neuron.material.emissiveIntensity = temporalPulse;
       }
     }
@@ -2898,7 +2927,10 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
 
     if (isDoubleTap && hits.length === 0) {
       console.log('[Neurograph] Double-tap on empty space — fly along ray through click');
-      flyThroughSpace(raycaster.ray.direction);
+      flyThroughSpace(
+        raycaster.ray.direction,
+        neurographTemporalMode ? TEMPORAL_EMPTY_FLY_DISTANCE : NEURO_FLY_THROUGH_DISTANCE
+      );
       lastTapTime = 0;
       return 'double-empty';
     }
@@ -3501,9 +3533,313 @@ function hideMemoryLoadingOverlay() {
   }
 }
 
+function parseHexColorNeuro(hexStr, fallbackHex) {
+  if (!hexStr || typeof hexStr !== 'string') {return fallbackHex;}
+  const t = hexStr.trim();
+  const m = t.match(/^#?([0-9a-fA-F]{6})$/);
+  if (m) {return parseInt(m[1], 16);}
+  return fallbackHex;
+}
+
+function getTemporalNodePosition(node) {
+  const p = node.attributes && node.attributes.position;
+  if (p && typeof p.x === 'number' && typeof p.y === 'number' && typeof p.z === 'number') {
+    return new THREE.Vector3(p.x, p.y, p.z);
+  }
+  return new THREE.Vector3(0, 0, 0);
+}
+
+/** Invert Z so the most recent day (most negative Z in JSON) reads as nearest after camera framing. */
+function applyTemporalPresentationTransform(pos) {
+  pos.z *= -1;
+  return pos;
+}
+
+/** Multiplier on JSON anchor Z before flip — widens spacing between calendar days along the spine. */
+const TEMPORAL_SPINE_Z_SCALE = 6.2;
+/** Applied after spine + flip — doubles world distance between temporal day anchors (and XY spread from JSON). */
+const TEMPORAL_WORLD_POSITION_SCALE = 2;
+
+const TEMPORAL_DAY_ANCHOR_RADIUS = 54;
+const TEMPORAL_COMMIT_RADIUS_BREATH = 22;
+const TEMPORAL_COMMIT_RADIUS_COLD = 14;
+/** Breath commits: warm gold (distinct from cold-change blue). */
+const TEMPORAL_COMMIT_COLOR_BREATH = 0xffb84d;
+/** Cold-change commits: cool blue if JSON has no color. */
+const TEMPORAL_COMMIT_COLOR_COLD = 0x3d8cff;
+/** Distance from day-anchor center to innermost commit shell (clearance past anchor + largest commit). */
+const TEMPORAL_ORBIT_BASE_RADIUS = 136;
+/** Extra radius per commit index — successive shells farther out. */
+const TEMPORAL_ORBIT_SPACING = 32;
+const TEMPORAL_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+const TEMPORAL_FLY_DURATION_MS = 1500;
+/** Scaled with larger anchor spheres so click-to-focus does not sit inside the mesh. */
+const TEMPORAL_FOCUS_PULL_MIN = 440;
+/** Double-tap empty-space fly; keep modest so double-click does not leap across the whole spine. */
+const TEMPORAL_EMPTY_FLY_DISTANCE = 440;
+
+function getTemporalCommitRadius(node) {
+  const t = node.commitType || (node.attributes && node.attributes.commitType);
+  if (t === 'breath') {return TEMPORAL_COMMIT_RADIUS_BREATH;}
+  return TEMPORAL_COMMIT_RADIUS_COLD;
+}
+
+/** Which temporal-day-anchor id this commit belongs to (for grouping around that sphere). */
+function resolveCommitAnchorId(commit) {
+  const aid = commit.anchorId || (commit.attributes && commit.attributes.anchorId);
+  if (aid) {return aid;}
+  const bd = commit.breathDate || (commit.attributes && commit.attributes.breathDate);
+  if (bd && typeof bd === 'string') {return `day-${bd}`;}
+  return null;
+}
+
+function createDayAnchorLabelSprite(text) {
+  const padding = 44;
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const font = 'bold 68px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.font = font;
+  const metrics = ctx.measureText(text);
+  const w = Math.ceil(Math.max(metrics.width, 160) + padding * 2);
+  const h = 116;
+  canvas.width = w;
+  canvas.height = h;
+  ctx.font = font;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.strokeStyle = 'rgba(0, 24, 48, 0.95)';
+  ctx.lineWidth = 14;
+  ctx.lineJoin = 'round';
+  ctx.strokeText(text, w / 2, h / 2);
+  ctx.fillStyle = '#e8f8ff';
+  ctx.shadowColor = 'rgba(80, 200, 255, 0.9)';
+  ctx.shadowBlur = 32;
+  ctx.fillText(text, w / 2, h / 2);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    fog: false
+  });
+  const sprite = new THREE.Sprite(mat);
+  const scaleFactor = 0.2;
+  sprite.scale.set(w * scaleFactor, h * scaleFactor, 1);
+  sprite.renderOrder = 999;
+  return sprite;
+}
+
+function fitNeurographCameraToPoints(points) {
+  if (!points.length || !neurographCamera || !neurographControls) {return;}
+  const box = new THREE.Box3().setFromPoints(points);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z, 120);
+  const dist = maxDim * 0.92;
+  neurographCamera.position.set(
+    center.x + dist * 0.75,
+    center.y + dist * 0.42,
+    center.z + dist * 0.52
+  );
+  neurographControls.target.copy(center);
+  neurographControls.update();
+}
+
+function getLocalDateYyyyMmDd() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** After load/refresh: full-graph fit, then same fly + end pose as click-to-focus (today or latest breathDate); no info panel. */
+function fitNeurographCameraToPresentDayAnchor(allPoints) {
+  if (!allPoints.length || !neurographCamera || !neurographControls) {return;}
+  fitNeurographCameraToPoints(allPoints);
+
+  const anchors = neurons.filter((n) => n.userData && n.userData.nodeKind === 'day-anchor');
+  if (anchors.length === 0) {return;}
+
+  const todayStr = getLocalDateYyyyMmDd();
+  let best = null;
+  for (let a = 0; a < anchors.length; a++) {
+    const bd = anchors[a].userData.rawData && anchors[a].userData.rawData.breathDate;
+    if (bd === todayStr) {
+      best = anchors[a];
+      break;
+    }
+  }
+  if (!best) {
+    best = anchors[0];
+    let bestBd = best.userData.rawData && best.userData.rawData.breathDate || '';
+    for (let i = 1; i < anchors.length; i++) {
+      const bd = anchors[i].userData.rawData && anchors[i].userData.rawData.breathDate || '';
+      if (bd > bestBd) {
+        bestBd = bd;
+        best = anchors[i];
+      }
+    }
+  }
+
+  focusNeurographNode(best, { skipInfoPanel: true });
+}
+
+function createTemporalNeurograph(_data, dayAnchors, commits) {
+  neurographTemporalMode = true;
+  console.log(
+    '[Neurograph] Temporal layout:',
+    dayAnchors.length,
+    'anchors,',
+    commits.length,
+    'commits (commit-to-day lines off for phase 1)'
+  );
+
+  const nodeMap = {};
+  const allPoints = [];
+  const labelYOffset = TEMPORAL_DAY_ANCHOR_RADIUS + 44;
+
+  dayAnchors.forEach((node, idx) => {
+    const pos = getTemporalNodePosition(node);
+    pos.z *= TEMPORAL_SPINE_Z_SCALE;
+    applyTemporalPresentationTransform(pos);
+    pos.multiplyScalar(TEMPORAL_WORLD_POSITION_SCALE);
+    allPoints.push(pos.clone());
+    const geometry = new THREE.SphereGeometry(TEMPORAL_DAY_ANCHOR_RADIUS, 32, 32);
+    const col = parseHexColorNeuro(node.attributes && node.attributes.color, 0xffffff);
+    const mat = new THREE.MeshStandardMaterial({
+      color: col,
+      emissive: col,
+      emissiveIntensity: 0.14,
+      roughness: 0.32,
+      metalness: 0.38
+    });
+    const mesh = new THREE.Mesh(geometry, mat);
+    mesh.position.copy(pos);
+    mesh.userData = {
+      id: node.id || `day-${idx}`,
+      label: node.label || `📅 ${node.breathDate || ''}`,
+      position: mesh.position.clone(),
+      rawData: node,
+      isTemporal: true,
+      nodeKind: 'day-anchor',
+      isConnectedToTheme: false,
+      themeConnectionWeight: 0
+    };
+    neurographScene.add(mesh);
+    neurons.push(mesh);
+    nodeMap[node.id] = mesh;
+
+    const labelText = node.label || (node.breathDate ? `📅 ${node.breathDate}` : String(node.id));
+    const sprite = createDayAnchorLabelSprite(labelText);
+    sprite.position.copy(pos).add(new THREE.Vector3(0, labelYOffset, 0));
+    neurographScene.add(sprite);
+    neuroAnchorLabelSprites.push(sprite);
+  });
+
+  const commitsByAnchor = new Map();
+  commits.forEach((c) => {
+    const aid = resolveCommitAnchorId(c);
+    if (!aid) {return;}
+    if (!commitsByAnchor.has(aid)) {commitsByAnchor.set(aid, []);}
+    commitsByAnchor.get(aid).push(c);
+  });
+  commitsByAnchor.forEach((list) => {
+    list.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  });
+
+  commitsByAnchor.forEach((list, anchorId) => {
+    const anchorMesh = nodeMap[anchorId];
+    if (!anchorMesh) {
+      console.warn('[Neurograph] No anchor mesh for', anchorId, 'skipping', list.length, 'commits');
+      return;
+    }
+    // All commits for this calendar day orbit in world space around the day-anchor sphere center.
+    const orbitCenter = anchorMesh.position;
+    const nCommits = list.length;
+
+    list.forEach((node, i) => {
+      const theta = i * TEMPORAL_GOLDEN_ANGLE;
+      const phi = Math.acos(1 - 2 * ((i + 0.5) / Math.max(1, nCommits)));
+      const orbitR = TEMPORAL_ORBIT_BASE_RADIUS + i * TEMPORAL_ORBIT_SPACING;
+      const sinPhi = Math.sin(phi);
+      const cosPhi = Math.cos(phi);
+      const pos = orbitCenter.clone();
+      pos.x += sinPhi * Math.cos(theta) * orbitR;
+      pos.y += sinPhi * Math.sin(theta) * orbitR;
+      pos.z += cosPhi * orbitR;
+      allPoints.push(pos.clone());
+
+      const r = getTemporalCommitRadius(node);
+      const geometry = new THREE.SphereGeometry(r, 22, 22);
+      const isBreath = (node.commitType || (node.attributes && node.attributes.commitType)) === 'breath';
+      const col = isBreath
+        ? TEMPORAL_COMMIT_COLOR_BREATH
+        : parseHexColorNeuro(node.attributes && node.attributes.color, TEMPORAL_COMMIT_COLOR_COLD);
+      const mat = new THREE.MeshStandardMaterial({
+        color: col,
+        emissive: col,
+        emissiveIntensity: isBreath ? 0.16 : 0.11,
+        roughness: isBreath ? 0.35 : 0.45,
+        metalness: isBreath ? 0.42 : 0.32
+      });
+      const mesh = new THREE.Mesh(geometry, mat);
+      mesh.position.copy(pos);
+      mesh.userData = {
+        id: node.id || `commit-${i}`,
+        label: node.label || node.id,
+        position: mesh.position.clone(),
+        rawData: node,
+        isTemporal: true,
+        nodeKind: 'commit',
+        orbitAnchorId: anchorId,
+        isConnectedToTheme: false,
+        themeConnectionWeight: 0
+      };
+      neurographScene.add(mesh);
+      neurons.push(mesh);
+      nodeMap[node.id] = mesh;
+    });
+  });
+
+  if (neurographControls) {
+    neurographControls.minDistance = 100;
+    neurographControls.maxDistance = 2200;
+  }
+  if (neurographCamera) {
+    neurographCamera.far = NEURO_CAMERA_FAR;
+    neurographCamera.updateProjectionMatrix();
+  }
+  if (neurographScene) {
+    neurographScene.fog = null;
+  }
+
+  fitNeurographCameraToPresentDayAnchor(allPoints);
+}
+
 // Create neurograph from data
 function createNeurograph(data) {
   if (!neurographScene) return;
+
+  neurographTemporalMode = false;
+  if (neurographControls) {
+    neurographControls.minDistance = 50;
+    neurographControls.maxDistance = 1100;
+  }
+  if (neurographScene) {
+    neurographScene.fog = new THREE.FogExp2(0x050510, NEURO_FOG_DENSITY_DEFAULT);
+  }
+
+  neuroAnchorLabelSprites.forEach((spr) => {
+    neurographScene.remove(spr);
+    if (spr.material && spr.material.map) {spr.material.map.dispose();}
+    if (spr.material) {spr.material.dispose();}
+  });
+  neuroAnchorLabelSprites = [];
 
   // Clear existing objects
   neurons.forEach(neuron => neurographScene.remove(neuron));
@@ -3527,10 +3863,17 @@ function createNeurograph(data) {
   clearNeuroInfoPanel();
   hoveredNode = null;
 
+  const allNodes = data.nodes || [];
+  const dayAnchors = allNodes.filter((n) => n.type === 'temporal-day-anchor');
+  const commits = allNodes.filter((n) => n.type === 'temporal-commit');
+  if (dayAnchors.length > 0 && commits.length > 0) {
+    createTemporalNeurograph(data, dayAnchors, commits);
+    return;
+  }
+
   // Create nodes as spheres
   // Limit to 1000 nodes to prevent WebGL errors (too many objects)
   const MAX_NODES = 1000;
-  const allNodes = data.nodes || [];
   const allConnections = data.synapses || data.connections || [];
 
   // Create a Set of valid node IDs for quick lookup
@@ -3764,6 +4107,18 @@ function createNeurograph(data) {
 // Create fallback neurograph when API fails
 function createFallbackNeurograph() {
   if (!neurographScene) return;
+
+  neurographTemporalMode = false;
+  neuroAnchorLabelSprites.forEach((spr) => {
+    neurographScene.remove(spr);
+    if (spr.material && spr.material.map) {spr.material.map.dispose();}
+    if (spr.material) {spr.material.dispose();}
+  });
+  neuroAnchorLabelSprites = [];
+  neurons.forEach((neuron) => neurographScene.remove(neuron));
+  synapses.forEach((synapse) => neurographScene.remove(synapse));
+  neurons = [];
+  synapses = [];
 
   const nodeCount = 20 + Math.random() * 20;
   const connections = [];
