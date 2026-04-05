@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.8';
+const CLIENT_VERSION = '3.3.9';
 const CLIENT_BUILD_DATE = '2026-04-05';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -2080,8 +2080,45 @@ function initNeurograph() {
   neurographControls.dampingFactor = 0.05;
   neurographControls.minDistance = 50;
   neurographControls.maxDistance = 1100;
-
   const ngDom = neurographRenderer.domElement;
+  ngDom.tabIndex = 0;
+  ngDom.setAttribute(
+    'aria-label',
+    'Neurograph 3D view — click to focus; arrow keys fly forward, back, and strafe through space'
+  );
+  const setNeuroKey = (code, down) => {
+    if (code === 'ArrowUp') {neuroKeyState.ArrowUp = down;}
+    else if (code === 'ArrowDown') {neuroKeyState.ArrowDown = down;}
+    else if (code === 'ArrowLeft') {neuroKeyState.ArrowLeft = down;}
+    else if (code === 'ArrowRight') {neuroKeyState.ArrowRight = down;}
+  };
+  ngDom.addEventListener('keydown', (e) => {
+    if (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+      e.preventDefault();
+      setNeuroKey(e.code, true);
+    }
+  });
+  ngDom.addEventListener('keyup', (e) => {
+    if (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+      e.preventDefault();
+      setNeuroKey(e.code, false);
+    }
+  });
+  window.addEventListener('blur', () => {
+    neuroKeyState.ArrowUp = false;
+    neuroKeyState.ArrowDown = false;
+    neuroKeyState.ArrowLeft = false;
+    neuroKeyState.ArrowRight = false;
+    _neuroKeyFlyVel.set(0, 0, 0);
+  });
+  ngDom.addEventListener(
+    'pointerdown',
+    () => {
+      ngDom.focus({ preventScroll: true });
+    },
+    true
+  );
+
   ngDom.style.touchAction = 'none';
   ngDom.addEventListener(
     'wheel',
@@ -2349,6 +2386,8 @@ function clearNeuroInfoPanel() {
 // Click-to-focus: fly camera to a node and pin the same label as hover
 let neurographFocusTarget = null;
 let neurographFlyActive = false;
+/** Double-tap empty-space fly — shared so keyboard fly can pause during it. */
+let neurographDoubleTapFlyActive = false;
 const neurographFocusDir = new THREE.Vector3(0, 0, 1);
 // OrbitControls clamps camera–target distance to [minDistance, maxDistance]; the fly must end
 // inside that range or the first update() after re-enabling controls jumps the camera.
@@ -2358,6 +2397,23 @@ const _neuroDesiredCam = new THREE.Vector3();
 const neurographFlyFromCam = new THREE.Vector3();
 const neurographFlyFromTarget = new THREE.Vector3();
 let neurographFlyStartTime = 0;
+
+const _neuroKForward = new THREE.Vector3();
+const _neuroKRight = new THREE.Vector3();
+const _neuroKDesired = new THREE.Vector3();
+const _neuroKMove = new THREE.Vector3();
+let _neuroKeyFlyVel = new THREE.Vector3();
+let neuroFlyKeyLastT = 0;
+const neuroKeyState = {
+  ArrowUp: false,
+  ArrowDown: false,
+  ArrowLeft: false,
+  ArrowRight: false
+};
+const NEURO_KEY_FLY_ACCEL = 9.5;
+const NEURO_KEY_FLY_COAST = 5.2;
+const NEURO_KEY_FLY_SPEED_TEMPORAL = 2760;
+const NEURO_KEY_FLY_SPEED_LEGACY = 395;
 
 function easeInOutCubicNeuro(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -2536,8 +2592,18 @@ function clearNeurographNodeFocus() {
 
 function focusNeurographNode(neuron, options = {}) {
   const skipInfoPanel = options.skipInfoPanel === true;
+  const initialLoad = options.initialLoad === true;
   if (!neuron || !neurographCamera || !neurographControls) {return;}
   if (neurographFocusTarget === neuron) {return;}
+  if (neurographTemporalMode) {
+    neurographFocusTemporalPull = initialLoad ? TEMPORAL_FOCUS_PULL_INITIAL : TEMPORAL_FOCUS_PULL_CLICK;
+  }
+  neuroKeyState.ArrowUp = false;
+  neuroKeyState.ArrowDown = false;
+  neuroKeyState.ArrowLeft = false;
+  neuroKeyState.ArrowRight = false;
+  _neuroKeyFlyVel.set(0, 0, 0);
+  neuroFlyKeyLastT = 0;
   hideNeuroHoverPreview();
   clearNeurographHoverVisual();
   if (neuroHoverAnimMesh) {
@@ -2579,6 +2645,54 @@ function focusNeurographNode(neuron, options = {}) {
     console.log('[NeuroInfoPanel] Panel shown for focused node, opacity=1, display=block');
     scheduleNeuroInfoPanelPosition(neuron);
   }
+}
+
+/** Arrow keys: translate camera + orbit target along view / strafe — feels like flying through space (not screen pan). */
+function applyNeurographKeyboardFlyFrame() {
+  if (!neurographScene || !neurographCamera || !neurographControls) {return;}
+  if (neurographFlyActive || neurographDoubleTapFlyActive || !neurographControls.enabled) {return;}
+  const now = performance.now();
+  const dt = neuroFlyKeyLastT ? Math.min(0.04, (now - neuroFlyKeyLastT) / 1000) : 0.016;
+  neuroFlyKeyLastT = now;
+
+  const anyKey =
+    neuroKeyState.ArrowUp ||
+    neuroKeyState.ArrowDown ||
+    neuroKeyState.ArrowLeft ||
+    neuroKeyState.ArrowRight;
+  const maxSpeed = neurographTemporalMode ? NEURO_KEY_FLY_SPEED_TEMPORAL : NEURO_KEY_FLY_SPEED_LEGACY;
+
+  neurographCamera.getWorldDirection(_neuroKForward);
+  _neuroKRight.crossVectors(_neuroKForward, neurographCamera.up);
+  if (_neuroKRight.lengthSq() < 1e-10) {
+    _neuroKRight.set(1, 0, 0);
+  } else {
+    _neuroKRight.normalize();
+  }
+
+  _neuroKDesired.set(0, 0, 0);
+  if (neuroKeyState.ArrowUp) {_neuroKDesired.add(_neuroKForward);}
+  if (neuroKeyState.ArrowDown) {_neuroKDesired.addScaledVector(_neuroKForward, -1);}
+  if (neuroKeyState.ArrowLeft) {_neuroKDesired.addScaledVector(_neuroKRight, -1);}
+  if (neuroKeyState.ArrowRight) {_neuroKDesired.add(_neuroKRight);}
+  if (_neuroKDesired.lengthSq() > 1e-10) {
+    _neuroKDesired.normalize().multiplyScalar(maxSpeed);
+  }
+
+  if (_neuroKDesired.lengthSq() > 1e-6) {
+    _neuroKeyFlyVel.lerp(_neuroKDesired, 1 - Math.exp(-NEURO_KEY_FLY_ACCEL * dt));
+  } else {
+    _neuroKeyFlyVel.multiplyScalar(Math.exp(-NEURO_KEY_FLY_COAST * dt));
+    if (_neuroKeyFlyVel.lengthSq() < 0.16) {
+      _neuroKeyFlyVel.set(0, 0, 0);
+    }
+  }
+
+  if (_neuroKeyFlyVel.lengthSq() < 1e-8) {return;}
+
+  _neuroKMove.copy(_neuroKeyFlyVel).multiplyScalar(dt);
+  neurographCamera.position.add(_neuroKMove);
+  neurographControls.target.add(_neuroKMove);
 }
 
 // Animation loop
@@ -2633,7 +2747,7 @@ function animateNeurograph() {
     neurographControls.enabled = false;
     const tpos = neurographFocusTarget.position;
     const focusPull = Math.max(
-      neurographTemporalMode ? TEMPORAL_FOCUS_PULL_MIN : NEUROGRAPH_FOCUS_DISTANCE,
+      neurographTemporalMode ? neurographFocusTemporalPull : NEUROGRAPH_FOCUS_DISTANCE,
       neurographControls.minDistance
     );
     _neuroDesiredCam.copy(tpos).addScaledVector(neurographFocusDir, focusPull);
@@ -2657,6 +2771,7 @@ function animateNeurograph() {
     }
   } else if (neurographControls) {
     neurographControls.enabled = true;
+    applyNeurographKeyboardFlyFrame();
     neurographControls.update();
   }
 
@@ -2859,17 +2974,25 @@ function setupNeurographHover() {
   // Double-tap tracking for mobile navigation (smooth animated fly-through)
 let lastTapTime = 0;
 let lastTapPosition = { x: 0, y: 0 };
-let isFlyingThroughSpace = false;
 
 // Double-tap / double-click fly-through: direction follows the ray through screen (clientX/Y).
 const NEURO_FLY_THROUGH_DISTANCE = 165;
 const NEURO_FLY_THROUGH_DURATION_MS = 1600;
+/** Hyper burst: short duration + long distance along view ray (empty-space double-tap only). */
+const NEURO_FLY_HYPER_DISTANCE = 420;
+const NEURO_FLY_HYPER_MS = 360;
 
 // Smooth fly-through animation — `direction` is world-space ray from camera through click (use raycaster.ray.direction)
 function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, duration = NEURO_FLY_THROUGH_DURATION_MS) {
-  if (isFlyingThroughSpace) return; // Prevent overlapping flights
-  if (!direction || direction.lengthSq() < 1e-10) return;
-  isFlyingThroughSpace = true;
+  if (neurographDoubleTapFlyActive) {return;} // Prevent overlapping flights
+  if (!direction || direction.lengthSq() < 1e-10) {return;}
+  neurographDoubleTapFlyActive = true;
+  neuroKeyState.ArrowUp = false;
+  neuroKeyState.ArrowDown = false;
+  neuroKeyState.ArrowLeft = false;
+  neuroKeyState.ArrowRight = false;
+  _neuroKeyFlyVel.set(0, 0, 0);
+  neuroFlyKeyLastT = 0;
 
   const dir = direction.clone().normalize();
 
@@ -2894,7 +3017,7 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     if (t < 1) {
       requestAnimationFrame(animateFlight);
     } else {
-      isFlyingThroughSpace = false;
+      neurographDoubleTapFlyActive = false;
       console.log('[Neurograph] Flight complete');
     }
   }
@@ -2926,10 +3049,11 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     const isDoubleTap = (now - lastTapTime < 500) && (tapDistance < 50);
 
     if (isDoubleTap && hits.length === 0) {
-      console.log('[Neurograph] Double-tap on empty space — fly along ray through click');
+      console.log('[Neurograph] Double-tap on empty space — hyper fly along ray through click');
       flyThroughSpace(
         raycaster.ray.direction,
-        neurographTemporalMode ? TEMPORAL_EMPTY_FLY_DISTANCE : NEURO_FLY_THROUGH_DISTANCE
+        neurographTemporalMode ? TEMPORAL_EMPTY_FLY_HYPER_DISTANCE : NEURO_FLY_HYPER_DISTANCE,
+        neurographTemporalMode ? TEMPORAL_EMPTY_FLY_HYPER_MS : NEURO_FLY_HYPER_MS
       );
       lastTapTime = 0;
       return 'double-empty';
@@ -3171,7 +3295,7 @@ function createMinimizedNodeLabel(nodeData) {
 
   const node = nodeData.rawData;
   const id = node.id || nodeData.id || '';
-  const title = node.label || id || 'Node';
+  const title = stripLeadingCalendarEmoji(node.label || id || 'Node');
   const category = node.category || nodeData.category || '';
   const type = node.type || nodeData.type || '';
   const temporal = nodeData.isTemporal ? '<span class="neuro-tooltip-temporal">T</span>' : '';
@@ -3216,7 +3340,7 @@ function createCollapsedNodeLabel(nodeData) {
 
   const node = nodeData.rawData;
   const id = node.id || nodeData.id || '';
-  const title = node.label || id || 'Node';
+  const title = stripLeadingCalendarEmoji(node.label || id || 'Node');
   const description = node.description || '';
 
   let content = `<div class="neuro-panel-collapsed">
@@ -3247,7 +3371,7 @@ function createNodeLabel(nodeData) {
 
   const node = nodeData.rawData;
   const id = node.id || nodeData.id || '';
-  const title = node.label || id || 'Node';
+  const title = stripLeadingCalendarEmoji(node.label || id || 'Node');
   const edges = getNeuroEdgesForNode(id);
   const parts = [];
 
@@ -3557,10 +3681,14 @@ function applyTemporalPresentationTransform(pos) {
 
 /** Multiplier on JSON anchor Z before flip — widens spacing between calendar days along the spine. */
 const TEMPORAL_SPINE_Z_SCALE = 6.2;
-/** Applied after spine + flip — doubles world distance between temporal day anchors (and XY spread from JSON). */
-const TEMPORAL_WORLD_POSITION_SCALE = 2;
+/** Applied after spine + flip — scales world distance between temporal day anchors (and XY spread from JSON). */
+const TEMPORAL_WORLD_POSITION_SCALE = 8;
 
 const TEMPORAL_DAY_ANCHOR_RADIUS = 54;
+/** Pill label below anchor: canvas height (px), world scale, gap from sphere surface to label (world units). */
+const TEMPORAL_ANCHOR_LABEL_CANVAS_H = 96;
+const TEMPORAL_ANCHOR_LABEL_SCALE = 0.24;
+const TEMPORAL_ANCHOR_LABEL_GAP = 36;
 const TEMPORAL_COMMIT_RADIUS_BREATH = 22;
 const TEMPORAL_COMMIT_RADIUS_COLD = 14;
 /** Breath commits: warm gold (distinct from cold-change blue). */
@@ -3573,10 +3701,15 @@ const TEMPORAL_ORBIT_BASE_RADIUS = 136;
 const TEMPORAL_ORBIT_SPACING = 32;
 const TEMPORAL_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const TEMPORAL_FLY_DURATION_MS = 1500;
-/** Scaled with larger anchor spheres so click-to-focus does not sit inside the mesh. */
-const TEMPORAL_FOCUS_PULL_MIN = 440;
-/** Double-tap empty-space fly; keep modest so double-click does not leap across the whole spine. */
-const TEMPORAL_EMPTY_FLY_DISTANCE = 440;
+/** Wider framing for first paint (refresh / fit + focus today). */
+const TEMPORAL_FOCUS_PULL_INITIAL = 1840;
+/** Closer zoom when user clicks a sphere (interactive focus). */
+const TEMPORAL_FOCUS_PULL_CLICK = 680;
+/** Temporal fly end distance along focus dir; set per focus (initial load vs click). */
+let neurographFocusTemporalPull = TEMPORAL_FOCUS_PULL_INITIAL;
+/** Double-tap empty-space hyper burst (large temporal scenes; pairs with TEMPORAL_EMPTY_FLY_HYPER_MS). */
+const TEMPORAL_EMPTY_FLY_HYPER_DISTANCE = 5280;
+const TEMPORAL_EMPTY_FLY_HYPER_MS = 400;
 
 function getTemporalCommitRadius(node) {
   const t = node.commitType || (node.attributes && node.attributes.commitType);
@@ -3593,28 +3726,67 @@ function resolveCommitAnchorId(commit) {
   return null;
 }
 
+function stripLeadingCalendarEmoji(s) {
+  if (s == null || s === '') {return s;}
+  const t = String(s).replace(/^\s*📅\s*/u, '').trim();
+  return t || String(s);
+}
+
+/** Day-anchor pill text: no calendar emoji; strip legacy 📅 prefix from stored labels. */
+function formatTemporalDayAnchorLabelText(node) {
+  const raw = node.label || (node.breathDate ? String(node.breathDate) : String(node.id));
+  return stripLeadingCalendarEmoji(raw);
+}
+
+function drawTemporalLabelRoundedRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.lineTo(x + w - rr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+  ctx.lineTo(x + w, y + h - rr);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+  ctx.lineTo(x + rr, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+  ctx.lineTo(x, y + rr);
+  ctx.quadraticCurveTo(x, y, x + rr, y);
+  ctx.closePath();
+}
+
 function createDayAnchorLabelSprite(text) {
-  const padding = 44;
+  const padX = 32;
+  const padY = 14;
+  const cornerR = 18;
+  const font = '600 56px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
-  const font = 'bold 68px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
   ctx.font = font;
   const metrics = ctx.measureText(text);
-  const w = Math.ceil(Math.max(metrics.width, 160) + padding * 2);
-  const h = 116;
+  const w = Math.ceil(Math.max(metrics.width, 120) + padX * 2);
+  const h = TEMPORAL_ANCHOR_LABEL_CANVAS_H;
   canvas.width = w;
   canvas.height = h;
   ctx.font = font;
+  drawTemporalLabelRoundedRect(ctx, 0, 0, w, h, cornerR);
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'rgba(14, 22, 42, 0.94)');
+  g.addColorStop(1, 'rgba(6, 10, 22, 0.96)');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(120, 210, 255, 0.55)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  ctx.strokeStyle = 'rgba(0, 24, 48, 0.95)';
-  ctx.lineWidth = 14;
-  ctx.lineJoin = 'round';
-  ctx.strokeText(text, w / 2, h / 2);
-  ctx.fillStyle = '#e8f8ff';
-  ctx.shadowColor = 'rgba(80, 200, 255, 0.9)';
-  ctx.shadowBlur = 32;
-  ctx.fillText(text, w / 2, h / 2);
+  ctx.fillStyle = '#f2f8ff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 1;
+  ctx.fillText(text, w / 2, h / 2 + 1);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.needsUpdate = true;
   const mat = new THREE.SpriteMaterial({
@@ -3625,8 +3797,8 @@ function createDayAnchorLabelSprite(text) {
     fog: false
   });
   const sprite = new THREE.Sprite(mat);
-  const scaleFactor = 0.2;
-  sprite.scale.set(w * scaleFactor, h * scaleFactor, 1);
+  const sf = TEMPORAL_ANCHOR_LABEL_SCALE;
+  sprite.scale.set(w * sf, h * sf, 1);
   sprite.renderOrder = 999;
   return sprite;
 }
@@ -3686,7 +3858,7 @@ function fitNeurographCameraToPresentDayAnchor(allPoints) {
     }
   }
 
-  focusNeurographNode(best, { skipInfoPanel: true });
+  focusNeurographNode(best, { skipInfoPanel: true, initialLoad: true });
 }
 
 function createTemporalNeurograph(_data, dayAnchors, commits) {
@@ -3701,7 +3873,9 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
 
   const nodeMap = {};
   const allPoints = [];
-  const labelYOffset = TEMPORAL_DAY_ANCHOR_RADIUS + 44;
+  const labelHalfWorld = (TEMPORAL_ANCHOR_LABEL_CANVAS_H * TEMPORAL_ANCHOR_LABEL_SCALE) / 2;
+  const labelYBelow =
+    TEMPORAL_DAY_ANCHOR_RADIUS + TEMPORAL_ANCHOR_LABEL_GAP + labelHalfWorld;
 
   dayAnchors.forEach((node, idx) => {
     const pos = getTemporalNodePosition(node);
@@ -3722,7 +3896,7 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
     mesh.position.copy(pos);
     mesh.userData = {
       id: node.id || `day-${idx}`,
-      label: node.label || `📅 ${node.breathDate || ''}`,
+      label: formatTemporalDayAnchorLabelText(node),
       position: mesh.position.clone(),
       rawData: node,
       isTemporal: true,
@@ -3734,9 +3908,9 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
     neurons.push(mesh);
     nodeMap[node.id] = mesh;
 
-    const labelText = node.label || (node.breathDate ? `📅 ${node.breathDate}` : String(node.id));
+    const labelText = formatTemporalDayAnchorLabelText(node);
     const sprite = createDayAnchorLabelSprite(labelText);
-    sprite.position.copy(pos).add(new THREE.Vector3(0, labelYOffset, 0));
+    sprite.position.copy(pos).add(new THREE.Vector3(0, -labelYBelow, 0));
     neurographScene.add(sprite);
     neuroAnchorLabelSprites.push(sprite);
   });
@@ -3808,7 +3982,7 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
 
   if (neurographControls) {
     neurographControls.minDistance = 100;
-    neurographControls.maxDistance = 2200;
+    neurographControls.maxDistance = 9600;
   }
   if (neurographCamera) {
     neurographCamera.far = NEURO_CAMERA_FAR;
