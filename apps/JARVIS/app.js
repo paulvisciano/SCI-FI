@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.14';
+const CLIENT_VERSION = '3.3.16';
 const CLIENT_BUILD_DATE = '2026-04-05';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -2524,8 +2524,13 @@ let neurographDoubleTapFlyActive = false;
 let neurographTouchHoldActive = false;
 let neurographTouchHoldTimer = null;
 let neurographTouchHoldStartPos = null;
+let neurographTouchHoldRect = null;
+/** Touch flight state - direction and speed */
+let neuroTouchFlight = { active: false, speed: 0, direction: new THREE.Vector3(0, 0, -1), decelerating: false };
 const NEURO_TOUCH_HOLD_DEADZONE = 50;  // pixels - tap must move less than this to count
 const NEURO_TOUCH_HOLD_DELAY = 300;    // ms - hold duration before flying starts
+const NEURO_TOUCH_FLY_SPEED = 180;     // Slower than keyboard fly - smooth floating feel
+const NEURO_TOUCH_DECEL_FACTOR = 0.94; // Exponential decay factor for smooth stop
 const _neuroDesiredCam = new THREE.Vector3();
 const neurographFlyFromCam = new THREE.Vector3();
 const neurographFlyFromTarget = new THREE.Vector3();
@@ -2781,6 +2786,42 @@ function focusNeurographNode(neuron, options = {}) {
   }
 }
 
+/** Touch hold flight: translate camera + orbit target in finger direction - smooth floating feel */
+function applyNeurographTouchFlightFrame() {
+  if (!neurographScene || !neurographCamera || !neurographControls) {return;}
+  if (neurographFlyActive || neurographDoubleTapFlyActive || !neurographControls.enabled) {return;}
+  
+  const now = performance.now();
+  const dt = neuroFlyKeyLastT ? Math.min(0.04, (now - neuroFlyKeyLastT) / 1000) : 0.016;
+  neuroFlyKeyLastT = now;
+  
+  // Check if touch flight is active
+  if (neuroTouchFlight.active || neuroTouchFlight.decelerating) {
+    // Calculate flight speed
+    if (neuroTouchFlight.active && !neuroTouchFlight.decelerating) {
+      // Accelerate from 0 to max speed
+      neuroTouchFlight.speed += NEURO_TOUCH_FLY_SPEED * dt * 3;  // Accelerate in ~0.3s
+      if (neuroTouchFlight.speed > NEURO_TOUCH_FLY_SPEED) {
+        neuroTouchFlight.speed = NEURO_TOUCH_FLY_SPEED;
+      }
+    } else if (neuroTouchFlight.decelerating) {
+      // Smooth deceleration
+      neuroTouchFlight.speed *= NEURO_TOUCH_DECEL_FACTOR;
+      if (neuroTouchFlight.speed < 10) {
+        neuroTouchFlight.active = false;
+        neuroTouchFlight.decelerating = false;
+        neuroTouchFlight.speed = 0;
+        return;  // Flight stopped
+      }
+    }
+    
+    // Calculate movement vector based on direction
+    const moveAmount = neuroTouchFlight.direction.clone().multiplyScalar(neuroTouchFlight.speed * dt);
+    neurographCamera.position.add(moveAmount);
+    neurographControls.target.add(moveAmount);
+  }
+}
+
 /** Arrow keys: translate camera + orbit target along view / strafe — feels like flying through space (not screen pan). */
 function applyNeurographKeyboardFlyFrame() {
   if (!neurographScene || !neurographCamera || !neurographControls) {return;}
@@ -2905,6 +2946,7 @@ function animateNeurograph() {
     }
   } else if (neurographControls) {
     neurographControls.enabled = true;
+    applyNeurographTouchFlightFrame();
     applyNeurographKeyboardFlyFrame();
     neurographControls.update();
   }
@@ -3247,7 +3289,7 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     { capture: true, passive: false }
   );
 
-  // === Press-and-hold for continuous forward flight (iPad/Touch only) ===
+  // === Press-and-hold for continuous flight (iPad/Touch only) ===
   // Start hold timer on touchstart
   ngPickEl.addEventListener(
     'touchstart',
@@ -3267,14 +3309,19 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
       // Only track empty space touches
       if (hits.length > 0) {return;}
       
-      // Record start position for deadzone check
+      // Record start position for deadzone and direction calculation
       neurographTouchHoldStartPos = { x: t.clientX, y: t.clientY };
+      neurographTouchHoldRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      neuroTouchFlight.decelerating = false;
       
-      // Start hold timer - if held for 300ms, set ArrowUp to fly forward
+      // Start hold timer
       neurographTouchHoldTimer = setTimeout(() => {
         if (neurographTouchHoldActive) {
-          console.log('[Neurograph] Press-and-hold activated - flying forward continuously');
-          neuroKeyState.ArrowUp = true;
+          console.log('[Neurograph] Press-and-hold activated - flight started');
+          neuroTouchFlight.active = true;
+          // Default direction: forward (negative Z)
+          neuroTouchFlight.direction.set(0, 0, -1);
+          neuroTouchFlight.speed = 0;
         }
       }, NEURO_TOUCH_HOLD_DELAY);
       
@@ -3283,7 +3330,7 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     { capture: true, passive: false }
   );
 
-  // Stop holding on touchend
+  // Stop holding on touchend - trigger smooth deceleration
   ngPickEl.addEventListener(
     'touchend',
     (e) => {
@@ -3295,19 +3342,18 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
         neurographTouchHoldTimer = null;
       }
       
-      // Clear ArrowUp to stop flying
-      if (neurographTouchHoldActive) {
-        neuroKeyState.ArrowUp = false;
-        console.log('[Neurograph] Touch ended - flight stopped');
-      }
+      // Trigger deceleration
+      neuroTouchFlight.decelerating = true;
+      console.log('[Neurograph] Touch ended - smooth deceleration started');
       
       neurographTouchHoldActive = false;
       neurographTouchHoldStartPos = null;
+      neurographTouchHoldRect = null;
     },
     { capture: true, passive: false }
   );
 
-  // Cancel hold on touchmove (deadzone check)
+  // Update direction on touchmove and check deadzone
   ngPickEl.addEventListener(
     'touchmove',
     (e) => {
@@ -3328,6 +3374,38 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
         console.log('[Neurograph] Touch moved - hold cancelled');
         neurographTouchHoldActive = false;
         neurographTouchHoldStartPos = null;
+        neurographTouchHoldRect = null;
+        neuroTouchFlight.active = false;
+        neuroTouchFlight.decelerating = false;
+        neuroTouchFlight.speed = 0;
+        return;
+      }
+      
+      // Update flight direction based on finger movement
+      if (neuroTouchFlight.active && neurographCamera && neurographTouchHoldRect) {
+        // Calculate direction from center of screen (finger deviation)
+        const centerX = neurographTouchHoldRect.left + neurographTouchHoldRect.width / 2;
+        const centerY = neurographTouchHoldRect.top + neurographTouchHoldRect.height / 2;
+        const dx = (t.clientX - centerX) / rect.width;  // -0.5 to 0.5
+        const dy = (t.clientY - centerY) / rect.height;  // -0.5 to 0.5
+        
+        // Get camera forward direction
+        neurographCamera.getWorldDirection(_neuroKForward);
+        _neuroKRight.crossVectors(_neuroKForward, neurographCamera.up);
+        if (_neuroKRight.lengthSq() < 1e-10) {
+          _neuroKRight.set(1, 0, 0);
+        } else {
+          _neuroKRight.normalize();
+        }
+        
+        // Map 2D finger movement to 3D flight direction
+        // X movement -> strafe (right/left)
+        // Y movement -> vertical (up/down)
+        neuroTouchFlight.direction
+          .copy(_neuroKForward)
+          .addScaledVector(_neuroKRight, dx * 1.2)      // Sensitivity for strafe
+          .addScaledVector(neurographCamera.up, -dy * 0.8); // Sensitivity for vertical
+        neuroTouchFlight.direction.normalize();
       }
     },
     { capture: true, passive: false }
