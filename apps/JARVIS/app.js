@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.11';
+const CLIENT_VERSION = '3.3.12';
 const CLIENT_BUILD_DATE = '2026-04-05';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -2502,15 +2502,17 @@ let neurographFocusTarget = null;
 let neurographFlyActive = false;
 /** Double-tap empty-space fly — shared so keyboard fly can pause during it. */
 let neurographDoubleTapFlyActive = false;
-const neurographFocusDir = new THREE.Vector3(0, 0, 1);
-// OrbitControls clamps camera–target distance to [minDistance, maxDistance]; the fly must end
-// inside that range or the first update() after re-enabling controls jumps the camera.
-const NEUROGRAPH_FOCUS_DISTANCE = 44;
-const NEUROGRAPH_FLY_DURATION_MS = 3400;
+/** Press-and-hold to fly forward continuously (iPad/Touch) */
+let neurographTouchHoldActive = false;
+let neurographTouchHoldTimer = null;
+let neurographTouchHoldStartPos = null;
+const NEURO_TOUCH_HOLD_DEADZONE = 50;  // pixels - tap must move less than this to count
+const NEURO_TOUCH_HOLD_DELAY = 300;    // ms - hold duration before flying starts
 const _neuroDesiredCam = new THREE.Vector3();
 const neurographFlyFromCam = new THREE.Vector3();
 const neurographFlyFromTarget = new THREE.Vector3();
 let neurographFlyStartTime = 0;
+const neurographFocusDir = new THREE.Vector3(0, 0, 1);
 
 const _neuroKForward = new THREE.Vector3();
 const _neuroKRight = new THREE.Vector3();
@@ -3222,6 +3224,92 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
       e.stopPropagation();
       if (outcome === 'node' || outcome === 'double-empty') {
         if (typeof e.stopImmediatePropagation === 'function') {e.stopImmediatePropagation();}
+      }
+    },
+    { capture: true, passive: false }
+  );
+
+  // === Press-and-hold for continuous forward flight (iPad/Touch only) ===
+  // Start hold timer on touchstart
+  ngPickEl.addEventListener(
+    'touchstart',
+    (e) => {
+      if (!neurographScene || neurons.length === 0) {return;}
+      // Only single-finger touch
+      if (e.touches.length !== 1) {return;}
+      // Only for empty space (not nodes)
+      const t = e.touches[0];
+      const rect = ngPickEl.getBoundingClientRect();
+      const mouse = new THREE.Vector2();
+      mouse.x = ((t.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((t.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, neurographCamera);
+      const hits = raycaster.intersectObjects(neurons);
+      
+      // Only track empty space touches
+      if (hits.length > 0) {return;}
+      
+      // Record start position for deadzone check
+      neurographTouchHoldStartPos = { x: t.clientX, y: t.clientY };
+      
+      // Start hold timer - if held for 300ms, set ArrowUp to fly forward
+      neurographTouchHoldTimer = setTimeout(() => {
+        if (neurographTouchHoldActive) {
+          console.log('[Neurograph] Press-and-hold activated - flying forward continuously');
+          neuroKeyState.ArrowUp = true;
+        }
+      }, NEURO_TOUCH_HOLD_DELAY);
+      
+      neurographTouchHoldActive = true;
+    },
+    { capture: true, passive: false }
+  );
+
+  // Stop holding on touchend
+  ngPickEl.addEventListener(
+    'touchend',
+    (e) => {
+      if (!neurographTouchHoldActive) {return;}
+      
+      // Clear the hold timer
+      if (neurographTouchHoldTimer) {
+        clearTimeout(neurographTouchHoldTimer);
+        neurographTouchHoldTimer = null;
+      }
+      
+      // Clear ArrowUp to stop flying
+      if (neurographTouchHoldActive) {
+        neuroKeyState.ArrowUp = false;
+        console.log('[Neurograph] Touch ended - flight stopped');
+      }
+      
+      neurographTouchHoldActive = false;
+      neurographTouchHoldStartPos = null;
+    },
+    { capture: true, passive: false }
+  );
+
+  // Cancel hold on touchmove (deadzone check)
+  ngPickEl.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!neurographTouchHoldActive || !neurographTouchHoldStartPos) {return;}
+      
+      const t = e.touches[0];
+      const dist = Math.sqrt(
+        Math.pow(t.clientX - neurographTouchHoldStartPos.x, 2) +
+        Math.pow(t.clientY - neurographTouchHoldStartPos.y, 2)
+      );
+      
+      // If moved more than deadzone, cancel hold
+      if (dist > NEURO_TOUCH_HOLD_DEADZONE) {
+        if (neurographTouchHoldTimer) {
+          clearTimeout(neurographTouchHoldTimer);
+          neurographTouchHoldTimer = null;
+        }
+        console.log('[Neurograph] Touch moved - hold cancelled');
+        neurographTouchHoldActive = false;
+        neurographTouchHoldStartPos = null;
       }
     },
     { capture: true, passive: false }
