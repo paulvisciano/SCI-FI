@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.12';
+const CLIENT_VERSION = '3.3.13';
 const CLIENT_BUILD_DATE = '2026-04-05';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -174,14 +174,15 @@ let scriptProcessor;
 let streamingInterval;
 let lastTranscript = '';
 
-// Check if video loaded successfully, if not show fallback button
+// Check if video loaded successfully, if not log but keep orb visible
 jarvisVideo.addEventListener('error', () => {
-  console.error('Video failed to load, showing fallback button');
-  jarvisOrb.style.display = 'none';
+  console.error('[JarvisOrb] Video failed to load - orb will be visible but not animated');
+  // Don't hide orb - it should still be visible even if video fails
+  // This can happen on iPad due to autoplay restrictions
 });
 
 jarvisVideo.addEventListener('loadeddata', () => {
-  console.log('Video loaded successfully');
+  console.log('[JarvisOrb] Video loaded successfully');
   // Set playback speed to 1.25x - slightly faster, still smooth
   jarvisVideo.playbackRate = 1.25;
 });
@@ -1936,53 +1937,66 @@ function initJarvisOrb() {
     return;
   }
 
-  jarvisOrbScene = new THREE.Scene();
-  jarvisOrbScene.background = null;
+  try {
+    jarvisOrbScene = new THREE.Scene();
+    jarvisOrbScene.background = null;
 
-  jarvisOrbCamera = new THREE.PerspectiveCamera(68, 1, 0.1, 1000);
-  /* Closer camera = larger sphere in frame; canvas pixel size unchanged (resizeOrb still uses #jarvis-orb). */
-  jarvisOrbCamera.position.set(0, 0, 2.58);
+    jarvisOrbCamera = new THREE.PerspectiveCamera(68, 1, 0.1, 1000);
+    /* Closer camera = larger sphere in frame; canvas pixel size unchanged (resizeOrb still uses #jarvis-orb). */
+    jarvisOrbCamera.position.set(0, 0, 2.58);
 
-  jarvisOrbRenderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    premultipliedAlpha: false
-  });
-  jarvisOrbRenderer.setClearColor(0x000000, 0);
-  if (jarvisOrbRenderer.outputEncoding !== undefined && THREE.sRGBEncoding !== undefined) {
-    jarvisOrbRenderer.outputEncoding = THREE.sRGBEncoding;
+    jarvisOrbRenderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      premultipliedAlpha: false
+    });
+    jarvisOrbRenderer.setClearColor(0x000000, 0);
+    if (jarvisOrbRenderer.outputEncoding !== undefined && THREE.sRGBEncoding !== undefined) {
+      jarvisOrbRenderer.outputEncoding = THREE.sRGBEncoding;
+    }
+    jarvisOrbRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    mount.appendChild(jarvisOrbRenderer.domElement);
+    console.log('[JarvisOrb] Renderer created, canvas appended to mount');
+  } catch (err) {
+    console.error('[JarvisOrb] WebGLRenderer init failed:', err);
+    return;
   }
-  jarvisOrbRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  mount.appendChild(jarvisOrbRenderer.domElement);
 
   function createVideoSphere() {
     if (jarvisOrbMesh) {return;}
-    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {return;}
-
-    jarvisOrbVideoTexture = new THREE.VideoTexture(video);
-    jarvisOrbVideoTexture.minFilter = THREE.LinearFilter;
-    jarvisOrbVideoTexture.magFilter = THREE.LinearFilter;
-    jarvisOrbVideoTexture.flipY = false;
-    if (THREE.SRGBColorSpace !== undefined) {
-      jarvisOrbVideoTexture.colorSpace = THREE.SRGBColorSpace;
-    } else if (THREE.sRGBEncoding !== undefined) {
-      jarvisOrbVideoTexture.encoding = THREE.sRGBEncoding;
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {
+      console.log('[JarvisOrb] Video not ready yet (readyState:', video.readyState, 'videoWidth:', video.videoWidth, ')');
+      return;
     }
-    const maxA = jarvisOrbRenderer.capabilities.getMaxAnisotropy
-      ? jarvisOrbRenderer.capabilities.getMaxAnisotropy()
-      : 1;
-    jarvisOrbVideoTexture.anisotropy = Math.min(8, maxA);
 
-    const geometry = new THREE.SphereGeometry(1, 96, 64);
-    const material = new THREE.MeshBasicMaterial({
-      map: jarvisOrbVideoTexture,
-      color: 0xffffff
-    });
-    jarvisOrbMesh = new THREE.Mesh(geometry, material);
-    jarvisOrbMesh.scale.x = -1;
-    jarvisOrbScene.add(jarvisOrbMesh);
-    syncJarvisOrbRecordingMaterial();
-    console.log('[JarvisOrb] Video mapped onto sphere', video.videoWidth, 'x', video.videoHeight);
+    try {
+      jarvisOrbVideoTexture = new THREE.VideoTexture(video);
+      jarvisOrbVideoTexture.minFilter = THREE.LinearFilter;
+      jarvisOrbVideoTexture.magFilter = THREE.LinearFilter;
+      jarvisOrbVideoTexture.flipY = false;
+      if (THREE.SRGBColorSpace !== undefined) {
+        jarvisOrbVideoTexture.colorSpace = THREE.SRGBColorSpace;
+      } else if (THREE.sRGBEncoding !== undefined) {
+        jarvisOrbVideoTexture.encoding = THREE.sRGBEncoding;
+      }
+      const maxA = jarvisOrbRenderer.capabilities.getMaxAnisotropy
+        ? jarvisOrbRenderer.capabilities.getMaxAnisotropy()
+        : 1;
+      jarvisOrbVideoTexture.anisotropy = Math.min(8, maxA);
+
+      const geometry = new THREE.SphereGeometry(1, 96, 64);
+      const material = new THREE.MeshBasicMaterial({
+        map: jarvisOrbVideoTexture,
+        color: 0xffffff
+      });
+      jarvisOrbMesh = new THREE.Mesh(geometry, material);
+      jarvisOrbMesh.scale.x = -1;
+      jarvisOrbScene.add(jarvisOrbMesh);
+      syncJarvisOrbRecordingMaterial();
+      console.log('[JarvisOrb] Video mapped onto sphere', video.videoWidth, 'x', video.videoHeight);
+    } catch (err) {
+      console.error('[JarvisOrb] createVideoSphere failed:', err);
+    }
   }
 
   function kickPlayback() {
@@ -1998,6 +2012,7 @@ function initJarvisOrb() {
   video.addEventListener('canplay', () => {
     createVideoSphere();
   });
+  console.log('[JarvisOrb] Initial video readyState:', video.readyState, 'videoWidth:', video.videoWidth);
   createVideoSphere();
   kickPlayback();
 
@@ -2018,12 +2033,15 @@ function initJarvisOrb() {
     syncJarvisOrbRecordingMaterial();
   });
 
+  // Store video reference for animateOrb
+  const orbVideoRef = video;
+
   function animateOrb() {
     requestAnimationFrame(animateOrb);
     if (document.hidden) {
       return;
     }
-    if (jarvisOrbVideoTexture && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+    if (jarvisOrbVideoTexture && orbVideoRef.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
       jarvisOrbVideoTexture.needsUpdate = true;
     }
     if (jarvisOrbMesh) {
