@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.15';
-const CLIENT_BUILD_DATE = '2026-04-05';
+const CLIENT_VERSION = '3.3.16';
+const CLIENT_BUILD_DATE = '2026-04-07';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
@@ -137,8 +137,10 @@ function positionTranscriptBubble() {
   tr.style.right = 'auto';
   const tw = tr.getBoundingClientRect().width;
   if (tw > 0) {
-    left = Math.min(left, window.innerWidth - tw - 10);
-    left = Math.max(8, left);
+    const style = getComputedStyle(tr);
+    const edgeGap = parseFloat(style.getPropertyValue('--transcript-edge-gap')) || 24;
+    left = Math.min(left, window.innerWidth - tw - edgeGap);
+    left = Math.max(edgeGap, left);
     tr.style.left = `${Math.round(left)}px`;
   }
 }

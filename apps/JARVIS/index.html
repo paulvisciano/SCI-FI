@@ -1454,16 +1454,6 @@
             border: none;
             box-shadow: none;
             outline: none;
-            /* Fallback glow if WebGL fails (iPad Safari WebGL disabled) */
-            background: radial-gradient(circle at 30% 30%, 
-                rgba(100, 255, 218, 0.85) 0%,
-                rgba(100, 255, 218, 0.4) 40%,
-                rgba(100, 255, 218, 0.15) 70%,
-                transparent 100%);
-            box-shadow: 
-                0 0 25px rgba(100, 255, 218, 0.6),
-                0 0 50px rgba(100, 255, 218, 0.3),
-                inset 0 0 20px rgba(100, 255, 218, 0.2);
         }
 
         #jarvis-orb canvas {
@@ -1557,12 +1547,14 @@
 
         /* Transcript: fixed "chat bubble" anchored to orb top-right (position set in app.js) */
         #transcript {
+            --transcript-edge-gap: max(28px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+            --transcript-vertical-gap: max(28px, env(safe-area-inset-top, 0px), env(safe-area-inset-bottom, 0px));
             background: rgba(10, 15, 30, 0.82);
             border: 1px solid rgba(0, 220, 255, 0.22);
             border-radius: 16px 18px 16px 16px;
             padding: 0 16px 16px 16px;
-            width: min(380px, calc(100vw - 28px));
-            max-width: min(380px, calc(100vw - 28px));
+            width: min(380px, calc(100vw - (var(--transcript-edge-gap) * 2)));
+            max-width: min(380px, calc(100vw - (var(--transcript-edge-gap) * 2)));
             height: clamp(180px, 32vh, 360px);
             overflow-y: auto;
             text-align: left;
@@ -1635,12 +1627,12 @@
         #transcript.fullscreen {
             position: fixed !important;
             top: auto !important;
-            left: 0 !important;
-            right: 0 !important;
+            left: var(--transcript-edge-gap) !important;
+            right: var(--transcript-edge-gap) !important;
             bottom: auto !important;
             /* Position from bottom of hamburger (hamburger height + top offset) to top of orb (orb height from bottom) */
-            top: calc(max(16px, env(safe-area-inset-top, 0px)) + 48px) !important;
-            bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 132px) !important;
+            top: calc(var(--transcript-vertical-gap) + 48px + 20px) !important;
+            bottom: calc(var(--transcript-vertical-gap) + 132px + 20px) !important;
             width: auto !important;
             max-width: none !important;
             height: auto !important;
@@ -2121,7 +2113,7 @@
             </div>
             <div class="title-row">
                 <h1 class="futuristic-title" style="margin: 0;">J.A.R.V.I.S</h1>
-                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.15</span>
+                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.16</span>
             </div>
         </div>
     </div>
