@@ -1,4 +1,8 @@
-#!/usr/bin/env sh
-# Point this repo at tracked hooks under .githooks (run once per clone).
-set -e
-exec node "$(dirname "$0")/setup-jarvis-git-hooks.js"
+#!/bin/bash
+# JARVIS Git Hooks Setup — one-time install
+# Sets git to use .githooks/ for pre-commit version bumping
+
+cd "$(git rev-parse --show-toplevel)"
+git config core.hooksPath .githooks
+
+echo "✅ Git hooks installed — version bump on commit enabled"

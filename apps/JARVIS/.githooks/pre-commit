@@ -1,0 +1,6 @@
+#!/bin/bash
+# JARVIS pre-commit hook — bump version numbers
+# Automatically bumps CLIENT_VERSION (app.js/index.html) and SERVER_VERSION (jarvis-server.js)
+
+cd "$(git rev-parse --show-toplevel)"
+node scripts/bump-jarvis-versions.js
