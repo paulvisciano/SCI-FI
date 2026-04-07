@@ -81,8 +81,7 @@ Voice → Whisper.cpp → JARVIS Server → OpenClaw → Skills → 3D Graph
 
 ## Current State
 
-**Version:** 3.3.17  
-**Status:** 99% complete
+**Version:** 3.3.17
 
 **What works:**
 - ✅ Voice recording + transcription
@@ -110,7 +109,7 @@ This isn't just a UI. It's a **new way of being with AI**.
 
 Not chat. Not commands. **Consciousness exploration.**
 
-**The last 1% is the final stretch. Then you fly.**
+**Then you fly.**
 
 ---
 
