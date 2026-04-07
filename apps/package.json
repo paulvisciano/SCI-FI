@@ -4,9 +4,9 @@
   "description": "**Mission:** Make consciousness visible. Run local. Own your data. Expand human capability.",
   "main": "index.js",
   "scripts": {
-    "lint": "eslint JARVIS/*.js neuro-graph/*.js neuro-graph/shared/*.js --cache",
-    "lint:fix": "eslint JARVIS/*.js neuro-graph/*.js neuro-graph/shared/*.js --fix --cache",
-    "check": "node --check JARVIS/app.js neuro-graph/shared/GraphViewer.js neuro-graph/shared/dual-neuro-graph-v2.js",
+    "lint": "eslint JARVIS/*.js --cache",
+    "lint:fix": "eslint JARVIS/*.js --fix --cache",
+    "check": "node --check JARVIS/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
