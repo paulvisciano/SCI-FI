@@ -27,8 +27,8 @@ const HTTPS_OPTIONS = {
 
 // === Configuration (Portable - No Hardcoded Paths) ===
 // VERSION / BUILD_DATE: patch + build date updated by apps/JARVIS/scripts/bump-jarvis-versions.js when this file is staged (see .githooks/pre-commit).
-const VERSION = '3.3.7';
-const BUILD_DATE = '2026-04-03';
+const VERSION = '3.3.8';
+const BUILD_DATE = '2026-04-07';
 
 // Date formatting utility for consistent date handling
 function formatDateForFilename(date = new Date()) {
@@ -64,7 +64,7 @@ const CONFIG = {
   gatewayUrl: process.env.VOICE_GATEWAY_URL || 'ws://127.0.0.1:18789',
   whisperModel: process.env.VOICE_WHISPER_MODEL || 'ggml-large-v3.bin',
   whisperCli: process.env.VOICE_WHISPER_CLI || findWhisperCli(),
-  neurographDir: process.env.NEUROGRAPH_DIR || path.join(__dirname, 'neuro-graph')
+  neurographDir: null // NeuroGraph merged into root view - no separate route
 };
 
 // Auto-detect whisper-cli from common locations
@@ -566,51 +566,8 @@ function handleRequest(req, res) {
     return;
   }
 
-  // Serve neurograph static files (supports /neural-graph, /neural-graph/, /neuro-graph, /neuro-graph/)
-  if (req.method === 'GET' && (req.url.startsWith('/neural-graph') || req.url.startsWith('/neuro-graph'))) {
-    // Strip query string and decode URL so filenames with spaces and unicode work
-    const urlWithoutQuery = req.url.split('?')[0];
-    // Support both /neural-graph and /neuro-graph prefixes (with or without trailing slash)
-    let rawPath = urlWithoutQuery.replace('/neural-graph', '').replace('/neuro-graph', '');
-    // Remove leading slash if present
-    rawPath = rawPath.replace(/^\//, '');
-    const neuroPath = decodeURIComponent(rawPath);
-    const filePath = path.join(CONFIG.neurographDir, neuroPath === '' ? 'index.html' : neuroPath);
-        
-    if (fs.existsSync(filePath) && !filePath.includes('..')) {
-      const ext = path.extname(filePath).toLowerCase();
-      const contentTypes = {
-        '.html': 'text/html',
-        '.css': 'text/css',
-        '.js': 'application/javascript',
-        '.json': 'application/json',
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.mp4': 'video/mp4'
-      };
-            
-      const cacheHeaders = {};
-      if (['.mp4', '.png', '.jpg', '.jpeg'].includes(ext)) {
-        cacheHeaders['Cache-Control'] = 'public, max-age=31536000';
-      } else if (['.html', '.js', '.css'].includes(ext)) {
-        cacheHeaders['Cache-Control'] = 'public, max-age=3600';
-      }
-            
-      fs.readFile(filePath, (err, data) => {
-        if (err) {
-          res.writeHead(500);
-          res.end('File read error');
-          return;
-        }
-        res.writeHead(200, { 
-          'Content-Type': contentTypes[ext] || 'text/plain',
-          ...cacheHeaders
-        });
-        res.end(data);
-      });
-      return;
-    }
-  }
+  // NeuroGraph merged into root view - no separate static route
+  // Data API endpoints below remain for backward compatibility
 
   // NeuroGraph data API (decoupled from frontend paths, works from any cwd)
   // MUST be before generic static file handler
@@ -1814,7 +1771,6 @@ function logStartup() {
   console.log('');
   console.log('Paths / URLs:');
   console.log('  JARVIS UI:    ', baseUrl + '/');
-  console.log('  Neuro graph:  ', baseUrl + '/neuro-graph/');
   console.log('');
   if (HTTPS_ENABLED) {
     console.log('🔒 HTTPS enabled (self-signed cert) — mobile mic access works');

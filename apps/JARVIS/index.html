@@ -665,6 +665,13 @@
             text-shadow: 0 0 20px rgba(0, 200, 255, 0.25);
         }
 
+        .neuro-node-panel__title--lead {
+            font-size: 17px;
+            line-height: 1.38;
+            letter-spacing: 0.01em;
+            margin-top: 2px;
+        }
+
         .neuro-node-panel__id {
             margin-top: 6px;
             font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -1540,12 +1547,14 @@
 
         /* Transcript: fixed "chat bubble" anchored to orb top-right (position set in app.js) */
         #transcript {
+            --transcript-edge-gap: max(28px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+            --transcript-vertical-gap: max(28px, env(safe-area-inset-top, 0px), env(safe-area-inset-bottom, 0px));
             background: rgba(10, 15, 30, 0.82);
             border: 1px solid rgba(0, 220, 255, 0.22);
             border-radius: 16px 18px 16px 16px;
             padding: 0 16px 16px 16px;
-            width: min(380px, calc(100vw - 28px));
-            max-width: min(380px, calc(100vw - 28px));
+            width: min(380px, calc(100vw - (var(--transcript-edge-gap) * 2)));
+            max-width: min(380px, calc(100vw - (var(--transcript-edge-gap) * 2)));
             height: clamp(180px, 32vh, 360px);
             overflow-y: auto;
             text-align: left;
@@ -1563,7 +1572,7 @@
             margin: 0;
             opacity: 0;
             transform: scale(0.96) translateY(8px);
-            transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), width 0.22s ease, height 0.22s ease, left 0.2s ease, bottom 0.2s ease, z-index 0.25s ease, box-shadow 0.2s ease;
+            transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), width 0.22s ease, height 0.22s ease, left 0.2s ease, bottom 0.2s ease, z-index 0.25s ease, box-shadow 0.2s ease, top 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             pointer-events: none;
             z-index: 1002;
             box-shadow:
@@ -1614,18 +1623,21 @@
             z-index: 0;
         }
 
-        /* Fullscreen/Expand mode - 85% viewport height, centered vertically, preserve rounded corners */
+        /* Fullscreen/Expand mode - fill space from hamburger menu bottom to orb top */
         #transcript.fullscreen {
             position: fixed !important;
-            top: 50% !important;
-            left: 0 !important;
-            right: 0 !important;
+            top: auto !important;
+            left: var(--transcript-edge-gap) !important;
+            right: var(--transcript-edge-gap) !important;
             bottom: auto !important;
-            transform: translateY(-50%) !important;
+            /* Position from bottom of hamburger (hamburger height + top offset) to top of orb (orb height from bottom) */
+            top: calc(var(--transcript-vertical-gap) + 48px + 20px) !important;
+            bottom: calc(var(--transcript-vertical-gap) + 132px + 20px) !important;
             width: auto !important;
             max-width: none !important;
             height: auto !important;
-            max-height: 50vh !important; /* Reduced from 85vh to 50vh for better mobile UX */
+            /* Allow full height between top and bottom edges */
+            min-height: 0 !important;
             margin: 0 !important;
             padding: 0 20px 60px 20px;
             box-sizing: border-box;
@@ -1635,6 +1647,8 @@
             box-shadow: none;
             display: flex;
             flex-direction: column;
+            /* Smooth transition for height animation */
+            transition: top 0.35s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease;
         }
 
         /* Make transcript text area scrollable with min-height */
@@ -2099,7 +2113,7 @@
             </div>
             <div class="title-row">
                 <h1 class="futuristic-title" style="margin: 0;">J.A.R.V.I.S</h1>
-                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.9</span>
+                <span id="client-version-inline" style="color: #64ffda; opacity: 0.7;">v3.3.16</span>
             </div>
         </div>
     </div>
@@ -2285,4 +2299,4 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
 
-    <script src="app.js?v=3.3.9"></script>
+    <script src="app.js?v=3.3.16"></script>

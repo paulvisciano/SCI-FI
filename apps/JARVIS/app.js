@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.9';
-const CLIENT_BUILD_DATE = '2026-04-05';
+const CLIENT_VERSION = '3.3.16';
+const CLIENT_BUILD_DATE = '2026-04-07';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
@@ -137,8 +137,10 @@ function positionTranscriptBubble() {
   tr.style.right = 'auto';
   const tw = tr.getBoundingClientRect().width;
   if (tw > 0) {
-    left = Math.min(left, window.innerWidth - tw - 10);
-    left = Math.max(8, left);
+    const style = getComputedStyle(tr);
+    const edgeGap = parseFloat(style.getPropertyValue('--transcript-edge-gap')) || 24;
+    left = Math.min(left, window.innerWidth - tw - edgeGap);
+    left = Math.max(edgeGap, left);
     tr.style.left = `${Math.round(left)}px`;
   }
 }
@@ -174,14 +176,15 @@ let scriptProcessor;
 let streamingInterval;
 let lastTranscript = '';
 
-// Check if video loaded successfully, if not show fallback button
+// Check if video loaded successfully, if not log but keep orb visible
 jarvisVideo.addEventListener('error', () => {
-  console.error('Video failed to load, showing fallback button');
-  jarvisOrb.style.display = 'none';
+  console.error('[JarvisOrb] Video failed to load - orb will be visible but not animated');
+  // Don't hide orb - it should still be visible even if video fails
+  // This can happen on iPad due to autoplay restrictions
 });
 
 jarvisVideo.addEventListener('loadeddata', () => {
-  console.log('Video loaded successfully');
+  console.log('[JarvisOrb] Video loaded successfully');
   // Set playback speed to 1.25x - slightly faster, still smooth
   jarvisVideo.playbackRate = 1.25;
 });
@@ -1936,53 +1939,66 @@ function initJarvisOrb() {
     return;
   }
 
-  jarvisOrbScene = new THREE.Scene();
-  jarvisOrbScene.background = null;
+  try {
+    jarvisOrbScene = new THREE.Scene();
+    jarvisOrbScene.background = null;
 
-  jarvisOrbCamera = new THREE.PerspectiveCamera(68, 1, 0.1, 1000);
-  /* Closer camera = larger sphere in frame; canvas pixel size unchanged (resizeOrb still uses #jarvis-orb). */
-  jarvisOrbCamera.position.set(0, 0, 2.58);
+    jarvisOrbCamera = new THREE.PerspectiveCamera(68, 1, 0.1, 1000);
+    /* Closer camera = larger sphere in frame; canvas pixel size unchanged (resizeOrb still uses #jarvis-orb). */
+    jarvisOrbCamera.position.set(0, 0, 2.58);
 
-  jarvisOrbRenderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    premultipliedAlpha: false
-  });
-  jarvisOrbRenderer.setClearColor(0x000000, 0);
-  if (jarvisOrbRenderer.outputEncoding !== undefined && THREE.sRGBEncoding !== undefined) {
-    jarvisOrbRenderer.outputEncoding = THREE.sRGBEncoding;
+    jarvisOrbRenderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      premultipliedAlpha: false
+    });
+    jarvisOrbRenderer.setClearColor(0x000000, 0);
+    if (jarvisOrbRenderer.outputEncoding !== undefined && THREE.sRGBEncoding !== undefined) {
+      jarvisOrbRenderer.outputEncoding = THREE.sRGBEncoding;
+    }
+    jarvisOrbRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    mount.appendChild(jarvisOrbRenderer.domElement);
+    console.log('[JarvisOrb] Renderer created, canvas appended to mount');
+  } catch (err) {
+    console.error('[JarvisOrb] WebGLRenderer init failed:', err);
+    return;
   }
-  jarvisOrbRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  mount.appendChild(jarvisOrbRenderer.domElement);
 
   function createVideoSphere() {
     if (jarvisOrbMesh) {return;}
-    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {return;}
-
-    jarvisOrbVideoTexture = new THREE.VideoTexture(video);
-    jarvisOrbVideoTexture.minFilter = THREE.LinearFilter;
-    jarvisOrbVideoTexture.magFilter = THREE.LinearFilter;
-    jarvisOrbVideoTexture.flipY = false;
-    if (THREE.SRGBColorSpace !== undefined) {
-      jarvisOrbVideoTexture.colorSpace = THREE.SRGBColorSpace;
-    } else if (THREE.sRGBEncoding !== undefined) {
-      jarvisOrbVideoTexture.encoding = THREE.sRGBEncoding;
+    if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {
+      console.log('[JarvisOrb] Video not ready yet (readyState:', video.readyState, 'videoWidth:', video.videoWidth, ')');
+      return;
     }
-    const maxA = jarvisOrbRenderer.capabilities.getMaxAnisotropy
-      ? jarvisOrbRenderer.capabilities.getMaxAnisotropy()
-      : 1;
-    jarvisOrbVideoTexture.anisotropy = Math.min(8, maxA);
 
-    const geometry = new THREE.SphereGeometry(1, 96, 64);
-    const material = new THREE.MeshBasicMaterial({
-      map: jarvisOrbVideoTexture,
-      color: 0xffffff
-    });
-    jarvisOrbMesh = new THREE.Mesh(geometry, material);
-    jarvisOrbMesh.scale.x = -1;
-    jarvisOrbScene.add(jarvisOrbMesh);
-    syncJarvisOrbRecordingMaterial();
-    console.log('[JarvisOrb] Video mapped onto sphere', video.videoWidth, 'x', video.videoHeight);
+    try {
+      jarvisOrbVideoTexture = new THREE.VideoTexture(video);
+      jarvisOrbVideoTexture.minFilter = THREE.LinearFilter;
+      jarvisOrbVideoTexture.magFilter = THREE.LinearFilter;
+      jarvisOrbVideoTexture.flipY = false;
+      if (THREE.SRGBColorSpace !== undefined) {
+        jarvisOrbVideoTexture.colorSpace = THREE.SRGBColorSpace;
+      } else if (THREE.sRGBEncoding !== undefined) {
+        jarvisOrbVideoTexture.encoding = THREE.sRGBEncoding;
+      }
+      const maxA = jarvisOrbRenderer.capabilities.getMaxAnisotropy
+        ? jarvisOrbRenderer.capabilities.getMaxAnisotropy()
+        : 1;
+      jarvisOrbVideoTexture.anisotropy = Math.min(8, maxA);
+
+      const geometry = new THREE.SphereGeometry(1, 96, 64);
+      const material = new THREE.MeshBasicMaterial({
+        map: jarvisOrbVideoTexture,
+        color: 0xffffff
+      });
+      jarvisOrbMesh = new THREE.Mesh(geometry, material);
+      jarvisOrbMesh.scale.x = -1;
+      jarvisOrbScene.add(jarvisOrbMesh);
+      syncJarvisOrbRecordingMaterial();
+      console.log('[JarvisOrb] Video mapped onto sphere', video.videoWidth, 'x', video.videoHeight);
+    } catch (err) {
+      console.error('[JarvisOrb] createVideoSphere failed:', err);
+    }
   }
 
   function kickPlayback() {
@@ -1998,6 +2014,7 @@ function initJarvisOrb() {
   video.addEventListener('canplay', () => {
     createVideoSphere();
   });
+  console.log('[JarvisOrb] Initial video readyState:', video.readyState, 'videoWidth:', video.videoWidth);
   createVideoSphere();
   kickPlayback();
 
@@ -2018,12 +2035,15 @@ function initJarvisOrb() {
     syncJarvisOrbRecordingMaterial();
   });
 
+  // Store video reference for animateOrb
+  const orbVideoRef = video;
+
   function animateOrb() {
     requestAnimationFrame(animateOrb);
     if (document.hidden) {
       return;
     }
-    if (jarvisOrbVideoTexture && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+    if (jarvisOrbVideoTexture && orbVideoRef.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
       jarvisOrbVideoTexture.needsUpdate = true;
     }
     if (jarvisOrbMesh) {
@@ -2157,6 +2177,120 @@ function initNeurograph() {
   // Load neurograph data
   loadNeurographData();
   console.log('[Neurograph] Initialized');
+
+  // Expose navigation API for external control (browser tool, evaluate, skills)
+  window.JarvisNav = {
+    focusNode: (nodeId) => {
+      if (!nodeId || typeof nodeId !== 'string') {
+        return { ok: false, error: 'Invalid nodeId' };
+      }
+      if (!neurographScene) {
+        return { ok: false, error: 'Neurograph not ready' };
+      }
+      const node = neurons.find((n) => n.userData && n.userData.id === nodeId);
+      if (!node) {
+        console.warn(`[JarvisNav] Node not found: ${nodeId}`);
+        return { ok: false, error: 'Node not found' };
+      }
+      focusNeurographNode(node);
+      console.log(`[JarvisNav] Focused on ${nodeId}`);
+      return { ok: true, nodeId };
+    },
+
+    fly: (direction, distance = 1000) => {
+      if (!neurographScene || !neurographCamera || !neurographControls) {
+        return { ok: false, error: 'Neurograph not ready' };
+      }
+      if (neurographFlyActive || neurographDoubleTapFlyActive) {
+        return { ok: false, error: 'Camera fly in progress' };
+      }
+      if (!Number.isFinite(distance) || distance <= 0) {
+        return { ok: false, error: 'Invalid distance' };
+      }
+      neurographCamera.getWorldDirection(_neuroKForward);
+      _neuroKRight.crossVectors(_neuroKForward, neurographCamera.up);
+      if (_neuroKRight.lengthSq() < 1e-10) {
+        _neuroKRight.set(1, 0, 0);
+      } else {
+        _neuroKRight.normalize();
+      }
+      if (direction === 'forward') {
+        _neuroKMove.copy(_neuroKForward).multiplyScalar(distance);
+      } else if (direction === 'backward') {
+        _neuroKMove.copy(_neuroKForward).multiplyScalar(-distance);
+      } else if (direction === 'left') {
+        _neuroKMove.copy(_neuroKRight).multiplyScalar(-distance);
+      } else if (direction === 'right') {
+        _neuroKMove.copy(_neuroKRight).multiplyScalar(distance);
+      } else {
+        return { ok: false, error: 'Invalid direction' };
+      }
+      neurographCamera.position.add(_neuroKMove);
+      neurographControls.target.add(_neuroKMove);
+      neurographControls.update();
+      console.log(`[JarvisNav] Flew ${direction} ${distance} units`);
+      return { ok: true, direction, distance };
+    },
+
+    resetView: () => {
+      if (!neurographCamera || !neurographControls) {
+        return { ok: false, error: 'Neurograph not ready' };
+      }
+      if (!neurons.length) {
+        return { ok: false, error: 'No nodes' };
+      }
+      const allPoints = neurons.map((n) => n.position.clone());
+      if (neurographTemporalMode) {
+        fitNeurographCameraToPresentDayAnchor(allPoints);
+        console.log('[JarvisNav] Reset view (temporal, present-day anchor)');
+        return { ok: true };
+      }
+      fitNeurographCameraToPoints(allPoints);
+      console.log('[JarvisNav] Reset view (legacy fit)');
+      return { ok: true };
+    },
+
+    getNodes: (type) => {
+      const nodes = neurons.map((n) => (n.userData ? { ...n.userData } : {}));
+      const filtered = type ? nodes.filter((n) => n.nodeKind === type) : nodes;
+      console.log(`[JarvisNav] Returned ${filtered.length} nodes`);
+      return filtered;
+    },
+
+    getNode: (nodeId) => {
+      if (!nodeId || typeof nodeId !== 'string') {
+        return null;
+      }
+      const node = neurons.find((n) => n.userData && n.userData.id === nodeId);
+      const data = node ? { ...node.userData } : null;
+      console.log(`[JarvisNav] Got node: ${nodeId}`, data ? 'found' : 'not found');
+      return data;
+    },
+
+    zoom: (level) => {
+      if (!neurographCamera || !neurographControls) {
+        return { ok: false, error: 'Neurograph not ready' };
+      }
+      if (!Number.isFinite(level) || level <= 0) {
+        return { ok: false, error: 'Invalid level' };
+      }
+      const currentDist = neurographCamera.position.distanceTo(neurographControls.target);
+      if (currentDist < 1e-6) {
+        return { ok: false, error: 'Degenerate camera distance' };
+      }
+      let newDist = currentDist * level;
+      const minD = neurographControls.minDistance;
+      const maxD = neurographControls.maxDistance;
+      newDist = Math.max(minD, Math.min(maxD, newDist));
+      _neuroKForward.subVectors(neurographCamera.position, neurographControls.target).normalize().multiplyScalar(newDist);
+      neurographCamera.position.copy(neurographControls.target).add(_neuroKForward);
+      neurographControls.update();
+      console.log(`[JarvisNav] Zoomed level ${level} (distance ${newDist})`);
+      return { ok: true, level, distance: newDist };
+    }
+  };
+  console.log('[JarvisNav] Navigation API exposed on window.JarvisNav');
+  console.log('[JarvisNav] Available methods:', Object.keys(window.JarvisNav).join(', '));
 
   // Add starfield to background
   createStarfield();
@@ -2388,15 +2522,22 @@ let neurographFocusTarget = null;
 let neurographFlyActive = false;
 /** Double-tap empty-space fly — shared so keyboard fly can pause during it. */
 let neurographDoubleTapFlyActive = false;
-const neurographFocusDir = new THREE.Vector3(0, 0, 1);
-// OrbitControls clamps camera–target distance to [minDistance, maxDistance]; the fly must end
-// inside that range or the first update() after re-enabling controls jumps the camera.
-const NEUROGRAPH_FOCUS_DISTANCE = 44;
-const NEUROGRAPH_FLY_DURATION_MS = 3400;
+/** Press-and-hold to fly forward continuously (iPad/Touch) */
+let neurographTouchHoldActive = false;
+let neurographTouchHoldTimer = null;
+let neurographTouchHoldStartPos = null;
+let neurographTouchHoldRect = null;
+/** Touch flight state - direction and speed */
+let neuroTouchFlight = { active: false, speed: 0, direction: new THREE.Vector3(0, 0, -1), decelerating: false };
+const NEURO_TOUCH_HOLD_DEADZONE = 50;  // pixels - tap must move less than this to count
+const NEURO_TOUCH_HOLD_DELAY = 300;    // ms - hold duration before flying starts
+const NEURO_TOUCH_FLY_SPEED = 180;     // Slower than keyboard fly - smooth floating feel
+const NEURO_TOUCH_DECEL_FACTOR = 0.94; // Exponential decay factor for smooth stop
 const _neuroDesiredCam = new THREE.Vector3();
 const neurographFlyFromCam = new THREE.Vector3();
 const neurographFlyFromTarget = new THREE.Vector3();
 let neurographFlyStartTime = 0;
+const neurographFocusDir = new THREE.Vector3(0, 0, 1);
 
 const _neuroKForward = new THREE.Vector3();
 const _neuroKRight = new THREE.Vector3();
@@ -2647,6 +2788,42 @@ function focusNeurographNode(neuron, options = {}) {
   }
 }
 
+/** Touch hold flight: translate camera + orbit target in finger direction - smooth floating feel */
+function applyNeurographTouchFlightFrame() {
+  if (!neurographScene || !neurographCamera || !neurographControls) {return;}
+  if (neurographFlyActive || neurographDoubleTapFlyActive || !neurographControls.enabled) {return;}
+  
+  const now = performance.now();
+  const dt = neuroFlyKeyLastT ? Math.min(0.04, (now - neuroFlyKeyLastT) / 1000) : 0.016;
+  neuroFlyKeyLastT = now;
+  
+  // Check if touch flight is active
+  if (neuroTouchFlight.active || neuroTouchFlight.decelerating) {
+    // Calculate flight speed
+    if (neuroTouchFlight.active && !neuroTouchFlight.decelerating) {
+      // Accelerate from 0 to max speed
+      neuroTouchFlight.speed += NEURO_TOUCH_FLY_SPEED * dt * 3;  // Accelerate in ~0.3s
+      if (neuroTouchFlight.speed > NEURO_TOUCH_FLY_SPEED) {
+        neuroTouchFlight.speed = NEURO_TOUCH_FLY_SPEED;
+      }
+    } else if (neuroTouchFlight.decelerating) {
+      // Smooth deceleration
+      neuroTouchFlight.speed *= NEURO_TOUCH_DECEL_FACTOR;
+      if (neuroTouchFlight.speed < 10) {
+        neuroTouchFlight.active = false;
+        neuroTouchFlight.decelerating = false;
+        neuroTouchFlight.speed = 0;
+        return;  // Flight stopped
+      }
+    }
+    
+    // Calculate movement vector based on direction
+    const moveAmount = neuroTouchFlight.direction.clone().multiplyScalar(neuroTouchFlight.speed * dt);
+    neurographCamera.position.add(moveAmount);
+    neurographControls.target.add(moveAmount);
+  }
+}
+
 /** Arrow keys: translate camera + orbit target along view / strafe — feels like flying through space (not screen pan). */
 function applyNeurographKeyboardFlyFrame() {
   if (!neurographScene || !neurographCamera || !neurographControls) {return;}
@@ -2771,6 +2948,7 @@ function animateNeurograph() {
     }
   } else if (neurographControls) {
     neurographControls.enabled = true;
+    applyNeurographTouchFlightFrame();
     applyNeurographKeyboardFlyFrame();
     neurographControls.update();
   }
@@ -3066,10 +3244,14 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
       const clickedNode = hits[0].object;
       console.log('[Neurograph] Node tapped:', clickedNode.userData.id);
       focusNeurographNode(clickedNode);
+      if (clickedNode.userData && clickedNode.userData.id) {
+        syncNeurographNodeParamToUrl(String(clickedNode.userData.id));
+      }
       return 'node';
     }
     console.log('[Neurograph] Empty space tapped - clearing focus');
     clearNeurographNodeFocus();
+    clearNeurographNodeParamFromUrl();
     return 'empty';
   }
 
@@ -3104,6 +3286,128 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
       e.stopPropagation();
       if (outcome === 'node' || outcome === 'double-empty') {
         if (typeof e.stopImmediatePropagation === 'function') {e.stopImmediatePropagation();}
+      }
+    },
+    { capture: true, passive: false }
+  );
+
+  // === Press-and-hold for continuous flight (iPad/Touch only) ===
+  // Start hold timer on touchstart
+  ngPickEl.addEventListener(
+    'touchstart',
+    (e) => {
+      if (!neurographScene || neurons.length === 0) {return;}
+      // Only single-finger touch
+      if (e.touches.length !== 1) {return;}
+      // Only for empty space (not nodes)
+      const t = e.touches[0];
+      const rect = ngPickEl.getBoundingClientRect();
+      const mouse = new THREE.Vector2();
+      mouse.x = ((t.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((t.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, neurographCamera);
+      const hits = raycaster.intersectObjects(neurons);
+      
+      // Only track empty space touches
+      if (hits.length > 0) {return;}
+      
+      // Record start position for deadzone and direction calculation
+      neurographTouchHoldStartPos = { x: t.clientX, y: t.clientY };
+      neurographTouchHoldRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      neuroTouchFlight.decelerating = false;
+      
+      // Start hold timer
+      neurographTouchHoldTimer = setTimeout(() => {
+        if (neurographTouchHoldActive) {
+          console.log('[Neurograph] Press-and-hold activated - flight started');
+          neuroTouchFlight.active = true;
+          // Default direction: forward (negative Z)
+          neuroTouchFlight.direction.set(0, 0, -1);
+          neuroTouchFlight.speed = 0;
+        }
+      }, NEURO_TOUCH_HOLD_DELAY);
+      
+      neurographTouchHoldActive = true;
+    },
+    { capture: true, passive: false }
+  );
+
+  // Stop holding on touchend - trigger smooth deceleration
+  ngPickEl.addEventListener(
+    'touchend',
+    (e) => {
+      if (!neurographTouchHoldActive) {return;}
+      
+      // Clear the hold timer
+      if (neurographTouchHoldTimer) {
+        clearTimeout(neurographTouchHoldTimer);
+        neurographTouchHoldTimer = null;
+      }
+      
+      // Trigger deceleration
+      neuroTouchFlight.decelerating = true;
+      console.log('[Neurograph] Touch ended - smooth deceleration started');
+      
+      neurographTouchHoldActive = false;
+      neurographTouchHoldStartPos = null;
+      neurographTouchHoldRect = null;
+    },
+    { capture: true, passive: false }
+  );
+
+  // Update direction on touchmove and check deadzone
+  ngPickEl.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!neurographTouchHoldActive || !neurographTouchHoldStartPos) {return;}
+      
+      const t = e.touches[0];
+      const dist = Math.sqrt(
+        Math.pow(t.clientX - neurographTouchHoldStartPos.x, 2) +
+        Math.pow(t.clientY - neurographTouchHoldStartPos.y, 2)
+      );
+      
+      // If moved more than deadzone, cancel hold
+      if (dist > NEURO_TOUCH_HOLD_DEADZONE) {
+        if (neurographTouchHoldTimer) {
+          clearTimeout(neurographTouchHoldTimer);
+          neurographTouchHoldTimer = null;
+        }
+        console.log('[Neurograph] Touch moved - hold cancelled');
+        neurographTouchHoldActive = false;
+        neurographTouchHoldStartPos = null;
+        neurographTouchHoldRect = null;
+        neuroTouchFlight.active = false;
+        neuroTouchFlight.decelerating = false;
+        neuroTouchFlight.speed = 0;
+        return;
+      }
+      
+      // Update flight direction based on finger movement
+      if (neuroTouchFlight.active && neurographCamera && neurographTouchHoldRect) {
+        // Calculate direction from center of screen (finger deviation)
+        const centerX = neurographTouchHoldRect.left + neurographTouchHoldRect.width / 2;
+        const centerY = neurographTouchHoldRect.top + neurographTouchHoldRect.height / 2;
+        const dx = (t.clientX - centerX) / rect.width;  // -0.5 to 0.5
+        const dy = (t.clientY - centerY) / rect.height;  // -0.5 to 0.5
+        
+        // Get camera forward direction
+        neurographCamera.getWorldDirection(_neuroKForward);
+        _neuroKRight.crossVectors(_neuroKForward, neurographCamera.up);
+        if (_neuroKRight.lengthSq() < 1e-10) {
+          _neuroKRight.set(1, 0, 0);
+        } else {
+          _neuroKRight.normalize();
+        }
+        
+        // Map 2D finger movement to 3D flight direction
+        // X movement -> strafe (right/left)
+        // Y movement -> vertical (up/down)
+        neuroTouchFlight.direction
+          .copy(_neuroKForward)
+          .addScaledVector(_neuroKRight, dx * 1.2)      // Sensitivity for strafe
+          .addScaledVector(neurographCamera.up, -dy * 0.8); // Sensitivity for vertical
+        neuroTouchFlight.direction.normalize();
       }
     },
     { capture: true, passive: false }
@@ -3275,6 +3579,76 @@ function neuroEdgePeerId(edge, nodeId) {
   return '?';
 }
 
+/** First line of commit subject for hero display; prefers attributes.message over emoji-prefixed label. */
+function getNeuroCommitPrimaryMessage(node) {
+  const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+  const msg = (attrs && attrs.message) || node.message;
+  if (msg && String(msg).trim()) {
+    return String(msg).split('\n')[0].trim();
+  }
+  let lab = node.label || node.id || '';
+  lab = stripLeadingCalendarEmoji(String(lab));
+  lab = lab.replace(/^\s*🫁\s*/u, '').trim();
+  return lab || String(node.id || 'Commit');
+}
+
+function pushNeuroPanelChips(parts, node, nodeData) {
+  const esc = escapeHtmlNeuro;
+  const type = node.type || '';
+  const isTemporalCommit = type === 'temporal-commit';
+  const isDayAnchor = type === 'temporal-day-anchor';
+
+  if (isTemporalCommit) {
+    const ct = node.commitType || (node.attributes && node.attributes.commitType);
+    if (ct) {
+      parts.push(`<span class="neuro-chip neuro-chip--dim">${esc(String(ct))}</span>`);
+    } else {
+      parts.push('<span class="neuro-chip neuro-chip--dim">commit</span>');
+    }
+    if (nodeData.isConnectedToTheme) {
+      parts.push('<span class="neuro-chip neuro-chip--accent">theme link</span>');
+    }
+    return;
+  }
+  if (isDayAnchor) {
+    parts.push('<span class="neuro-chip neuro-chip--dim">day</span>');
+    if (nodeData.isConnectedToTheme) {
+      parts.push('<span class="neuro-chip neuro-chip--accent">theme link</span>');
+    }
+    return;
+  }
+  if (node.category) {
+    parts.push(`<span class="neuro-chip">${esc(node.category)}</span>`);
+  }
+  if (node.type && node.type !== node.category) {
+    parts.push(`<span class="neuro-chip neuro-chip--dim">${esc(node.type)}</span>`);
+  }
+  if (nodeData.isTemporal && !String(node.category || '').toLowerCase().includes('temporal')) {
+    parts.push('<span class="neuro-chip neuro-chip--accent">temporal</span>');
+  }
+  if (nodeData.isConnectedToTheme) {
+    parts.push('<span class="neuro-chip neuro-chip--accent">theme link</span>');
+  }
+}
+
+/** Attribute keys to omit for temporal-commit panels (message is the hero; rest is noise). */
+const NEURO_COMMIT_ATTR_EXCLUDE = new Set([
+  'message', 'role', 'commitType', 'created', 'color', 'position', 'source'
+]);
+
+function neuroCommitAttributeKeys(attrs) {
+  const order = ['commitHashFull', 'breathDate', 'timestamp', 'anchorId'];
+  const keys = new Set(Object.keys(attrs));
+  const out = [];
+  order.forEach(k => {
+    if (keys.has(k) && !NEURO_COMMIT_ATTR_EXCLUDE.has(k)) {out.push(k);}
+  });
+  Object.keys(attrs).forEach(k => {
+    if (!out.includes(k) && !NEURO_COMMIT_ATTR_EXCLUDE.has(k)) {out.push(k);}
+  });
+  return out;
+}
+
 // Minimized tooltip (on hover) - shows just title and category
 function createMinimizedNodeLabel(nodeData) {
   const esc = escapeHtmlNeuro;
@@ -3295,10 +3669,22 @@ function createMinimizedNodeLabel(nodeData) {
 
   const node = nodeData.rawData;
   const id = node.id || nodeData.id || '';
-  const title = stripLeadingCalendarEmoji(node.label || id || 'Node');
+  const isCommit = node.type === 'temporal-commit';
+  const title = isCommit
+    ? getNeuroCommitPrimaryMessage(node)
+    : stripLeadingCalendarEmoji(node.label || id || 'Node');
   const category = node.category || nodeData.category || '';
   const type = node.type || nodeData.type || '';
-  const temporal = nodeData.isTemporal ? '<span class="neuro-tooltip-temporal">T</span>' : '';
+  const temporal = !isCommit && nodeData.isTemporal ? '<span class="neuro-tooltip-temporal">T</span>' : '';
+
+  if (isCommit) {
+    return `<div class="neuro-tooltip-content">
+      <div class="neuro-tooltip-header">
+        <div class="neuro-tooltip-title">${esc(title)}</div>
+      </div>
+      <div class="neuro-tooltip-hint">Click for details</div>
+    </div>`;
+  }
 
   let content = `<div class="neuro-tooltip-content">
     <div class="neuro-tooltip-header">
@@ -3340,7 +3726,10 @@ function createCollapsedNodeLabel(nodeData) {
 
   const node = nodeData.rawData;
   const id = node.id || nodeData.id || '';
-  const title = stripLeadingCalendarEmoji(node.label || id || 'Node');
+  const isCommit = node.type === 'temporal-commit';
+  const title = isCommit
+    ? getNeuroCommitPrimaryMessage(node)
+    : stripLeadingCalendarEmoji(node.label || id || 'Node');
   const description = node.description || '';
 
   let content = `<div class="neuro-panel-collapsed">
@@ -3371,45 +3760,40 @@ function createNodeLabel(nodeData) {
 
   const node = nodeData.rawData;
   const id = node.id || nodeData.id || '';
-  const title = stripLeadingCalendarEmoji(node.label || id || 'Node');
+  const isCommit = node.type === 'temporal-commit';
+  const title = isCommit
+    ? getNeuroCommitPrimaryMessage(node)
+    : stripLeadingCalendarEmoji(node.label || id || 'Node');
   const edges = getNeuroEdgesForNode(id);
   const parts = [];
 
   parts.push('<div class="neuro-node-panel">');
   parts.push('<div class="neuro-node-panel__head">');
   parts.push('<div class="neuro-node-panel__chips">');
-  if (node.category) {
-    parts.push(`<span class="neuro-chip">${esc(node.category)}</span>`);
-  }
-  if (node.type) {
-    parts.push(`<span class="neuro-chip neuro-chip--dim">${esc(node.type)}</span>`);
-  }
-  if (nodeData.isTemporal) {
-    parts.push('<span class="neuro-chip neuro-chip--accent">temporal</span>');
-  }
-  if (nodeData.isConnectedToTheme) {
-    parts.push('<span class="neuro-chip neuro-chip--accent">theme link</span>');
-  }
+  pushNeuroPanelChips(parts, node, nodeData);
   parts.push('</div>');
-  parts.push(`<h3 class="neuro-node-panel__title">${esc(title)}</h3>`);
+  const titleClass = isCommit ? 'neuro-node-panel__title neuro-node-panel__title--lead' : 'neuro-node-panel__title';
+  parts.push(`<h3 class="${titleClass}">${esc(title)}</h3>`);
   parts.push(`<div class="neuro-node-panel__id">${esc(id)}</div>`);
   parts.push('</div>');
 
   parts.push('<div class="neuro-node-panel__scroll">');
 
-  parts.push('<section class="neuro-node-panel__sec">');
-  parts.push('<div class="neuro-node-panel__sec-title">Graph context</div>');
-  parts.push(neuroPanelRow('Connections (edges)', String(edges.length)));
-  if (typeof nodeData.themeConnectionWeight === 'number') {
-    parts.push(neuroPanelRow('Theme link weight', esc(String(nodeData.themeConnectionWeight))));
+  if (!isCommit) {
+    parts.push('<section class="neuro-node-panel__sec">');
+    parts.push('<div class="neuro-node-panel__sec-title">Graph context</div>');
+    parts.push(neuroPanelRow('Connections (edges)', String(edges.length)));
+    if (typeof nodeData.themeConnectionWeight === 'number') {
+      parts.push(neuroPanelRow('Theme link weight', esc(String(nodeData.themeConnectionWeight))));
+    }
+    parts.push(neuroPanelRow('Temporal flag', nodeData.isTemporal ? 'yes' : 'no'));
+    parts.push(neuroPanelRow('Linked to theme hub', nodeData.isConnectedToTheme ? 'yes' : 'no'));
+    parts.push('</section>');
   }
-  parts.push(neuroPanelRow('Temporal flag', nodeData.isTemporal ? 'yes' : 'no'));
-  parts.push(neuroPanelRow('Linked to theme hub', nodeData.isConnectedToTheme ? 'yes' : 'no'));
-  parts.push('</section>');
 
   const knownTop = new Set(['id', 'label', 'category', 'type', 'attributes', 'moments']);
   const extraKeys = Object.keys(node).filter(k => !knownTop.has(k));
-  if (extraKeys.length > 0) {
+  if (!isCommit && extraKeys.length > 0) {
     parts.push('<section class="neuro-node-panel__sec">');
     parts.push('<div class="neuro-node-panel__sec-title">Node fields</div>');
     extraKeys.forEach(k => {
@@ -3420,12 +3804,24 @@ function createNodeLabel(nodeData) {
 
   const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
   if (attrs && Object.keys(attrs).length > 0) {
-    parts.push('<section class="neuro-node-panel__sec">');
-    parts.push(`<div class="neuro-node-panel__sec-title">Attributes <span class="neuro-node-panel__count">${Object.keys(attrs).length}</span></div>`);
-    Object.keys(attrs).forEach(k => {
-      parts.push(neuroPanelRow(k, formatNeuroAttrCell(k, attrs[k])));
-    });
-    parts.push('</section>');
+    if (isCommit) {
+      const attrKeys = neuroCommitAttributeKeys(attrs);
+      if (attrKeys.length > 0) {
+        parts.push('<section class="neuro-node-panel__sec">');
+        parts.push('<div class="neuro-node-panel__sec-title">Details</div>');
+        attrKeys.forEach(k => {
+          parts.push(neuroPanelRow(k, formatNeuroAttrCell(k, attrs[k])));
+        });
+        parts.push('</section>');
+      }
+    } else {
+      parts.push('<section class="neuro-node-panel__sec">');
+      parts.push(`<div class="neuro-node-panel__sec-title">Attributes <span class="neuro-node-panel__count">${Object.keys(attrs).length}</span></div>`);
+      Object.keys(attrs).forEach(k => {
+        parts.push(neuroPanelRow(k, formatNeuroAttrCell(k, attrs[k])));
+      });
+      parts.push('</section>');
+    }
   }
 
   if (node.moments && node.moments.length > 0) {
@@ -3468,7 +3864,7 @@ function createNodeLabel(nodeData) {
     parts.push('</section>');
   }
 
-  if (neurographData && neurographData.meta) {
+  if (neurographData && neurographData.meta && !isCommit) {
     parts.push('<section class="neuro-node-panel__sec">');
     parts.push('<div class="neuro-node-panel__sec-title">Dataset</div>');
     parts.push(neuroPanelRow('Nodes in graph', String(neurographData.meta.nodeCount ?? '—')));
@@ -3711,6 +4107,154 @@ let neurographFocusTemporalPull = TEMPORAL_FOCUS_PULL_INITIAL;
 const TEMPORAL_EMPTY_FLY_HYPER_DISTANCE = 5280;
 const TEMPORAL_EMPTY_FLY_HYPER_MS = 400;
 
+/** Cached procedural maps (shared by all temporal spheres). */
+let _temporalNeuroSphereMaps = null;
+
+function _temporalSurfaceNoise(x, y) {
+  return (
+    Math.sin(x * 0.071) * Math.cos(y * 0.063) * 0.72 +
+    Math.sin((x + y) * 0.041) * 0.48 +
+    Math.sin(x * 0.152 + y * 0.128) * 0.26
+  );
+}
+
+function createTemporalSphereNormalMap(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(size, size);
+  const d = imgData.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const hL = _temporalSurfaceNoise(x - 1, y);
+      const hR = _temporalSurfaceNoise(x + 1, y);
+      const hD = _temporalSurfaceNoise(x, y - 1);
+      const hU = _temporalSurfaceNoise(x, y + 1);
+      let nx = (hL - hR) * 0.65;
+      let ny = (hD - hU) * 0.65;
+      let nz = 1;
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+      nx /= len;
+      ny /= len;
+      nz /= len;
+      const i = (y * size + x) * 4;
+      d[i] = nx * 0.5 + 0.5;
+      d[i + 1] = ny * 0.5 + 0.5;
+      d[i + 2] = nz * 0.5 + 0.5;
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 4);
+  if (THREE.LinearEncoding !== undefined) {
+    tex.encoding = THREE.LinearEncoding;
+  }
+  return tex;
+}
+
+function createTemporalSphereRoughnessMap(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(size, size);
+  const d = imgData.data;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const n =
+        0.78 +
+        0.12 * Math.sin(x * 0.095) * Math.cos(y * 0.088) +
+        0.08 * Math.sin((x + y) * 0.055);
+      const g = Math.min(255, Math.max(0, Math.floor(n * 255)));
+      const i = (y * size + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = g;
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(3, 3);
+  if (THREE.LinearEncoding !== undefined) {
+    tex.encoding = THREE.LinearEncoding;
+  }
+  return tex;
+}
+
+function getTemporalNeuroSphereMaps() {
+  if (_temporalNeuroSphereMaps) {
+    return _temporalNeuroSphereMaps;
+  }
+  _temporalNeuroSphereMaps = {
+    normalMap: createTemporalSphereNormalMap(256),
+    roughnessMap: createTemporalSphereRoughnessMap(256)
+  };
+  return _temporalNeuroSphereMaps;
+}
+
+function createTemporalDayAnchorMaterial(baseHex, maps) {
+  const col = new THREE.Color(baseHex);
+  const Physical = THREE.MeshPhysicalMaterial;
+  if (Physical) {
+    return new Physical({
+      color: col,
+      metalness: 0.58,
+      roughness: 0.36,
+      clearcoat: 0.32,
+      clearcoatRoughness: 0.36,
+      normalMap: maps.normalMap,
+      normalScale: new THREE.Vector2(0.5, 0.5),
+      roughnessMap: maps.roughnessMap,
+      emissive: col.clone(),
+      emissiveIntensity: 0.14,
+      envMapIntensity: 1
+    });
+  }
+  return new THREE.MeshStandardMaterial({
+    color: col,
+    metalness: 0.44,
+    roughness: 0.34,
+    normalMap: maps.normalMap,
+    normalScale: new THREE.Vector2(0.5, 0.5),
+    roughnessMap: maps.roughnessMap,
+    emissive: col.clone(),
+    emissiveIntensity: 0.14
+  });
+}
+
+function createTemporalCommitMaterial(baseHex, isBreath, maps) {
+  const col = new THREE.Color(baseHex);
+  const Physical = THREE.MeshPhysicalMaterial;
+  if (Physical) {
+    return new Physical({
+      color: col,
+      metalness: isBreath ? 0.54 : 0.46,
+      roughness: isBreath ? 0.34 : 0.42,
+      clearcoat: isBreath ? 0.34 : 0.26,
+      clearcoatRoughness: 0.38,
+      normalMap: maps.normalMap,
+      normalScale: new THREE.Vector2(0.48, 0.48),
+      roughnessMap: maps.roughnessMap,
+      emissive: col.clone(),
+      emissiveIntensity: isBreath ? 0.16 : 0.11,
+      envMapIntensity: 1
+    });
+  }
+  return new THREE.MeshStandardMaterial({
+    color: col,
+    metalness: isBreath ? 0.48 : 0.38,
+    roughness: isBreath ? 0.28 : 0.38,
+    normalMap: maps.normalMap,
+    normalScale: new THREE.Vector2(0.48, 0.48),
+    roughnessMap: maps.roughnessMap,
+    emissive: col.clone(),
+    emissiveIntensity: isBreath ? 0.16 : 0.11
+  });
+}
+
 function getTemporalCommitRadius(node) {
   const t = node.commitType || (node.attributes && node.attributes.commitType);
   if (t === 'breath') {return TEMPORAL_COMMIT_RADIUS_BREATH;}
@@ -3829,6 +4373,45 @@ function getLocalDateYyyyMmDd() {
   return `${y}-${m}-${day}`;
 }
 
+function syncNeurographNodeParamToUrl(nodeId) {
+  if (!nodeId || typeof nodeId !== 'string') {return;}
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('node', nodeId);
+    window.history.pushState({ nodeId }, '', url);
+  } catch (e) {
+    console.warn('[Neurograph] URL sync failed', e);
+  }
+}
+
+function clearNeurographNodeParamFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('node')) {return;}
+    url.searchParams.delete('node');
+    window.history.pushState({}, '', url);
+  } catch (e) {
+    console.warn('[Neurograph] URL clear failed', e);
+  }
+}
+
+/** If the page was opened with ?node=<id>, focus that node after the graph exists (overrides default “today” focus). */
+function maybeFocusNeurographFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    const nodeId = url.searchParams.get('node');
+    if (!nodeId || typeof window.JarvisNav === 'undefined') {return;}
+    window.setTimeout(() => {
+      const r = window.JarvisNav.focusNode(nodeId);
+      if (!r.ok) {
+        console.warn('[Neurograph] URL ?node= not found:', nodeId);
+      }
+    }, 150);
+  } catch (e) {
+    console.warn('[Neurograph] URL focus failed', e);
+  }
+}
+
 /** After load/refresh: full-graph fit, then same fly + end pose as click-to-focus (today or latest breathDate); no info panel. */
 function fitNeurographCameraToPresentDayAnchor(allPoints) {
   if (!allPoints.length || !neurographCamera || !neurographControls) {return;}
@@ -3876,6 +4459,7 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
   const labelHalfWorld = (TEMPORAL_ANCHOR_LABEL_CANVAS_H * TEMPORAL_ANCHOR_LABEL_SCALE) / 2;
   const labelYBelow =
     TEMPORAL_DAY_ANCHOR_RADIUS + TEMPORAL_ANCHOR_LABEL_GAP + labelHalfWorld;
+  const sphereMaps = getTemporalNeuroSphereMaps();
 
   dayAnchors.forEach((node, idx) => {
     const pos = getTemporalNodePosition(node);
@@ -3883,15 +4467,9 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
     applyTemporalPresentationTransform(pos);
     pos.multiplyScalar(TEMPORAL_WORLD_POSITION_SCALE);
     allPoints.push(pos.clone());
-    const geometry = new THREE.SphereGeometry(TEMPORAL_DAY_ANCHOR_RADIUS, 32, 32);
-    const col = parseHexColorNeuro(node.attributes && node.attributes.color, 0xffffff);
-    const mat = new THREE.MeshStandardMaterial({
-      color: col,
-      emissive: col,
-      emissiveIntensity: 0.14,
-      roughness: 0.32,
-      metalness: 0.38
-    });
+    const geometry = new THREE.SphereGeometry(TEMPORAL_DAY_ANCHOR_RADIUS, 64, 64);
+    const baseHex = parseHexColorNeuro(node.attributes && node.attributes.color, 0xffffff);
+    const mat = createTemporalDayAnchorMaterial(baseHex, sphereMaps);
     const mesh = new THREE.Mesh(geometry, mat);
     mesh.position.copy(pos);
     mesh.userData = {
@@ -3949,18 +4527,12 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
       allPoints.push(pos.clone());
 
       const r = getTemporalCommitRadius(node);
-      const geometry = new THREE.SphereGeometry(r, 22, 22);
+      const geometry = new THREE.SphereGeometry(r, 36, 36);
       const isBreath = (node.commitType || (node.attributes && node.attributes.commitType)) === 'breath';
-      const col = isBreath
+      const baseHex = isBreath
         ? TEMPORAL_COMMIT_COLOR_BREATH
         : parseHexColorNeuro(node.attributes && node.attributes.color, TEMPORAL_COMMIT_COLOR_COLD);
-      const mat = new THREE.MeshStandardMaterial({
-        color: col,
-        emissive: col,
-        emissiveIntensity: isBreath ? 0.16 : 0.11,
-        roughness: isBreath ? 0.35 : 0.45,
-        metalness: isBreath ? 0.42 : 0.32
-      });
+      const mat = createTemporalCommitMaterial(baseHex, isBreath, sphereMaps);
       const mesh = new THREE.Mesh(geometry, mat);
       mesh.position.copy(pos);
       mesh.userData = {
@@ -3993,6 +4565,7 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
   }
 
   fitNeurographCameraToPresentDayAnchor(allPoints);
+  maybeFocusNeurographFromUrl();
 }
 
 // Create neurograph from data
@@ -4276,6 +4849,7 @@ function createNeurograph(data) {
   // Node labels removed - causing "weird bubbles" effect with 9549 nodes
   // The neurograph is now clean with just nodes and connections
   // Labels can be re-added later if needed with proper filtering/limiting
+  maybeFocusNeurographFromUrl();
 }
 
 // Create fallback neurograph when API fails
