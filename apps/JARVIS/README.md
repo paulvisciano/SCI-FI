@@ -12,7 +12,7 @@
 
 **Features:**
 - Voice pipeline (record → transcribe → respond → archive)
-- 3D consciousness graph (10,801+ nodes, force-directed layout)
+- 3D consciousness graph (10,801+ nodes, force-directed layout, merged into root view)
 - Git-backed temporal memory (commits → anchors → learnings)
 - Dual-graph architecture (JARVIS technical + human personal)
 - OpenClaw skills integration (hearing, sight, touch, coordination)
@@ -180,7 +180,7 @@ node jarvis-server.js
 ╠═══════════════════════════════════════════════════════════╣
 ║  Version: 3.3.7 (2026-04-03)                            ║
 ║  Upload URL: https://localhost:18787/upload              ║
-║  NeuroGraph: https://localhost:18787/                    ║
+║  JARVIS UI:   https://localhost:18787/                    ║
 ╚═══════════════════════════════════════════════════════════╝
 ```
 
