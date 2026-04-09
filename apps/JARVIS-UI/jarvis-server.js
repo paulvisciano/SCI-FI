@@ -27,8 +27,8 @@ const HTTPS_OPTIONS = {
 
 // === Configuration (Portable - No Hardcoded Paths) ===
 // VERSION / BUILD_DATE: patch + build date updated by apps/JARVIS/scripts/bump-jarvis-versions.js when this file is staged (see .githooks/pre-commit).
-const VERSION = '3.3.8';
-const BUILD_DATE = '2026-04-07';
+const VERSION = '3.3.9';
+const BUILD_DATE = '2026-04-09';
 
 // Date formatting utility for consistent date handling
 function formatDateForFilename(date = new Date()) {
@@ -650,6 +650,72 @@ function handleRequest(req, res) {
   // === MEMORY SOURCE ENDPOINTS ===
   // /api/memory/jarvis - Jarvis consciousness graph (default)
   // /api/memory/user - Paul's personal memory graph
+
+  // GET /api/learnings/by-date - return learning markdown files grouped by YYYY-MM-DD
+  if (req.method === 'GET' && req.url === '/api/learnings/by-date') {
+    const base = process.env.HOME || '';
+    const learningsDir = path.join(base, 'JARVIS', 'RAW', 'learnings');
+
+    try {
+      if (!fs.existsSync(learningsDir)) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ byDate: {}, meta: { dateCount: 0, learningCount: 0 } }));
+        return;
+      }
+
+      const byDate = {};
+      let learningCount = 0;
+      const dateDirs = fs.readdirSync(learningsDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(entry.name))
+        .map((entry) => entry.name)
+        .sort();
+
+      dateDirs.forEach((dateKey) => {
+        const dayDir = path.join(learningsDir, dateKey);
+        const learningFiles = fs.readdirSync(dayDir, { withFileTypes: true })
+          .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.md'))
+          .map((entry) => entry.name)
+          .sort();
+
+        const entries = [];
+        learningFiles.forEach((fileName) => {
+          const fullPath = path.join(dayDir, fileName);
+          const content = fs.readFileSync(fullPath, 'utf8');
+          const slug = fileName.replace(/\.md$/i, '');
+          const headingMatch = content.match(/^#\s+(.+)$/m);
+          const title = headingMatch && headingMatch[1]
+            ? headingMatch[1].trim()
+            : slug.replace(/[-_]+/g, ' ').trim();
+          entries.push({
+            slug,
+            fileName,
+            title,
+            content
+          });
+        });
+
+        if (entries.length > 0) {
+          byDate[dateKey] = entries;
+          learningCount += entries.length;
+        }
+      });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        byDate,
+        meta: {
+          dateCount: Object.keys(byDate).length,
+          learningCount,
+          timestamp: new Date().toISOString()
+        }
+      }));
+    } catch (err) {
+      console.error('Learnings by date API error:', err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Failed to load learnings', details: err.message }));
+    }
+    return;
+  }
 
   // GET /api/memory/jarvis - return nodes + synapses for Jarvis memory
   if (req.method === 'GET' && req.url === '/api/memory/jarvis') {

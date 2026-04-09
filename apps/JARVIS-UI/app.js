@@ -1,8 +1,8 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.17';
-const CLIENT_BUILD_DATE = '2026-04-07';
+const CLIENT_VERSION = '3.3.18';
+const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
 let thinkingTimer = null;
@@ -899,17 +899,14 @@ function checkServerStatus() {
   console.log('[checkServerStatus] Starting...');
   const indicator = document.getElementById('server-indicator');
   const statusText = document.getElementById('server-status-text');
+  const drawerIndicator = document.getElementById('drawer-server-indicator');
+  const drawerStatusText = document.getElementById('drawer-server-status-text');
   console.log('[checkServerStatus] Elements:', { indicator: !!indicator, statusText: !!statusText });
 
   fetch(`${API_BASE}/health`)
     .then(res => res.json())
     .then(data => {
       console.log('[checkServerStatus] Health response:', data);
-      const indicator = document.getElementById('server-indicator');
-      const statusText = document.getElementById('server-status-text');
-      const drawerIndicator = document.getElementById('drawer-server-indicator');
-      const drawerStatusText = document.getElementById('drawer-server-status-text');
-
       // Check if JARVIS process is alive (from /health endpoint)
       // Response: { status: 'ok', version: VERSION, build: BUILD_DATE, jarvis: { pid, memory, uptime } }
       if (data.status === 'ok') {
@@ -1905,6 +1902,8 @@ const NEURO_FOG_DENSITY_DEFAULT = 0.00032;
 let neurographTemporalMode = false;
 /** Billboard date labels above day anchors (THREE.Sprite). */
 let neuroAnchorLabelSprites = [];
+/** Orbit animation state for temporal learning spheres. */
+let neuroLearningOrbits = [];
 
 // === Three.js JARVIS Orb Rendering ===
 // Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
@@ -3597,6 +3596,7 @@ function pushNeuroPanelChips(parts, node, nodeData) {
   const type = node.type || '';
   const isTemporalCommit = type === 'temporal-commit';
   const isDayAnchor = type === 'temporal-day-anchor';
+  const isLearning = type === 'temporal-learning';
 
   if (isTemporalCommit) {
     const ct = node.commitType || (node.attributes && node.attributes.commitType);
@@ -3615,6 +3615,11 @@ function pushNeuroPanelChips(parts, node, nodeData) {
     if (nodeData.isConnectedToTheme) {
       parts.push('<span class="neuro-chip neuro-chip--accent">theme link</span>');
     }
+    return;
+  }
+  if (isLearning) {
+    parts.push('<span class="neuro-chip neuro-chip--accent">learning</span>');
+    parts.push('<span class="neuro-chip neuro-chip--dim">orbit</span>');
     return;
   }
   if (node.category) {
@@ -3761,6 +3766,7 @@ function createNodeLabel(nodeData) {
   const node = nodeData.rawData;
   const id = node.id || nodeData.id || '';
   const isCommit = node.type === 'temporal-commit';
+  const isLearning = node.type === 'temporal-learning';
   const title = isCommit
     ? getNeuroCommitPrimaryMessage(node)
     : stripLeadingCalendarEmoji(node.label || id || 'Node');
@@ -3779,7 +3785,7 @@ function createNodeLabel(nodeData) {
 
   parts.push('<div class="neuro-node-panel__scroll">');
 
-  if (!isCommit) {
+  if (!isCommit && !isLearning) {
     parts.push('<section class="neuro-node-panel__sec">');
     parts.push('<div class="neuro-node-panel__sec-title">Graph context</div>');
     parts.push(neuroPanelRow('Connections (edges)', String(edges.length)));
@@ -3793,7 +3799,7 @@ function createNodeLabel(nodeData) {
 
   const knownTop = new Set(['id', 'label', 'category', 'type', 'attributes', 'moments']);
   const extraKeys = Object.keys(node).filter(k => !knownTop.has(k));
-  if (!isCommit && extraKeys.length > 0) {
+  if (!isCommit && !isLearning && extraKeys.length > 0) {
     parts.push('<section class="neuro-node-panel__sec">');
     parts.push('<div class="neuro-node-panel__sec-title">Node fields</div>');
     extraKeys.forEach(k => {
@@ -3803,7 +3809,23 @@ function createNodeLabel(nodeData) {
   }
 
   const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
-  if (attrs && Object.keys(attrs).length > 0) {
+  if (isLearning && attrs) {
+    parts.push('<section class="neuro-node-panel__sec">');
+    parts.push('<div class="neuro-node-panel__sec-title">Learning</div>');
+    if (attrs.date) {
+      parts.push(neuroPanelRow('Date', esc(String(attrs.date))));
+    }
+    if (attrs.sourceFile) {
+      parts.push(neuroPanelRow('Source', esc(String(attrs.sourceFile))));
+    }
+    if (attrs.content) {
+      parts.push('<div class="neuro-node-panel__row">');
+      parts.push('<div class="neuro-node-panel__k">Content</div>');
+      parts.push(`<div class="neuro-node-panel__v"><pre style="margin:0;white-space:pre-wrap;">${esc(String(attrs.content))}</pre></div>`);
+      parts.push('</div>');
+    }
+    parts.push('</section>');
+  } else if (attrs && Object.keys(attrs).length > 0) {
     if (isCommit) {
       const attrKeys = neuroCommitAttributeKeys(attrs);
       if (attrKeys.length > 0) {
@@ -3887,16 +3909,22 @@ function loadNeurographData() {
 // Load neurograph data from a specific memory source
 function loadNeurographFromSource(source) {
   const endpoint = source === 'user' ? '/api/memory/user' : '/api/memory/jarvis';
+  const learningsEndpoint = '/api/learnings/by-date';
   console.log(`[MemoryToggle] Loading ${source} memory from ${endpoint}`);
-  
-  fetch(endpoint)
+
+  const memoryPromise = fetch(endpoint)
     .then(res => {
       if (!res.ok) {
         throw new Error(`Memory API error: ${res.status}`);
       }
       return res.json();
-    })
-    .then(data => {
+    });
+  const learningsPromise = fetch(learningsEndpoint)
+    .then((res) => (res.ok ? res.json() : { byDate: {} }))
+    .catch(() => ({ byDate: {} }));
+
+  Promise.all([memoryPromise, learningsPromise])
+    .then(([data, learningsByDatePayload]) => {
       console.log(`[MemoryToggle] Raw data loaded (${source}):`, data);
       console.log(`[MemoryToggle] Nodes count:`, (data.nodes || []).length);
       console.log(`[MemoryToggle] Synapses count:`, (data.synapses || data.connections || []).length);
@@ -3908,6 +3936,9 @@ function loadNeurographFromSource(source) {
       console.log(`[MemoryToggle] Synapses with undefined source:`, undefinedSources);
       console.log(`[MemoryToggle] Synapses with undefined target:`, undefinedTargets);
 
+      data.learningIndexByDate = learningsByDatePayload && learningsByDatePayload.byDate
+        ? learningsByDatePayload.byDate
+        : {};
       neurographData = data;
       createNeurograph(data);
       isNeurographLoaded = true;
@@ -4091,6 +4122,11 @@ const TEMPORAL_COMMIT_RADIUS_COLD = 14;
 const TEMPORAL_COMMIT_COLOR_BREATH = 0xffb84d;
 /** Cold-change commits: cool blue if JSON has no color. */
 const TEMPORAL_COMMIT_COLOR_COLD = 0x3d8cff;
+const TEMPORAL_LEARNING_RADIUS = 6;
+const TEMPORAL_LEARNING_COLOR = 0xffd36b;
+/** Learning shells around each commit: larger base + wider spacing for readability. */
+const TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR = 4.8;
+const TEMPORAL_LEARNING_ORBIT_RADIUS_SPACING = 24;
 /** Distance from day-anchor center to innermost commit shell (clearance past anchor + largest commit). */
 const TEMPORAL_ORBIT_BASE_RADIUS = 136;
 /** Extra radius per commit index — successive shells farther out. */
@@ -4282,6 +4318,36 @@ function formatTemporalDayAnchorLabelText(node) {
   return stripLeadingCalendarEmoji(raw);
 }
 
+function getTemporalCommitDate(node) {
+  return String(node.breathDate || (node.attributes && node.attributes.breathDate) || '').trim();
+}
+
+function getTemporalLearningContentPreview(content) {
+  if (typeof content !== 'string') {return '';}
+  const normalized = content.trim();
+  if (!normalized) {return '';}
+  return normalized.slice(0, 2000);
+}
+
+function createTemporalLearningMaterial() {
+  return new THREE.MeshStandardMaterial({
+    color: TEMPORAL_LEARNING_COLOR,
+    emissive: 0xa66f00,
+    emissiveIntensity: 0.16,
+    roughness: 0.4,
+    metalness: 0.3
+  });
+}
+
+function positionTemporalLearningOrbit(orbit, timeSec) {
+  const parentPos = orbit.parent.position;
+  const a = orbit.phase + timeSec * orbit.speed;
+  const x = Math.cos(a) * orbit.radius;
+  const z = Math.sin(a) * orbit.radius;
+  const y = Math.sin(a * 0.8 + orbit.verticalPhase) * orbit.verticalAmplitude;
+  orbit.mesh.position.set(parentPos.x + x, parentPos.y + y, parentPos.z + z);
+}
+
 function drawTemporalLabelRoundedRect(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -4456,6 +4522,7 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
 
   const nodeMap = {};
   const allPoints = [];
+  const learningIndexByDate = (_data && _data.learningIndexByDate) || {};
   const labelHalfWorld = (TEMPORAL_ANCHOR_LABEL_CANVAS_H * TEMPORAL_ANCHOR_LABEL_SCALE) / 2;
   const labelYBelow =
     TEMPORAL_DAY_ANCHOR_RADIUS + TEMPORAL_ANCHOR_LABEL_GAP + labelHalfWorld;
@@ -4548,6 +4615,53 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
       };
       neurographScene.add(mesh);
       neurons.push(mesh);
+      const commitDate = getTemporalCommitDate(node);
+      const learningEntries = Array.isArray(learningIndexByDate[commitDate]) ? learningIndexByDate[commitDate] : [];
+      if (learningEntries.length > 0) {
+        const learningGeometry = new THREE.SphereGeometry(TEMPORAL_LEARNING_RADIUS, 22, 22);
+        const nLearn = learningEntries.length;
+        learningEntries.forEach((learning, learningIdx) => {
+          const learningMesh = new THREE.Mesh(learningGeometry, createTemporalLearningMaterial());
+          // Match commit-placement logic (golden-angle + spherical distribution), but
+          // use wider shell spacing so dense learning clusters remain readable.
+          const thetaL = learningIdx * TEMPORAL_GOLDEN_ANGLE;
+          const phiL = Math.acos(1 - 2 * ((learningIdx + 0.5) / Math.max(1, nLearn)));
+          const orbitRadius =
+            (r * TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR) +
+            (learningIdx * TEMPORAL_LEARNING_ORBIT_RADIUS_SPACING);
+          const sinPhiL = Math.sin(phiL);
+          const cosPhiL = Math.cos(phiL);
+          learningMesh.position.set(
+            mesh.position.x + (sinPhiL * Math.cos(thetaL) * orbitRadius),
+            mesh.position.y + (sinPhiL * Math.sin(thetaL) * orbitRadius),
+            mesh.position.z + (cosPhiL * orbitRadius)
+          );
+          learningMesh.userData = {
+            id: `${mesh.userData.id}::learning::${learningIdx}`,
+            label: learning.title || learning.slug || `Learning ${learningIdx + 1}`,
+            position: learningMesh.position.clone(),
+            rawData: {
+              id: `${mesh.userData.id}-learning-${learningIdx + 1}`,
+              label: learning.title || learning.slug || `Learning ${learningIdx + 1}`,
+              type: 'temporal-learning',
+              attributes: {
+                date: commitDate,
+                sourceFile: learning.fileName || '',
+                slug: learning.slug || '',
+                content: getTemporalLearningContentPreview(learning.content || '')
+              }
+            },
+            isTemporal: true,
+            nodeKind: 'learning',
+            orbitParentId: mesh.userData.id,
+            isConnectedToTheme: false,
+            themeConnectionWeight: 0
+          };
+          neurographScene.add(learningMesh);
+          neurons.push(learningMesh);
+          allPoints.push(learningMesh.position.clone());
+        });
+      }
       nodeMap[node.id] = mesh;
     });
   });
@@ -4587,6 +4701,7 @@ function createNeurograph(data) {
     if (spr.material) {spr.material.dispose();}
   });
   neuroAnchorLabelSprites = [];
+  neuroLearningOrbits = [];
 
   // Clear existing objects
   neurons.forEach(neuron => neurographScene.remove(neuron));
