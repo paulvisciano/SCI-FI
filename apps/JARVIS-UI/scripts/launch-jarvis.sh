@@ -11,6 +11,5 @@ export VOICE_INBOX_DIR="${VOICE_INBOX_DIR:-$HOME/JARVIS/inbox}"
 export VOICE_LIVE_DIR="${VOICE_LIVE_DIR:-$HOME/JARVIS/live}"
 export VOICE_MODEL_DIR="${VOICE_MODEL_DIR:-$SCRIPT_DIR/assets}"
 export VOICE_ARCHIVE_BASE="${VOICE_ARCHIVE_BASE:-$HOME/RAW/archive}"
-export NEUROGRAPH_DIR="${NEUROGRAPH_DIR:-$HOME/SCI-FI/apps/neuro-graph}"
 
 exec node "$SCRIPT_DIR/jarvis-server.js"

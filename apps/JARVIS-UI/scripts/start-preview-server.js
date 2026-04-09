@@ -4,13 +4,13 @@
  * Preview Server Script (SCI-FI repo)
  *
  * Starts a JARVIS preview instance on port 18788 by default (production is 18787).
- * Runs jarvis-server.js from this package (apps/JARVIS).
+ * Runs jarvis-server.js from this package (apps/JARVIS-UI).
  *
  * Usage: node start-preview-server.js [port] [workspace]
  *
  * Environment variables:
  * - PREVIEW_PORT: Port to run preview server (default: 18788)
- * - PREVIEW_WORKSPACE: Path to apps/JARVIS directory (default: directory containing this script's parent)
+ * - PREVIEW_WORKSPACE: Path to apps/JARVIS-UI directory (default: directory containing this script's parent)
  */
 
 const { spawn } = require('child_process');
@@ -58,7 +58,7 @@ if (!fs.existsSync(WORKSPACE)) {
 
 if (!fs.existsSync(SERVER_SCRIPT)) {
   console.error(`[Preview Server] ERROR: Server script not found: ${SERVER_SCRIPT}`);
-  console.error('[Preview Server] Expected jarvis-server.js next to apps/JARVIS (SCI-FI repo layout).');
+  console.error('[Preview Server] Expected jarvis-server.js in apps/JARVIS-UI (SCI-FI repo layout).');
   process.exit(1);
 }
 
