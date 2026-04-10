@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.22';
+const CLIENT_VERSION = '3.3.23';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3701,18 +3701,62 @@ function pushNeuroPanelChips(parts, node, nodeData) {
 /** Attribute keys to omit for temporal-commit panels (message is the hero; rest is noise). */
 const NEURO_COMMIT_ATTR_EXCLUDE = new Set([
   'message', 'role', 'commitType', 'created', 'color', 'position', 'source',
-  'breathDate', 'timestamp', 'commitHash', 'commitHashFull'
+  'breathDate', 'timestamp', 'commitHash', 'commitHashFull',
+  'date', 'day', 'time', 'datetime', 'breath_date', 'commitDate', 'commit_date'
 ]);
+
+function neuroCommitAttrKeyExcluded(key) {
+  const lower = String(key).toLowerCase();
+  for (const ex of NEURO_COMMIT_ATTR_EXCLUDE) {
+    if (String(ex).toLowerCase() === lower) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Prefer full git SHA (40 hex) when present anywhere in attrs/id; else longest hex run. */
+function getTemporalCommitHashSubtitle(node, attrs) {
+  const parts = [];
+  if (attrs && typeof attrs === 'object') {
+    ['commitHashFull', 'fullHash', 'sha', 'hash', 'commitHash', 'oid', 'revision', 'gitSha', 'sha1'].forEach(k => {
+      if (attrs[k] != null && attrs[k] !== '') {
+        parts.push(String(attrs[k]));
+      }
+    });
+    parts.push(JSON.stringify(attrs));
+  }
+  if (node && node.id != null && node.id !== '') {
+    parts.push(String(node.id));
+  }
+  const blob = parts.join('\n');
+  const sha1m = blob.match(/\b[0-9a-f]{40}\b/i);
+  if (sha1m) {
+    return sha1m[0].toLowerCase();
+  }
+  let best = '';
+  const re = /[0-9a-f]{7,64}/gi;
+  let m;
+  while ((m = re.exec(blob)) !== null) {
+    if (m[0].length > best.length) {
+      best = m[0];
+    }
+  }
+  if (best) {
+    return best.toLowerCase();
+  }
+  return node && node.id != null ? String(node.id) : '';
+}
 
 function neuroCommitAttributeKeys(attrs) {
   const order = ['anchorId'];
   const keys = new Set(Object.keys(attrs));
   const out = [];
   order.forEach(k => {
-    if (keys.has(k) && !NEURO_COMMIT_ATTR_EXCLUDE.has(k)) {out.push(k);}
+    if (keys.has(k) && !neuroCommitAttrKeyExcluded(k)) {out.push(k);}
   });
   Object.keys(attrs).forEach(k => {
-    if (!out.includes(k) && !NEURO_COMMIT_ATTR_EXCLUDE.has(k)) {out.push(k);}
+    if (!out.includes(k) && !neuroCommitAttrKeyExcluded(k)) {out.push(k);}
   });
   return out;
 }
@@ -3838,10 +3882,7 @@ function createNodeLabel(nodeData) {
   const isCommit = node.type === 'temporal-commit';
   const isLearning = node.type === 'temporal-learning';
   const attrsEarly = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
-  const commitSubtitle =
-    isCommit && attrsEarly
-      ? String(attrsEarly.commitHashFull || attrsEarly.commitHash || id)
-      : String(id);
+  const commitSubtitle = isCommit ? getTemporalCommitHashSubtitle(node, attrsEarly) : String(id);
   const title = isCommit
     ? getNeuroCommitPrimaryMessage(node)
     : stripLeadingCalendarEmoji(node.label || id || 'Node');
