@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.20';
+const CLIENT_VERSION = '3.3.21';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -2327,8 +2327,8 @@ function getNeuroInfoPanel() {
     neuroInfoPanel.style.cssText = `
       position: fixed;
       opacity: 0;
-      transform: scale(0.98) translateY(6px);
-      transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform: scale(0.985) translateY(5px);
+      transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
     `;
     document.body.appendChild(neuroInfoPanel);
   }
@@ -2419,8 +2419,8 @@ function getNeuroHoverPreviewPanel() {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      transform: scale(0.98) translateY(6px);
-      transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform: scale(0.985) translateY(5px);
+      transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
     `;
     document.body.appendChild(neuroHoverPreviewPanel);
   }
@@ -3554,6 +3554,47 @@ function neuroPanelRow(label, valueHtml) {
   return `<div class="neuro-node-panel__row"><span class="neuro-node-panel__k">${escapeHtmlNeuro(label)}</span><span class="neuro-node-panel__v">${valueHtml}</span></div>`;
 }
 
+/** Normalize titles so panel label matches first `# heading` text in .md (dedupe). */
+function neuroPanelNormalizeTitleForDedupe(s) {
+  if (s == null || s === '') {
+    return '';
+  }
+  let t = stripLeadingCalendarEmoji(String(s).trim());
+  t = t.replace(/^\s*🫁\s*/u, '').trim();
+  t = t.replace(/\s+/g, ' ').toLowerCase();
+  return t;
+}
+
+/** Drop leading ATX heading when it duplicates the panel title (already shown in the head). */
+function stripRedundantLeadingHeadingFromMarkdown(md, panelTitle) {
+  const raw = md == null ? '' : String(md);
+  const key = neuroPanelNormalizeTitleForDedupe(panelTitle);
+  if (!key) {
+    return raw;
+  }
+  const lines = raw.replace(/^\uFEFF/, '').split('\n');
+  let i = 0;
+  while (i < lines.length && lines[i].trim() === '') {
+    i++;
+  }
+  if (i >= lines.length) {
+    return raw;
+  }
+  const m = lines[i].match(/^(#{1,6})\s+(.+)$/);
+  if (!m) {
+    return raw;
+  }
+  const headingKey = neuroPanelNormalizeTitleForDedupe(m[2]);
+  if (headingKey !== key) {
+    return raw;
+  }
+  lines.splice(i, 1);
+  while (i < lines.length && lines[i].trim() === '') {
+    lines.splice(i, 1);
+  }
+  return lines.join('\n');
+}
+
 /** Learning nodes store `.md` text in attributes.content — render as GFM HTML, sanitized. */
 function renderNeuroLearningMarkdown(rawMd) {
   const text = rawMd == null ? '' : String(rawMd);
@@ -3852,10 +3893,10 @@ function createNodeLabel(nodeData) {
 
   const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
   if (isLearning && attrs) {
-    parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary">');
-    parts.push('<div class="neuro-node-panel__sec-title">Content</div>');
+    parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary neuro-node-panel__sec--learning-md">');
     if (attrs.content) {
-      parts.push(renderNeuroLearningMarkdown(attrs.content));
+      const mdBody = stripRedundantLeadingHeadingFromMarkdown(attrs.content, title);
+      parts.push(renderNeuroLearningMarkdown(mdBody));
     } else {
       parts.push('<div class="neuro-node-panel__muted">No content</div>');
     }
