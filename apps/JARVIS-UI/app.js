@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.18';
+const CLIENT_VERSION = '3.3.19';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -2331,7 +2331,6 @@ function getNeuroInfoPanel() {
       transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
     `;
     document.body.appendChild(neuroInfoPanel);
-    console.log('[NeuroInfoPanel] Panel created');
   }
   return neuroInfoPanel;
 }
@@ -2352,7 +2351,8 @@ function positionNeuroInfoPanelNearMesh(mesh) {
     panel.style.top = 'auto';
     panel.style.bottom = 'max(16px, env(safe-area-inset-bottom, 0px))';
     panel.style.transform = 'translateX(-50%)';
-    panel.style.maxWidth = 'min(420px, calc(100vw - 24px))';
+    panel.style.maxWidth = 'min(480px, calc(100vw - 20px))';
+    panel.style.width = '100%';
     return;
   }
 
@@ -2377,7 +2377,8 @@ function positionNeuroInfoPanelNearMesh(mesh) {
   panel.style.position = 'fixed';
   panel.style.bottom = 'auto';
   panel.style.right = 'auto';
-  panel.style.maxWidth = isPanelExpanded ? 'min(420px, 42vw)' : 'min(300px, 34vw)';
+    panel.style.width = 'auto';
+    panel.style.maxWidth = isPanelExpanded ? 'min(480px, min(42vw, 520px))' : 'min(320px, min(34vw, 400px))';
   panel.style.transform = 'none';
 
   const pw = panel.offsetWidth || (isPanelExpanded ? 360 : 260);
@@ -2782,7 +2783,6 @@ function focusNeurographNode(neuron, options = {}) {
     panel.style.display = 'block';
     panel.style.visibility = 'visible';
     isPanelExpanded = true;
-    console.log('[NeuroInfoPanel] Panel shown for focused node, opacity=1, display=block');
     scheduleNeuroInfoPanelPosition(neuron);
   }
 }
@@ -3458,7 +3458,6 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     // Don't hide if clicking inside panel
     const panel = getNeuroInfoPanel();
     if (panel && panel.contains(e.target)) {
-      console.log('[NeuroInfoPanel] Click inside panel - keeping open');
       return;
     }
     
@@ -3486,23 +3485,18 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     // Don't hide if clicking on UI elements (dock, toggle, etc.)
     const bottomDock = document.querySelector('.jarvis-bottom-dock');
     if (bottomDock && bottomDock.contains(e.target)) {
-      console.log('[NeuroInfoPanel] Click on dock - keeping open');
       return;
     }
     if (e.target.closest('#memory-toggle')) {
-      console.log('[NeuroInfoPanel] Click on toggle - keeping open');
       return;
     }
     if (e.target.closest('#server-status')) {
-      console.log('[NeuroInfoPanel] Click on server-status - keeping open');
       return;
     }
     
     // Click outside - clear focus after a longer delay (300ms for mobile)
-    console.log('[NeuroInfoPanel] Click outside - will clear focus in 300ms');
     setTimeout(() => {
       if (neurographFocusTarget) {
-        console.log('[NeuroInfoPanel] Clearing focus (timeout)');
         clearNeurographNodeFocus();
       }
     }, 300);
@@ -3589,6 +3583,16 @@ function getNeuroCommitPrimaryMessage(node) {
   lab = stripLeadingCalendarEmoji(String(lab));
   lab = lab.replace(/^\s*🫁\s*/u, '').trim();
   return lab || String(node.id || 'Commit');
+}
+
+/** Full commit message body (may be multiline); used for the primary content block. */
+function getNeuroCommitFullMessage(node) {
+  const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+  const raw = (attrs && attrs.message) || node.message;
+  if (raw == null || raw === '') {
+    return '';
+  }
+  return String(raw).trim();
 }
 
 function pushNeuroPanelChips(parts, node, nodeData) {
@@ -3775,15 +3779,36 @@ function createNodeLabel(nodeData) {
 
   parts.push('<div class="neuro-node-panel">');
   parts.push('<div class="neuro-node-panel__head">');
-  parts.push('<div class="neuro-node-panel__chips">');
-  pushNeuroPanelChips(parts, node, nodeData);
-  parts.push('</div>');
   const titleClass = isCommit ? 'neuro-node-panel__title neuro-node-panel__title--lead' : 'neuro-node-panel__title';
   parts.push(`<h3 class="${titleClass}">${esc(title)}</h3>`);
   parts.push(`<div class="neuro-node-panel__id">${esc(id)}</div>`);
+  parts.push('<div class="neuro-node-panel__chips">');
+  pushNeuroPanelChips(parts, node, nodeData);
+  parts.push('</div>');
   parts.push('</div>');
 
   parts.push('<div class="neuro-node-panel__scroll">');
+
+  const commitFullMsg = isCommit ? getNeuroCommitFullMessage(node) : '';
+  const showCommitPrimary =
+    isCommit &&
+    commitFullMsg &&
+    (commitFullMsg.includes('\n') || commitFullMsg.length > 56);
+  if (showCommitPrimary) {
+    parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary">');
+    parts.push('<div class="neuro-node-panel__sec-title">Message</div>');
+    parts.push(`<div class="neuro-node-panel__primary-body">${esc(commitFullMsg)}</div>`);
+    parts.push('</section>');
+  }
+
+  const nodeDescPlain =
+    !isCommit && !isLearning && node.description ? String(node.description).trim() : '';
+  if (nodeDescPlain) {
+    parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary">');
+    parts.push('<div class="neuro-node-panel__sec-title">Description</div>');
+    parts.push(`<div class="neuro-node-panel__primary-body">${esc(nodeDescPlain)}</div>`);
+    parts.push('</section>');
+  }
 
   if (!isCommit && !isLearning) {
     parts.push('<section class="neuro-node-panel__sec">');
@@ -3810,6 +3835,14 @@ function createNodeLabel(nodeData) {
 
   const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
   if (isLearning && attrs) {
+    parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary">');
+    parts.push('<div class="neuro-node-panel__sec-title">Content</div>');
+    if (attrs.content) {
+      parts.push(`<div class="neuro-node-panel__primary-body">${esc(String(attrs.content))}</div>`);
+    } else {
+      parts.push('<div class="neuro-node-panel__muted">No content</div>');
+    }
+    parts.push('</section>');
     parts.push('<section class="neuro-node-panel__sec">');
     parts.push('<div class="neuro-node-panel__sec-title">Learning</div>');
     if (attrs.date) {
@@ -3817,12 +3850,6 @@ function createNodeLabel(nodeData) {
     }
     if (attrs.sourceFile) {
       parts.push(neuroPanelRow('Source', esc(String(attrs.sourceFile))));
-    }
-    if (attrs.content) {
-      parts.push('<div class="neuro-node-panel__row">');
-      parts.push('<div class="neuro-node-panel__k">Content</div>');
-      parts.push(`<div class="neuro-node-panel__v"><pre style="margin:0;white-space:pre-wrap;">${esc(String(attrs.content))}</pre></div>`);
-      parts.push('</div>');
     }
     parts.push('</section>');
   } else if (attrs && Object.keys(attrs).length > 0) {

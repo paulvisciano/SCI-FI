@@ -561,9 +561,10 @@
         .neuro-info-panel-host {
             z-index: 6000;
             pointer-events: auto;
-            min-width: 260px;
-            max-width: 420px;
-            max-height: min(72vh, 92dvh);
+            min-width: min(260px, 100%);
+            max-width: min(480px, calc(100vw - 20px));
+            width: auto;
+            max-height: min(72vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 108px));
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
@@ -627,6 +628,11 @@
             flex-wrap: wrap;
             gap: 6px;
             margin-bottom: 8px;
+        }
+
+        .neuro-node-panel__head .neuro-node-panel__chips {
+            margin-top: 8px;
+            margin-bottom: 0;
         }
 
         .neuro-chip {
@@ -698,6 +704,36 @@
             margin-bottom: 8px;
             padding-bottom: 4px;
             border-bottom: 1px solid rgba(0, 180, 255, 0.12);
+        }
+
+        .neuro-node-panel__sec--primary {
+            margin-top: 0;
+        }
+
+        .neuro-node-panel__sec--primary .neuro-node-panel__sec-title {
+            color: rgba(0, 235, 255, 0.92);
+            border-bottom-color: rgba(0, 210, 255, 0.22);
+        }
+
+        .neuro-node-panel__primary-body {
+            font-size: clamp(13px, 2.85vw, 15px);
+            line-height: 1.58;
+            color: #e9f6fc;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            margin: 2px 0 0;
+            padding: 2px 0 4px;
+        }
+
+        @media (max-width: 768px) {
+            .neuro-info-panel-host {
+                max-height: min(68vh, calc(100dvh - 132px));
+            }
+
+            .neuro-node-panel__scroll {
+                padding-bottom: 16px;
+            }
         }
 
         .neuro-node-panel__count {
