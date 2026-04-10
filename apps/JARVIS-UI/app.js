@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.21';
+const CLIENT_VERSION = '3.3.22';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3700,11 +3700,12 @@ function pushNeuroPanelChips(parts, node, nodeData) {
 
 /** Attribute keys to omit for temporal-commit panels (message is the hero; rest is noise). */
 const NEURO_COMMIT_ATTR_EXCLUDE = new Set([
-  'message', 'role', 'commitType', 'created', 'color', 'position', 'source'
+  'message', 'role', 'commitType', 'created', 'color', 'position', 'source',
+  'breathDate', 'timestamp', 'commitHash', 'commitHashFull'
 ]);
 
 function neuroCommitAttributeKeys(attrs) {
-  const order = ['commitHashFull', 'breathDate', 'timestamp', 'anchorId'];
+  const order = ['anchorId'];
   const keys = new Set(Object.keys(attrs));
   const out = [];
   order.forEach(k => {
@@ -3714,6 +3715,13 @@ function neuroCommitAttributeKeys(attrs) {
     if (!out.includes(k) && !NEURO_COMMIT_ATTR_EXCLUDE.has(k)) {out.push(k);}
   });
   return out;
+}
+
+function neuroCommitDetailRowLabel(key) {
+  if (key === 'anchorId') {
+    return 'Anchor';
+  }
+  return key;
 }
 
 // Minimized tooltip (on hover) - shows just title and category
@@ -3829,6 +3837,11 @@ function createNodeLabel(nodeData) {
   const id = node.id || nodeData.id || '';
   const isCommit = node.type === 'temporal-commit';
   const isLearning = node.type === 'temporal-learning';
+  const attrsEarly = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+  const commitSubtitle =
+    isCommit && attrsEarly
+      ? String(attrsEarly.commitHashFull || attrsEarly.commitHash || id)
+      : String(id);
   const title = isCommit
     ? getNeuroCommitPrimaryMessage(node)
     : stripLeadingCalendarEmoji(node.label || id || 'Node');
@@ -3839,7 +3852,8 @@ function createNodeLabel(nodeData) {
   parts.push('<div class="neuro-node-panel__head">');
   const titleClass = isCommit ? 'neuro-node-panel__title neuro-node-panel__title--lead' : 'neuro-node-panel__title';
   parts.push(`<h3 class="${titleClass}">${esc(title)}</h3>`);
-  parts.push(`<div class="neuro-node-panel__id">${esc(id)}</div>`);
+  const idRowClass = isCommit ? 'neuro-node-panel__id neuro-node-panel__id--commit-hash' : 'neuro-node-panel__id';
+  parts.push(`<div class="${idRowClass}">${esc(isCommit ? commitSubtitle : id)}</div>`);
   parts.push('<div class="neuro-node-panel__chips">');
   pushNeuroPanelChips(parts, node, nodeData);
   parts.push('</div>');
@@ -3917,7 +3931,7 @@ function createNodeLabel(nodeData) {
         parts.push('<section class="neuro-node-panel__sec">');
         parts.push('<div class="neuro-node-panel__sec-title">Details</div>');
         attrKeys.forEach(k => {
-          parts.push(neuroPanelRow(k, formatNeuroAttrCell(k, attrs[k])));
+          parts.push(neuroPanelRow(neuroCommitDetailRowLabel(k), formatNeuroAttrCell(k, attrs[k])));
         });
         parts.push('</section>');
       }
