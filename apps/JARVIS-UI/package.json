@@ -12,6 +12,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "dompurify": "^3.3.3",
+    "marked": "^18.0.0",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {

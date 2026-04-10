@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.19';
+const CLIENT_VERSION = '3.3.20';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3554,6 +3554,23 @@ function neuroPanelRow(label, valueHtml) {
   return `<div class="neuro-node-panel__row"><span class="neuro-node-panel__k">${escapeHtmlNeuro(label)}</span><span class="neuro-node-panel__v">${valueHtml}</span></div>`;
 }
 
+/** Learning nodes store `.md` text in attributes.content — render as GFM HTML, sanitized. */
+function renderNeuroLearningMarkdown(rawMd) {
+  const text = rawMd == null ? '' : String(rawMd);
+  const purify = typeof DOMPurify !== 'undefined' ? DOMPurify : null;
+  const canParse = typeof marked !== 'undefined' && typeof marked.parse === 'function';
+  if (!canParse || !purify) {
+    return `<div class="neuro-node-panel__primary-body neuro-node-panel__primary-body--plain">${escapeHtmlNeuro(text)}</div>`;
+  }
+  try {
+    const html = marked.parse(text, { breaks: true, gfm: true });
+    const safe = purify.sanitize(html, { USE_PROFILES: { html: true } });
+    return `<div class="neuro-node-panel__md">${safe}</div>`;
+  } catch (_err) {
+    return `<div class="neuro-node-panel__primary-body neuro-node-panel__primary-body--plain">${escapeHtmlNeuro(text)}</div>`;
+  }
+}
+
 function getNeuroEdgesForNode(nodeId) {
   if (!neurographData || !nodeId) {return [];}
   const syn = neurographData.synapses || neurographData.connections || [];
@@ -3838,7 +3855,7 @@ function createNodeLabel(nodeData) {
     parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary">');
     parts.push('<div class="neuro-node-panel__sec-title">Content</div>');
     if (attrs.content) {
-      parts.push(`<div class="neuro-node-panel__primary-body">${esc(String(attrs.content))}</div>`);
+      parts.push(renderNeuroLearningMarkdown(attrs.content));
     } else {
       parts.push('<div class="neuro-node-panel__muted">No content</div>');
     }

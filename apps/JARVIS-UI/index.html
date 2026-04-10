@@ -726,6 +726,145 @@
             padding: 2px 0 4px;
         }
 
+        .neuro-node-panel__primary-body--plain {
+            white-space: pre-wrap;
+        }
+
+        /* Markdown body for learning nodes (GFM via marked + DOMPurify) */
+        .neuro-node-panel__md {
+            font-size: clamp(13px, 2.85vw, 15px);
+            line-height: 1.58;
+            color: #e9f6fc;
+            margin: 2px 0 0;
+            padding: 2px 0 4px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .neuro-node-panel__md :first-child {
+            margin-top: 0;
+        }
+
+        .neuro-node-panel__md :last-child {
+            margin-bottom: 0;
+        }
+
+        .neuro-node-panel__md h1,
+        .neuro-node-panel__md h2,
+        .neuro-node-panel__md h3,
+        .neuro-node-panel__md h4 {
+            color: #f0fbff;
+            font-weight: 700;
+            line-height: 1.35;
+            margin: 0.75em 0 0.4em;
+        }
+
+        .neuro-node-panel__md h1 {
+            font-size: 1.35em;
+        }
+
+        .neuro-node-panel__md h2 {
+            font-size: 1.2em;
+        }
+
+        .neuro-node-panel__md h3,
+        .neuro-node-panel__md h4 {
+            font-size: 1.05em;
+        }
+
+        .neuro-node-panel__md p {
+            margin: 0.5em 0;
+        }
+
+        .neuro-node-panel__md ul,
+        .neuro-node-panel__md ol {
+            margin: 0.45em 0 0.45em 1.1em;
+            padding: 0;
+        }
+
+        .neuro-node-panel__md li {
+            margin: 0.25em 0;
+        }
+
+        .neuro-node-panel__md blockquote {
+            margin: 0.5em 0;
+            padding: 6px 0 6px 12px;
+            border-left: 3px solid rgba(0, 200, 255, 0.35);
+            color: rgba(200, 230, 240, 0.95);
+            background: rgba(0, 40, 60, 0.25);
+            border-radius: 0 6px 6px 0;
+        }
+
+        .neuro-node-panel__md hr {
+            border: none;
+            border-top: 1px solid rgba(0, 180, 255, 0.2);
+            margin: 0.75em 0;
+        }
+
+        .neuro-node-panel__md a {
+            color: #7eefff;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .neuro-node-panel__md a:hover {
+            color: #b8f8ff;
+        }
+
+        .neuro-node-panel__md table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92em;
+            margin: 0.5em 0;
+        }
+
+        .neuro-node-panel__md th,
+        .neuro-node-panel__md td {
+            border: 1px solid rgba(0, 180, 255, 0.2);
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        .neuro-node-panel__md th {
+            background: rgba(0, 50, 80, 0.35);
+            color: #b8ecfc;
+        }
+
+        .neuro-node-panel__md pre {
+            margin: 0.5em 0;
+            padding: 8px 10px;
+            font-size: 0.88em;
+            line-height: 1.45;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(0, 180, 255, 0.15);
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .neuro-node-panel__md code {
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.92em;
+            color: #9eefff;
+            background: rgba(0, 40, 60, 0.45);
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
+        .neuro-node-panel__md pre code {
+            padding: 0;
+            background: transparent;
+            font-size: inherit;
+            color: #b8d0e0;
+        }
+
+        .neuro-node-panel__md img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+        }
+
         @media (max-width: 768px) {
             .neuro-info-panel-host {
                 max-height: min(68vh, calc(100dvh - 132px));
@@ -2335,4 +2474,6 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
 
-    <script src="app.js?v=3.3.19"></script>
+    <script src="/node_modules/marked/lib/marked.umd.js"></script>
+    <script src="/node_modules/dompurify/dist/purify.min.js"></script>
+    <script src="app.js?v=3.3.20"></script>
