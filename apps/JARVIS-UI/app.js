@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.23';
+const CLIENT_VERSION = '3.3.24';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3718,6 +3718,13 @@ function neuroCommitAttrKeyExcluded(key) {
 /** Prefer full git SHA (40 hex) when present anywhere in attrs/id; else longest hex run. */
 function getTemporalCommitHashSubtitle(node, attrs) {
   const parts = [];
+  if (node && typeof node === 'object') {
+    ['gitHash', 'commitHashFull', 'commitHash', 'gitHashShort'].forEach(k => {
+      if (node[k] != null && node[k] !== '') {
+        parts.push(String(node[k]));
+      }
+    });
+  }
   if (attrs && typeof attrs === 'object') {
     ['commitHashFull', 'fullHash', 'sha', 'hash', 'commitHash', 'oid', 'revision', 'gitSha', 'sha1'].forEach(k => {
       if (attrs[k] != null && attrs[k] !== '') {
@@ -3986,7 +3993,7 @@ function createNodeLabel(nodeData) {
     }
   }
 
-  if (node.moments && node.moments.length > 0) {
+  if (node.moments && node.moments.length > 0 && !isCommit) {
     parts.push('<section class="neuro-node-panel__sec">');
     parts.push(`<div class="neuro-node-panel__sec-title">Moments <span class="neuro-node-panel__count">${node.moments.length}</span></div>`);
     node.moments.forEach((m, i) => {
