@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.24';
+const CLIENT_VERSION = '3.3.25';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3630,6 +3630,18 @@ function neuroEdgePeerId(edge, nodeId) {
   return '?';
 }
 
+/** Synapse peer label: raw `day-YYYY-MM-DD` ids read as duplicate dates; show a stable label instead. */
+function formatNeuroSynapsePeerIdForPanel(peerId) {
+  if (peerId == null || peerId === '?') {
+    return String(peerId);
+  }
+  const s = String(peerId);
+  if (/^day-\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return 'Day anchor';
+  }
+  return s;
+}
+
 /** First line of commit subject for hero display; prefers attributes.message over emoji-prefixed label. */
 function getNeuroCommitPrimaryMessage(node) {
   const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
@@ -3702,7 +3714,8 @@ function pushNeuroPanelChips(parts, node, nodeData) {
 const NEURO_COMMIT_ATTR_EXCLUDE = new Set([
   'message', 'role', 'commitType', 'created', 'color', 'position', 'source',
   'breathDate', 'timestamp', 'commitHash', 'commitHashFull',
-  'date', 'day', 'time', 'datetime', 'breath_date', 'commitDate', 'commit_date'
+  'date', 'day', 'time', 'datetime', 'breath_date', 'commitDate', 'commit_date',
+  'anchorId', 'dayAnchorId'
 ]);
 
 function neuroCommitAttrKeyExcluded(key) {
@@ -3715,8 +3728,23 @@ function neuroCommitAttrKeyExcluded(key) {
   return false;
 }
 
+function neuroGitSha1Hex40(s) {
+  return typeof s === 'string' && /^[0-9a-f]{40}$/i.test(s.trim());
+}
+
 /** Prefer full git SHA (40 hex) when present anywhere in attrs/id; else longest hex run. */
 function getTemporalCommitHashSubtitle(node, attrs) {
+  if (attrs && neuroGitSha1Hex40(attrs.commitHashFull)) {
+    return attrs.commitHashFull.trim().toLowerCase();
+  }
+  if (node && typeof node === 'object') {
+    if (neuroGitSha1Hex40(node.commitHashFull)) {
+      return node.commitHashFull.trim().toLowerCase();
+    }
+    if (neuroGitSha1Hex40(node.gitHash)) {
+      return node.gitHash.trim().toLowerCase();
+    }
+  }
   const parts = [];
   if (node && typeof node === 'object') {
     ['gitHash', 'commitHashFull', 'commitHash', 'gitHashShort'].forEach(k => {
@@ -3756,7 +3784,7 @@ function getTemporalCommitHashSubtitle(node, attrs) {
 }
 
 function neuroCommitAttributeKeys(attrs) {
-  const order = ['anchorId'];
+  const order = [];
   const keys = new Set(Object.keys(attrs));
   const out = [];
   order.forEach(k => {
@@ -4016,7 +4044,8 @@ function createNodeLabel(nodeData) {
       const extra = Object.keys(edge).filter(k =>
         !['source', 'target', 'from', 'to', 'weight', 'strength', 'type', 'label'].includes(k)
       );
-      let sub = `<div class="neuro-node-panel__edge-peer">↔ ${esc(peer)}</div>`;
+      const peerDisp = formatNeuroSynapsePeerIdForPanel(peer);
+      let sub = `<div class="neuro-node-panel__edge-peer">↔ ${esc(peerDisp)}</div>`;
       sub += `<div style="margin-top:4px;opacity:0.85;">weight: <code>${esc(String(w))}</code>`;
       if (typ) {sub += ` · ${esc(String(typ))}`;}
       sub += '</div>';
