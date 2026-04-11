@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.38';
+const CLIENT_VERSION = '3.3.39';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -1906,9 +1906,6 @@ let neuroAnchorLabelSprites = [];
 let neuroCommitTimeLabelSprites = [];
 /** Faint LineLoop guides for temporal commit “planetary” rings. */
 let neuroCommitRingLines = [];
-/** Faint LineLoop guides for learning satellite rings around commits. */
-let neuroLearningRingLines = [];
-
 // === Three.js JARVIS Orb Rendering ===
 // Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
 
@@ -4394,18 +4391,21 @@ const TEMPORAL_LEARNING_COLOR = 0xffd36b;
 const TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR = 6.2;
 /** Shared ring radius offset so learnings read as a “satellite belt” (world units beyond commit radius). */
 const TEMPORAL_LEARNING_RING_RADIUS_EXTRA = 22;
-const TEMPORAL_LEARNING_RING_SEGMENTS = 72;
-/** World XZ plane: learning rings stay horizontal so adjacent commit rings don’t cross as much. */
+/** Tilt (rad) of learning ring about world X — steeper than flat XZ for clearer depth. */
+const TEMPORAL_LEARNING_RING_TILT = 0.55;
+const _lrSt = Math.sin(TEMPORAL_LEARNING_RING_TILT);
+const _lrCt = Math.cos(TEMPORAL_LEARNING_RING_TILT);
+/** Ring tangent axes: U along +X, V in YZ so the learning circle pitches with the tilt. */
 const TEMPORAL_LEARNING_RING_AXIS_U = new THREE.Vector3(1, 0, 0);
-const TEMPORAL_LEARNING_RING_AXIS_V = new THREE.Vector3(0, 0, 1);
+const TEMPORAL_LEARNING_RING_AXIS_V = new THREE.Vector3(0, -_lrSt, _lrCt);
 /** Pill label under commit orb: canvas height (px), world scale, gap from sphere surface. */
 const TEMPORAL_COMMIT_LABEL_CANVAS_H = 52;
 const TEMPORAL_COMMIT_LABEL_SCALE = 0.14;
 const TEMPORAL_COMMIT_LABEL_GAP = 10;
 /** Primary commit ring radius from day-anchor center (solar-system style). */
-const TEMPORAL_ORBIT_BASE_RADIUS = 338;
+const TEMPORAL_ORBIT_BASE_RADIUS = 398;
 /** Secondary ring radius offset when many commits split across two rings. */
-const TEMPORAL_ORBIT_SPACING = 86;
+const TEMPORAL_ORBIT_SPACING = 102;
 /** Tilt (rad) of the commit ring plane around local X for depth (reference: orbital diagram). */
 const TEMPORAL_COMMIT_RING_TILT = 0.38;
 const TEMPORAL_COMMIT_RING_SEGMENTS = 120;
@@ -4664,32 +4664,6 @@ function createTemporalCommitOrbitRingLoop(center, radius, tiltRad) {
   });
   const loop = new THREE.LineLoop(geo, mat);
   loop.renderOrder = 2;
-  return loop;
-}
-
-/** Orbit guide for learning ring in the plane spanned by `axisU` / `axisV` around `center`. */
-function createLearningOrbitRingLoop(center, axisU, axisV, radius) {
-  const segs = TEMPORAL_LEARNING_RING_SEGMENTS;
-  const pts = [];
-  for (let s = 0; s <= segs; s++) {
-    const t = (s / segs) * Math.PI * 2;
-    const ct = Math.cos(t);
-    const st = Math.sin(t);
-    pts.push(new THREE.Vector3(
-      center.x + radius * (ct * axisU.x + st * axisV.x),
-      center.y + radius * (ct * axisU.y + st * axisV.y),
-      center.z + radius * (ct * axisU.z + st * axisV.z)
-    ));
-  }
-  const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  const mat = new THREE.LineBasicMaterial({
-    color: 0xc4df8a,
-    transparent: true,
-    opacity: 0.32,
-    depthWrite: false
-  });
-  const loop = new THREE.LineLoop(geo, mat);
-  loop.renderOrder = 1;
   return loop;
 }
 
@@ -5017,7 +4991,7 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
 
     const commitThetas = [];
     if (nCommits > 0) {
-      const minGap = Math.min(0.2, (Math.PI * 2 * 0.92) / Math.max(1, nCommits - 1));
+      const minGap = Math.min(0.28, (Math.PI * 2 * 0.97) / Math.max(1, nCommits - 1));
       let prevTheta = -minGap;
       for (let ci = 0; ci < nCommits; ci++) {
         const cn = list[ci];
@@ -5094,9 +5068,6 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
           r * TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR + TEMPORAL_LEARNING_RING_RADIUS_EXTRA;
         const bu = TEMPORAL_LEARNING_RING_AXIS_U;
         const bv = TEMPORAL_LEARNING_RING_AXIS_V;
-        const learnGuide = createLearningOrbitRingLoop(mesh.position, bu, bv, ringR);
-        neurographScene.add(learnGuide);
-        neuroLearningRingLines.push(learnGuide);
         learningEntries.forEach((learning, learningIdx) => {
           const learningMesh = new THREE.Mesh(learningGeometry, createTemporalLearningMaterial());
           const angle0 = learningIdx * ((Math.PI * 2) / Math.max(1, nLearn));
@@ -5187,12 +5158,6 @@ function createNeurograph(data) {
     if (line.material) {line.material.dispose();}
   });
   neuroCommitRingLines = [];
-  neuroLearningRingLines.forEach((line) => {
-    neurographScene.remove(line);
-    if (line.geometry) {line.geometry.dispose();}
-    if (line.material) {line.material.dispose();}
-  });
-  neuroLearningRingLines = [];
 
   // Clear existing objects
   neurons.forEach(neuron => neurographScene.remove(neuron));
