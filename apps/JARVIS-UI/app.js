@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.31';
+const CLIENT_VERSION = '3.3.43';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -1902,9 +1902,10 @@ const NEURO_FOG_DENSITY_DEFAULT = 0.00032;
 let neurographTemporalMode = false;
 /** Billboard date labels above day anchors (THREE.Sprite). */
 let neuroAnchorLabelSprites = [];
-/** Orbit animation state for temporal learning spheres. */
-let neuroLearningOrbits = [];
-
+/** Short time-of-day labels below temporal commit orbs. */
+let neuroCommitTimeLabelSprites = [];
+/** Faint LineLoop guides for temporal commit “planetary” rings. */
+let neuroCommitRingLines = [];
 // === Three.js JARVIS Orb Rendering ===
 // Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
 
@@ -4386,13 +4387,30 @@ const TEMPORAL_COMMIT_COLOR_BREATH = 0xffb84d;
 const TEMPORAL_COMMIT_COLOR_COLD = 0x3d8cff;
 const TEMPORAL_LEARNING_RADIUS = 6;
 const TEMPORAL_LEARNING_COLOR = 0xffd36b;
-/** Learning shells around each commit: larger base + wider spacing for readability. */
-const TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR = 4.8;
-const TEMPORAL_LEARNING_ORBIT_RADIUS_SPACING = 24;
-/** Distance from day-anchor center to innermost commit shell (clearance past anchor + largest commit). */
-const TEMPORAL_ORBIT_BASE_RADIUS = 136;
-/** Extra radius per commit index — successive shells farther out. */
-const TEMPORAL_ORBIT_SPACING = 32;
+/** Learning ring radius scales with commit sphere radius. */
+const TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR = 6.2;
+/** Shared ring radius offset so learnings read as a “satellite belt” (world units beyond commit radius). */
+const TEMPORAL_LEARNING_RING_RADIUS_EXTRA = 22;
+/** Tilt (rad) of the commit ring plane around local X — flatter stack (reference mockup). */
+const TEMPORAL_COMMIT_RING_TILT = 0.17;
+/** Learning mini-orbit uses the same pitch as the commit ring so both read as one HUD plate. */
+const TEMPORAL_LEARNING_RING_TILT = TEMPORAL_COMMIT_RING_TILT;
+const _lrSt = Math.sin(TEMPORAL_LEARNING_RING_TILT);
+const _lrCt = Math.cos(TEMPORAL_LEARNING_RING_TILT);
+/** Ring tangent axes: U along +X, V in YZ so the learning circle pitches with the tilt. */
+const TEMPORAL_LEARNING_RING_AXIS_U = new THREE.Vector3(1, 0, 0);
+const TEMPORAL_LEARNING_RING_AXIS_V = new THREE.Vector3(0, -_lrSt, _lrCt);
+/** Pill label under commit orb: canvas height (px), world scale, gap from sphere surface. */
+const TEMPORAL_COMMIT_LABEL_CANVAS_H = 86;
+const TEMPORAL_COMMIT_LABEL_SCALE = 0.24;
+const TEMPORAL_COMMIT_LABEL_GAP = 10;
+/** Primary commit ring radius from day-anchor center (solar-system style). */
+const TEMPORAL_ORBIT_BASE_RADIUS = 398;
+/** Secondary ring radius offset when many commits split across two rings (AM vs PM halves). */
+const TEMPORAL_ORBIT_SPACING = 168;
+const TEMPORAL_COMMIT_RING_SEGMENTS = 120;
+/** Beyond this count, commits use inner + outer concentric rings (by sorted list halves, not clock 12h). */
+const TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT = 16;
 const TEMPORAL_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const TEMPORAL_FLY_DURATION_MS = 1500;
 /** Wider framing for first paint (refresh / fit + focus today). */
@@ -4584,6 +4602,145 @@ function getTemporalCommitDate(node) {
   return String(node.breathDate || (node.attributes && node.attributes.breathDate) || '').trim();
 }
 
+/** ISO git timestamp from node / attributes, or null. */
+function parseTemporalCommitTimestampMs(node) {
+  const raw = node.timestamp || (node.attributes && node.attributes.timestamp) || '';
+  if (typeof raw !== 'string' || !raw.trim()) {return null;}
+  const t = Date.parse(raw.trim());
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Local clock time-of-day in [0, 1) from commit timestamp, or null if unknown. */
+function getTemporalCommitLocalDayFraction(node) {
+  const ms = parseTemporalCommitTimestampMs(node);
+  if (ms == null) {return null;}
+  const d = new Date(ms);
+  const sec =
+    d.getHours() * 3600 +
+    d.getMinutes() * 60 +
+    d.getSeconds() +
+    d.getMilliseconds() / 1000;
+  return sec / 86400;
+}
+
+/** e.g. `2:05 PM` from commit timestamp; empty string if unknown. */
+function formatTemporalCommitTimeLabel(node) {
+  const ms = parseTemporalCommitTimestampMs(node);
+  if (ms == null) {return '';}
+  const d = new Date(ms);
+  const hour24 = d.getHours();
+  const minute = d.getMinutes();
+  const isPm = hour24 >= 12;
+  let h12 = hour24 % 12;
+  if (h12 === 0) {h12 = 12;}
+  const mm = String(minute).padStart(2, '0');
+  return `${h12}:${mm} ${isPm ? 'PM' : 'AM'}`;
+}
+
+/**
+ * World-space point on the commit ring: circle in the horizontal XZ plane through `center`,
+ * then lightly tilted about local X (HUD-style “flat plate” rather than a vertical wheel).
+ */
+function temporalCommitRingPoint(center, radius, tiltRad, theta) {
+  const x = radius * Math.cos(theta);
+  const z = radius * Math.sin(theta);
+  const y = 0;
+  const y1 = y * Math.cos(tiltRad) - z * Math.sin(tiltRad);
+  const z1 = y * Math.sin(tiltRad) + z * Math.cos(tiltRad);
+  return new THREE.Vector3(center.x + x, center.y + y1, center.z + z1);
+}
+
+/** Git-like hex refs extracted from learning markdown (header region) for commit association. */
+function extractLearningGitRefsFromMarkdown(md) {
+  if (typeof md !== 'string' || !md.trim()) {
+    return [];
+  }
+  const head = md.slice(0, 3600);
+  const found = new Set();
+  const patterns = [
+    /\*\*Commit:\*\*\s*`([0-9a-f]{7,40})`/gi,
+    /\*\*Commit:\*\*\s+([0-9a-f]{7,40})\b/gi,
+    /(?:^|\n)Commit:\s*`([0-9a-f]{7,40})`/gim,
+    /(?:^|\n)Commit:\s+([0-9a-f]{7,40})\b/gim,
+    /\b([0-9a-f]{40})\b/gi
+  ];
+  patterns.forEach((re) => {
+    let m;
+    while ((m = re.exec(head)) !== null) {
+      const cap = m[1];
+      if (cap && /^[0-9a-f]{7,40}$/i.test(cap)) {
+        found.add(cap.toLowerCase());
+      }
+    }
+  });
+  return Array.from(found);
+}
+
+function learningGitRefsMatchCommitHash(refs, commitHashNorm) {
+  const ch = String(commitHashNorm || '').trim().toLowerCase();
+  if (!ch || refs.length === 0) {
+    return false;
+  }
+  return refs.some((ref) => {
+    const r = String(ref).toLowerCase();
+    if (r.length === 40 && ch.length === 40) {
+      return r === ch;
+    }
+    if (ch.startsWith(r)) {
+      return true;
+    }
+    if (r.startsWith(ch) && ch.length >= 7) {
+      return true;
+    }
+    return r === ch;
+  });
+}
+
+/**
+ * Learnings keyed by calendar day: only orbit commits that own them.
+ * Explicit `**Commit:**` / `Commit:` hashes → match that commit only.
+ * No hashes in the file → single-commit days keep all; multi-commit days attach orphans to index 0 only.
+ */
+function filterTemporalLearningsForCommit(learningEntries, commitNode, parentAttrs, commitIndexInDay, commitsThisDay) {
+  const ch = getTemporalCommitHashSubtitle(commitNode, parentAttrs);
+  return learningEntries.filter((learning) => {
+    const refs = extractLearningGitRefsFromMarkdown(learning.content || '');
+    if (refs.length > 0) {
+      return learningGitRefsMatchCommitHash(refs, ch);
+    }
+    if (commitsThisDay <= 1) {
+      return true;
+    }
+    return commitIndexInDay === 0;
+  });
+}
+
+/**
+ * Orbit guide matching the commit ring geometry.
+ * @param {{opacity?: number, color?: number}} [style] — defaults tuned to cyan HUD reference.
+ */
+function createTemporalCommitOrbitRingLoop(center, radius, tiltRad, style) {
+  const st = style || {};
+  const opacity = typeof st.opacity === 'number' ? st.opacity : 0.38;
+  const color = typeof st.color === 'number' ? st.color : 0x54c8ff;
+  const segs = TEMPORAL_COMMIT_RING_SEGMENTS;
+  const pts = [];
+  for (let s = 0; s <= segs; s++) {
+    const t = (s / segs) * Math.PI * 2;
+    pts.push(temporalCommitRingPoint(center, radius, tiltRad, t));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false
+  });
+  const loop = new THREE.LineLoop(geo, mat);
+  loop.renderOrder = 2;
+  return loop;
+}
+
 function getTemporalLearningContentPreview(content) {
   if (typeof content !== 'string') {return '';}
   const normalized = content.trim();
@@ -4599,15 +4756,6 @@ function createTemporalLearningMaterial() {
     roughness: 0.4,
     metalness: 0.3
   });
-}
-
-function positionTemporalLearningOrbit(orbit, timeSec) {
-  const parentPos = orbit.parent.position;
-  const a = orbit.phase + timeSec * orbit.speed;
-  const x = Math.cos(a) * orbit.radius;
-  const z = Math.sin(a) * orbit.radius;
-  const y = Math.sin(a * 0.8 + orbit.verticalPhase) * orbit.verticalAmplitude;
-  orbit.mesh.position.set(parentPos.x + x, parentPos.y + y, parentPos.z + z);
 }
 
 function drawTemporalLabelRoundedRect(ctx, x, y, w, h, r) {
@@ -4672,6 +4820,56 @@ function createDayAnchorLabelSprite(text) {
   const sf = TEMPORAL_ANCHOR_LABEL_SCALE;
   sprite.scale.set(w * sf, h * sf, 1);
   sprite.renderOrder = 999;
+  return sprite;
+}
+
+function createCommitTimeLabelSprite(text) {
+  if (typeof text !== 'string' || !text.trim()) {return null;}
+  const t = text.trim();
+  const padX = 12;
+  const padY = 6;
+  const cornerR = 8;
+  const font = '600 40px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = font;
+  const metrics = ctx.measureText(t);
+  const w = Math.ceil(Math.max(metrics.width, 88) + padX * 2);
+  const h = TEMPORAL_COMMIT_LABEL_CANVAS_H;
+  canvas.width = w;
+  canvas.height = h;
+  ctx.font = font;
+  drawTemporalLabelRoundedRect(ctx, 0, 0, w, h, cornerR);
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'rgba(10, 18, 36, 0.92)');
+  g.addColorStop(1, 'rgba(4, 8, 18, 0.94)');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(160, 210, 255, 0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#dbeaff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1;
+  ctx.fillText(t, w / 2, h / 2 + 1);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    fog: false
+  });
+  const sprite = new THREE.Sprite(mat);
+  const sf = TEMPORAL_COMMIT_LABEL_SCALE;
+  sprite.scale.set(w * sf, h * sf, 1);
+  sprite.renderOrder = 998;
   return sprite;
 }
 
@@ -4830,7 +5028,14 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
     commitsByAnchor.get(aid).push(c);
   });
   commitsByAnchor.forEach((list) => {
-    list.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    list.sort((a, b) => {
+      const ta = parseTemporalCommitTimestampMs(a);
+      const tb = parseTemporalCommitTimestampMs(b);
+      if (ta != null && tb != null && ta !== tb) {return ta - tb;}
+      if (ta != null && tb == null) {return -1;}
+      if (ta == null && tb != null) {return 1;}
+      return String(a.id).localeCompare(String(b.id));
+    });
   });
 
   commitsByAnchor.forEach((list, anchorId) => {
@@ -4839,20 +5044,63 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
       console.warn('[Neurograph] No anchor mesh for', anchorId, 'skipping', list.length, 'commits');
       return;
     }
-    // All commits for this calendar day orbit in world space around the day-anchor sphere center.
+    // Commits sit on one or two tilted coplanar rings (primary cyan guides only).
     const orbitCenter = anchorMesh.position;
     const nCommits = list.length;
+    const tilt = TEMPORAL_COMMIT_RING_TILT;
+    const splitRings = nCommits > TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT;
+    const splitAt = splitRings ? Math.ceil(nCommits / 2) : nCommits;
+    const rMain = TEMPORAL_ORBIT_BASE_RADIUS;
+    const innerRing = createTemporalCommitOrbitRingLoop(orbitCenter, rMain, tilt, {
+      opacity: 0.42,
+      color: 0x5ed4ff
+    });
+    neurographScene.add(innerRing);
+    neuroCommitRingLines.push(innerRing);
+    if (splitRings) {
+      const rOut = TEMPORAL_ORBIT_BASE_RADIUS + TEMPORAL_ORBIT_SPACING;
+      const outerRing = createTemporalCommitOrbitRingLoop(orbitCenter, rOut, tilt, {
+        opacity: 0.4,
+        color: 0x5ed4ff
+      });
+      neurographScene.add(outerRing);
+      neuroCommitRingLines.push(outerRing);
+    }
+
+    const commitThetas = [];
+    if (nCommits > 0) {
+      const minGap = Math.min(0.28, (Math.PI * 2 * 0.97) / Math.max(1, nCommits - 1));
+      let prevTheta = -minGap;
+      for (let ci = 0; ci < nCommits; ci++) {
+        const cn = list[ci];
+        const df = getTemporalCommitLocalDayFraction(cn);
+        const raw = df != null
+          ? df * Math.PI * 2
+          : ((ci + 0.5) / Math.max(1, nCommits)) * Math.PI * 2;
+        const t = Math.max(raw, prevTheta + minGap);
+        prevTheta = t;
+        commitThetas.push(t);
+      }
+      const hiT = commitThetas[nCommits - 1];
+      if (hiT > Math.PI * 2 - 0.04) {
+        const loT = commitThetas[0];
+        const spanT = hiT - loT;
+        const capT = Math.PI * 2 - 0.06;
+        if (spanT > capT) {
+          for (let ri = 0; ri < nCommits; ri++) {
+            commitThetas[ri] = loT + ((commitThetas[ri] - loT) / spanT) * capT;
+          }
+        }
+      }
+    }
 
     list.forEach((node, i) => {
-      const theta = i * TEMPORAL_GOLDEN_ANGLE;
-      const phi = Math.acos(1 - 2 * ((i + 0.5) / Math.max(1, nCommits)));
-      const orbitR = TEMPORAL_ORBIT_BASE_RADIUS + i * TEMPORAL_ORBIT_SPACING;
-      const sinPhi = Math.sin(phi);
-      const cosPhi = Math.cos(phi);
-      const pos = orbitCenter.clone();
-      pos.x += sinPhi * Math.cos(theta) * orbitR;
-      pos.y += sinPhi * Math.sin(theta) * orbitR;
-      pos.z += cosPhi * orbitR;
+      const theta = commitThetas[i];
+      const commitRingRadius =
+        !splitRings || i < splitAt
+          ? TEMPORAL_ORBIT_BASE_RADIUS
+          : TEMPORAL_ORBIT_BASE_RADIUS + TEMPORAL_ORBIT_SPACING;
+      const pos = temporalCommitRingPoint(orbitCenter, commitRingRadius, tilt, theta);
       allPoints.push(pos.clone());
 
       const r = getTemporalCommitRadius(node);
@@ -4877,28 +5125,45 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
       };
       neurographScene.add(mesh);
       neurons.push(mesh);
+      const timeLabelText = formatTemporalCommitTimeLabel(node);
+      if (timeLabelText) {
+        const commitLabelHalf =
+          (TEMPORAL_COMMIT_LABEL_CANVAS_H * TEMPORAL_COMMIT_LABEL_SCALE) / 2;
+        const commitLabelYBelow = r + TEMPORAL_COMMIT_LABEL_GAP + commitLabelHalf;
+        const timeSprite = createCommitTimeLabelSprite(timeLabelText);
+        if (timeSprite) {
+          timeSprite.position.copy(mesh.position).add(new THREE.Vector3(0, -commitLabelYBelow, 0));
+          neurographScene.add(timeSprite);
+          neuroCommitTimeLabelSprites.push(timeSprite);
+        }
+      }
       const commitDate = getTemporalCommitDate(node);
-      const learningEntries = Array.isArray(learningIndexByDate[commitDate]) ? learningIndexByDate[commitDate] : [];
+      const dayLearningEntries = Array.isArray(learningIndexByDate[commitDate]) ? learningIndexByDate[commitDate] : [];
+      const parentAttrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+      const learningEntries = filterTemporalLearningsForCommit(
+        dayLearningEntries,
+        node,
+        parentAttrs,
+        i,
+        nCommits
+      );
       if (learningEntries.length > 0) {
         const learningGeometry = new THREE.SphereGeometry(TEMPORAL_LEARNING_RADIUS, 22, 22);
         const nLearn = learningEntries.length;
+        const ringR =
+          r * TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR + TEMPORAL_LEARNING_RING_RADIUS_EXTRA;
+        const bu = TEMPORAL_LEARNING_RING_AXIS_U;
+        const bv = TEMPORAL_LEARNING_RING_AXIS_V;
         learningEntries.forEach((learning, learningIdx) => {
           const learningMesh = new THREE.Mesh(learningGeometry, createTemporalLearningMaterial());
-          // Match commit-placement logic (golden-angle + spherical distribution), but
-          // use wider shell spacing so dense learning clusters remain readable.
-          const thetaL = learningIdx * TEMPORAL_GOLDEN_ANGLE;
-          const phiL = Math.acos(1 - 2 * ((learningIdx + 0.5) / Math.max(1, nLearn)));
-          const orbitRadius =
-            (r * TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR) +
-            (learningIdx * TEMPORAL_LEARNING_ORBIT_RADIUS_SPACING);
-          const sinPhiL = Math.sin(phiL);
-          const cosPhiL = Math.cos(phiL);
+          const angle0 = learningIdx * ((Math.PI * 2) / Math.max(1, nLearn));
+          const cos0 = Math.cos(angle0);
+          const sin0 = Math.sin(angle0);
           learningMesh.position.set(
-            mesh.position.x + (sinPhiL * Math.cos(thetaL) * orbitRadius),
-            mesh.position.y + (sinPhiL * Math.sin(thetaL) * orbitRadius),
-            mesh.position.z + (cosPhiL * orbitRadius)
+            mesh.position.x + ringR * (cos0 * bu.x + sin0 * bv.x),
+            mesh.position.y + ringR * (cos0 * bu.y + sin0 * bv.y),
+            mesh.position.z + ringR * (cos0 * bu.z + sin0 * bv.z)
           );
-          const parentAttrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
           const linkedCommitHash = getTemporalCommitHashSubtitle(node, parentAttrs);
           learningMesh.userData = {
             id: `${mesh.userData.id}::learning::${learningIdx}`,
@@ -4966,7 +5231,18 @@ function createNeurograph(data) {
     if (spr.material) {spr.material.dispose();}
   });
   neuroAnchorLabelSprites = [];
-  neuroLearningOrbits = [];
+  neuroCommitTimeLabelSprites.forEach((spr) => {
+    neurographScene.remove(spr);
+    if (spr.material && spr.material.map) {spr.material.map.dispose();}
+    if (spr.material) {spr.material.dispose();}
+  });
+  neuroCommitTimeLabelSprites = [];
+  neuroCommitRingLines.forEach((line) => {
+    neurographScene.remove(line);
+    if (line.geometry) {line.geometry.dispose();}
+    if (line.material) {line.material.dispose();}
+  });
+  neuroCommitRingLines = [];
 
   // Clear existing objects
   neurons.forEach(neuron => neurographScene.remove(neuron));
