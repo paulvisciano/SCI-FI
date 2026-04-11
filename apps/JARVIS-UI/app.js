@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.33';
+const CLIENT_VERSION = '3.3.34';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -1902,6 +1902,10 @@ const NEURO_FOG_DENSITY_DEFAULT = 0.00032;
 let neurographTemporalMode = false;
 /** Billboard date labels above day anchors (THREE.Sprite). */
 let neuroAnchorLabelSprites = [];
+/** Short time-of-day labels below temporal commit orbs. */
+let neuroCommitTimeLabelSprites = [];
+/** Temporal learning meshes: coplanar ring orbit around parent commit. */
+let neuroLearningOrbits = [];
 
 // === Three.js JARVIS Orb Rendering ===
 // Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
@@ -2975,6 +2979,13 @@ function animateNeurograph() {
       } else if (neuron.userData.isTemporal) {
         neuron.material.emissiveIntensity = temporalPulse;
       }
+    }
+  }
+
+  if (neurographTemporalMode && neuroLearningOrbits.length > 0 && isNeurographLoaded) {
+    const tSec = performance.now() / 1000;
+    for (let o = 0; o < neuroLearningOrbits.length; o++) {
+      positionTemporalLearningSatellite(neuroLearningOrbits[o], tSec);
     }
   }
 
@@ -4384,9 +4395,16 @@ const TEMPORAL_COMMIT_COLOR_BREATH = 0xffb84d;
 const TEMPORAL_COMMIT_COLOR_COLD = 0x3d8cff;
 const TEMPORAL_LEARNING_RADIUS = 6;
 const TEMPORAL_LEARNING_COLOR = 0xffd36b;
-/** Learning shells around each commit: larger base + wider spacing for readability. */
+/** Learning ring radius scales with commit sphere radius. */
 const TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR = 6.2;
-const TEMPORAL_LEARNING_ORBIT_RADIUS_SPACING = 34;
+/** Shared ring radius offset so learnings read as a “satellite belt” (world units beyond commit radius). */
+const TEMPORAL_LEARNING_RING_RADIUS_EXTRA = 22;
+/** Angular speed (rad/s) for learning satellites on the commit ring. */
+const TEMPORAL_LEARNING_RING_SPEED = 0.3;
+/** Pill label under commit orb: canvas height (px), world scale, gap from sphere surface. */
+const TEMPORAL_COMMIT_LABEL_CANVAS_H = 52;
+const TEMPORAL_COMMIT_LABEL_SCALE = 0.14;
+const TEMPORAL_COMMIT_LABEL_GAP = 10;
 /** Distance from day-anchor center to innermost commit shell (clearance past anchor + largest commit). */
 const TEMPORAL_ORBIT_BASE_RADIUS = 192;
 /** Extra radius per commit index — successive shells farther out. */
@@ -4603,6 +4621,37 @@ function getTemporalCommitLocalDayFraction(node) {
   return sec / 86400;
 }
 
+/** e.g. `2:05 PM` from commit timestamp; empty string if unknown. */
+function formatTemporalCommitTimeLabel(node) {
+  const ms = parseTemporalCommitTimestampMs(node);
+  if (ms == null) {return '';}
+  const d = new Date(ms);
+  const hour24 = d.getHours();
+  const minute = d.getMinutes();
+  const isPm = hour24 >= 12;
+  let h12 = hour24 % 12;
+  if (h12 === 0) {h12 = 12;}
+  const mm = String(minute).padStart(2, '0');
+  return `${h12}:${mm} ${isPm ? 'PM' : 'AM'}`;
+}
+
+/** Orthonormal `axisU`,`axisV` span the satellite ring plane (perpendicular to anchor→commit). */
+function buildCommitLearningRingBasis(anchorPosition, commitPosition) {
+  const axis = new THREE.Vector3().subVectors(commitPosition, anchorPosition);
+  if (axis.lengthSq() < 1e-8) {
+    axis.set(0, 1, 0);
+  } else {
+    axis.normalize();
+  }
+  let u = new THREE.Vector3(0, 1, 0).cross(axis);
+  if (u.lengthSq() < 1e-10) {
+    u = new THREE.Vector3(1, 0, 0).cross(axis);
+  }
+  u.normalize();
+  const v = new THREE.Vector3().copy(axis).cross(u).normalize();
+  return { axisU: u, axisV: v };
+}
+
 function getTemporalLearningContentPreview(content) {
   if (typeof content !== 'string') {return '';}
   const normalized = content.trim();
@@ -4683,6 +4732,75 @@ function createDayAnchorLabelSprite(text) {
   sprite.scale.set(w * sf, h * sf, 1);
   sprite.renderOrder = 999;
   return sprite;
+}
+
+function createCommitTimeLabelSprite(text) {
+  if (typeof text !== 'string' || !text.trim()) {return null;}
+  const t = text.trim();
+  const padX = 12;
+  const padY = 6;
+  const cornerR = 8;
+  const font = '600 28px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = font;
+  const metrics = ctx.measureText(t);
+  const w = Math.ceil(Math.max(metrics.width, 52) + padX * 2);
+  const h = TEMPORAL_COMMIT_LABEL_CANVAS_H;
+  canvas.width = w;
+  canvas.height = h;
+  ctx.font = font;
+  drawTemporalLabelRoundedRect(ctx, 0, 0, w, h, cornerR);
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, 'rgba(10, 18, 36, 0.92)');
+  g.addColorStop(1, 'rgba(4, 8, 18, 0.94)');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(160, 210, 255, 0.45)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#dbeaff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 1;
+  ctx.fillText(t, w / 2, h / 2 + 1);
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    fog: false
+  });
+  const sprite = new THREE.Sprite(mat);
+  const sf = TEMPORAL_COMMIT_LABEL_SCALE;
+  sprite.scale.set(w * sf, h * sf, 1);
+  sprite.renderOrder = 998;
+  return sprite;
+}
+
+/** Learning satellite on a fixed-radius ring coplanar with anchor→commit radial. */
+function positionTemporalLearningSatellite(orbit, timeSec) {
+  const c = orbit.parent.position;
+  const ang = orbit.phase + timeSec * orbit.speed;
+  const cosA = Math.cos(ang);
+  const sinA = Math.sin(ang);
+  const R = orbit.radius;
+  const u = orbit.axisU;
+  const v = orbit.axisV;
+  orbit.mesh.position.set(
+    c.x + R * (cosA * u.x + sinA * v.x),
+    c.y + R * (cosA * u.y + sinA * v.y),
+    c.z + R * (cosA * u.z + sinA * v.z)
+  );
+  if (orbit.mesh.userData && orbit.mesh.userData.position) {
+    orbit.mesh.userData.position.copy(orbit.mesh.position);
+  }
 }
 
 function fitNeurographCameraToPoints(points) {
@@ -4784,6 +4902,7 @@ function fitNeurographCameraToPresentDayAnchor(allPoints) {
 
 function createTemporalNeurograph(_data, dayAnchors, commits) {
   neurographTemporalMode = true;
+  neuroLearningOrbits = [];
   console.log(
     '[Neurograph] Temporal layout:',
     dayAnchors.length,
@@ -4905,25 +5024,37 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
       };
       neurographScene.add(mesh);
       neurons.push(mesh);
+      const timeLabelText = formatTemporalCommitTimeLabel(node);
+      if (timeLabelText) {
+        const commitLabelHalf =
+          (TEMPORAL_COMMIT_LABEL_CANVAS_H * TEMPORAL_COMMIT_LABEL_SCALE) / 2;
+        const commitLabelYBelow = r + TEMPORAL_COMMIT_LABEL_GAP + commitLabelHalf;
+        const timeSprite = createCommitTimeLabelSprite(timeLabelText);
+        if (timeSprite) {
+          timeSprite.position.copy(mesh.position).add(new THREE.Vector3(0, -commitLabelYBelow, 0));
+          neurographScene.add(timeSprite);
+          neuroCommitTimeLabelSprites.push(timeSprite);
+        }
+      }
       const commitDate = getTemporalCommitDate(node);
       const learningEntries = Array.isArray(learningIndexByDate[commitDate]) ? learningIndexByDate[commitDate] : [];
       if (learningEntries.length > 0) {
         const learningGeometry = new THREE.SphereGeometry(TEMPORAL_LEARNING_RADIUS, 22, 22);
         const nLearn = learningEntries.length;
+        const ringBasis = buildCommitLearningRingBasis(orbitCenter, mesh.position);
+        const ringR =
+          r * TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR + TEMPORAL_LEARNING_RING_RADIUS_EXTRA;
         learningEntries.forEach((learning, learningIdx) => {
           const learningMesh = new THREE.Mesh(learningGeometry, createTemporalLearningMaterial());
-          // Fibonacci sphere on a slightly enlarged shell so multiple learnings stay readable (static).
-          const thetaL = learningIdx * TEMPORAL_GOLDEN_ANGLE;
-          const phiL = Math.acos(1 - 2 * ((learningIdx + 0.5) / Math.max(1, nLearn)));
-          const orbitRadius =
-            (r * TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR) +
-            (learningIdx * TEMPORAL_LEARNING_ORBIT_RADIUS_SPACING);
-          const sinPhiL = Math.sin(phiL);
-          const cosPhiL = Math.cos(phiL);
+          const angle0 = learningIdx * ((Math.PI * 2) / Math.max(1, nLearn));
+          const cos0 = Math.cos(angle0);
+          const sin0 = Math.sin(angle0);
+          const bu = ringBasis.axisU;
+          const bv = ringBasis.axisV;
           learningMesh.position.set(
-            mesh.position.x + sinPhiL * Math.cos(thetaL) * orbitRadius,
-            mesh.position.y + sinPhiL * Math.sin(thetaL) * orbitRadius,
-            mesh.position.z + cosPhiL * orbitRadius
+            mesh.position.x + ringR * (cos0 * bu.x + sin0 * bv.x),
+            mesh.position.y + ringR * (cos0 * bu.y + sin0 * bv.y),
+            mesh.position.z + ringR * (cos0 * bu.z + sin0 * bv.z)
           );
           const parentAttrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
           const linkedCommitHash = getTemporalCommitHashSubtitle(node, parentAttrs);
@@ -4952,6 +5083,15 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
           neurographScene.add(learningMesh);
           neurons.push(learningMesh);
           allPoints.push(learningMesh.position.clone());
+          neuroLearningOrbits.push({
+            mesh: learningMesh,
+            parent: mesh,
+            radius: ringR,
+            axisU: bu.clone(),
+            axisV: bv.clone(),
+            phase: angle0,
+            speed: TEMPORAL_LEARNING_RING_SPEED
+          });
         });
       }
       nodeMap[node.id] = mesh;
@@ -4993,6 +5133,13 @@ function createNeurograph(data) {
     if (spr.material) {spr.material.dispose();}
   });
   neuroAnchorLabelSprites = [];
+  neuroCommitTimeLabelSprites.forEach((spr) => {
+    neurographScene.remove(spr);
+    if (spr.material && spr.material.map) {spr.material.map.dispose();}
+    if (spr.material) {spr.material.dispose();}
+  });
+  neuroCommitTimeLabelSprites = [];
+  neuroLearningOrbits = [];
 
   // Clear existing objects
   neurons.forEach(neuron => neurographScene.remove(neuron));
