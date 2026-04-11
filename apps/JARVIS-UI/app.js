@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.41';
+const CLIENT_VERSION = '3.3.42';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -4391,16 +4391,16 @@ const TEMPORAL_LEARNING_COLOR = 0xffd36b;
 const TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR = 6.2;
 /** Shared ring radius offset so learnings read as a “satellite belt” (world units beyond commit radius). */
 const TEMPORAL_LEARNING_RING_RADIUS_EXTRA = 22;
-/** Tilt (rad) of learning ring about world X — shallow like reference HUD plates. */
-const TEMPORAL_LEARNING_RING_TILT = 0.28;
+/** Tilt (rad) of learning ring about world X — steeper read vs commit plate. */
+const TEMPORAL_LEARNING_RING_TILT = 0.52;
 const _lrSt = Math.sin(TEMPORAL_LEARNING_RING_TILT);
 const _lrCt = Math.cos(TEMPORAL_LEARNING_RING_TILT);
 /** Ring tangent axes: U along +X, V in YZ so the learning circle pitches with the tilt. */
 const TEMPORAL_LEARNING_RING_AXIS_U = new THREE.Vector3(1, 0, 0);
 const TEMPORAL_LEARNING_RING_AXIS_V = new THREE.Vector3(0, -_lrSt, _lrCt);
 /** Pill label under commit orb: canvas height (px), world scale, gap from sphere surface. */
-const TEMPORAL_COMMIT_LABEL_CANVAS_H = 52;
-const TEMPORAL_COMMIT_LABEL_SCALE = 0.14;
+const TEMPORAL_COMMIT_LABEL_CANVAS_H = 70;
+const TEMPORAL_COMMIT_LABEL_SCALE = 0.19;
 const TEMPORAL_COMMIT_LABEL_GAP = 10;
 /** Primary commit ring radius from day-anchor center (solar-system style). */
 const TEMPORAL_ORBIT_BASE_RADIUS = 398;
@@ -4408,8 +4408,6 @@ const TEMPORAL_ORBIT_BASE_RADIUS = 398;
 const TEMPORAL_ORBIT_SPACING = 102;
 /** Tilt (rad) of the commit ring plane around local X — flatter stack (reference mockup). */
 const TEMPORAL_COMMIT_RING_TILT = 0.17;
-/** Fractions of primary radius for extra faint concentric orbit guides. */
-const TEMPORAL_COMMIT_RING_DECO_FRACS = [0.72, 0.84];
 const TEMPORAL_COMMIT_RING_SEGMENTS = 120;
 /** Beyond this count, commits use inner + outer concentric rings. */
 const TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT = 16;
@@ -4831,12 +4829,12 @@ function createCommitTimeLabelSprite(text) {
   const padX = 12;
   const padY = 6;
   const cornerR = 8;
-  const font = '600 28px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const font = '600 34px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   ctx.font = font;
   const metrics = ctx.measureText(t);
-  const w = Math.ceil(Math.max(metrics.width, 52) + padX * 2);
+  const w = Math.ceil(Math.max(metrics.width, 72) + padX * 2);
   const h = TEMPORAL_COMMIT_LABEL_CANVAS_H;
   canvas.width = w;
   canvas.height = h;
@@ -5046,23 +5044,13 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
       console.warn('[Neurograph] No anchor mesh for', anchorId, 'skipping', list.length, 'commits');
       return;
     }
-    // Commits sit on one or two tilted coplanar rings (solar-system style) with faint orbit guides.
+    // Commits sit on one or two tilted coplanar rings (primary cyan guides only).
     const orbitCenter = anchorMesh.position;
     const nCommits = list.length;
     const tilt = TEMPORAL_COMMIT_RING_TILT;
     const splitRings = nCommits > TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT;
     const splitAt = splitRings ? Math.ceil(nCommits / 2) : nCommits;
     const rMain = TEMPORAL_ORBIT_BASE_RADIUS;
-    TEMPORAL_COMMIT_RING_DECO_FRACS.forEach((frac) => {
-      const rad = rMain * frac;
-      if (rad < TEMPORAL_DAY_ANCHOR_RADIUS + 48) {return;}
-      const deco = createTemporalCommitOrbitRingLoop(orbitCenter, rad, tilt, {
-        opacity: 0.11,
-        color: 0x3a8cc8
-      });
-      neurographScene.add(deco);
-      neuroCommitRingLines.push(deco);
-    });
     const innerRing = createTemporalCommitOrbitRingLoop(orbitCenter, rMain, tilt, {
       opacity: 0.42,
       color: 0x5ed4ff
@@ -5077,12 +5065,6 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
       });
       neurographScene.add(outerRing);
       neuroCommitRingLines.push(outerRing);
-      const outerDeco = createTemporalCommitOrbitRingLoop(orbitCenter, rOut * 1.045, tilt, {
-        opacity: 0.1,
-        color: 0x3a8cc8
-      });
-      neurographScene.add(outerDeco);
-      neuroCommitRingLines.push(outerDeco);
     }
 
     const commitThetas = [];
