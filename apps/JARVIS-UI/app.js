@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.25';
+const CLIENT_VERSION = '3.3.26';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3991,15 +3991,13 @@ function createNodeLabel(nodeData) {
       parts.push('<div class="neuro-node-panel__muted">No content</div>');
     }
     parts.push('</section>');
-    parts.push('<section class="neuro-node-panel__sec">');
-    parts.push('<div class="neuro-node-panel__sec-title">Learning</div>');
-    if (attrs.date) {
-      parts.push(neuroPanelRow('Date', esc(String(attrs.date))));
-    }
+    // Omit attrs.date here: calendar metadata duplicates the narrative and crowds the panel (SCIAAA-99).
     if (attrs.sourceFile) {
+      parts.push('<section class="neuro-node-panel__sec">');
+      parts.push('<div class="neuro-node-panel__sec-title">Learning</div>');
       parts.push(neuroPanelRow('Source', esc(String(attrs.sourceFile))));
+      parts.push('</section>');
     }
-    parts.push('</section>');
   } else if (attrs && Object.keys(attrs).length > 0) {
     if (isCommit) {
       const attrKeys = neuroCommitAttributeKeys(attrs);
@@ -4021,7 +4019,7 @@ function createNodeLabel(nodeData) {
     }
   }
 
-  if (node.moments && node.moments.length > 0 && !isCommit) {
+  if (node.moments && node.moments.length > 0 && !isCommit && !isLearning) {
     parts.push('<section class="neuro-node-panel__sec">');
     parts.push(`<div class="neuro-node-panel__sec-title">Moments <span class="neuro-node-panel__count">${node.moments.length}</span></div>`);
     node.moments.forEach((m, i) => {
