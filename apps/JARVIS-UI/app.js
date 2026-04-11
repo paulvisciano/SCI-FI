@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.28';
+const CLIENT_VERSION = '3.3.29';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3598,12 +3598,19 @@ function stripRedundantLeadingHeadingFromMarkdown(md, panelTitle) {
 /**
  * Strip leading export noise from learning markdown (YAML `---` fence and/or bold `**Date:**` rows)
  * so the panel opens on real prose (SCIAAA-99).
+ * Handles files that put `# Title` then **Date:** / **Type:** / **Status:** before the real body.
  */
 function stripLeadingLearningFilePreamble(md) {
   const lines = String(md == null ? '' : md).split(/\r?\n/);
-  while (lines.length && /^\s*$/.test(lines[0])) {
-    lines.shift();
-  }
+  const pullLeadingBlanks = () => {
+    while (lines.length && /^\s*$/.test(lines[0])) {
+      lines.shift();
+    }
+  };
+  const junkKeyLine =
+    /^\s*(?:[-*+]\s+|[0-9]+[.)]\s+)?(\*{0,2}\s*)?(date|type|status|source|tags?|author)(\s*\*{0,2})?\s*:\s*.+$/i;
+
+  pullLeadingBlanks();
   if (lines.length >= 2 && /^---\s*$/.test(lines[0])) {
     let end = 1;
     while (end < lines.length && !/^---\s*$/.test(lines[end])) {
@@ -3611,13 +3618,21 @@ function stripLeadingLearningFilePreamble(md) {
     }
     if (end < lines.length && /^---\s*$/.test(lines[end])) {
       lines.splice(0, end + 1);
-      while (lines.length && /^\s*$/.test(lines[0])) {
-        lines.shift();
-      }
+      pullLeadingBlanks();
     }
   }
-  const junkKeyLine =
-    /^\s*(\*{0,2}\s*)?(date|type|status|source|tags?|author)(\s*\*{0,2})?\s*:\s*.+$/i;
+
+  if (lines.length && /^#{1,6}\s+\S/.test(lines[0])) {
+    let j = 1;
+    while (j < lines.length && /^\s*$/.test(lines[j])) {
+      j++;
+    }
+    if (j < lines.length && junkKeyLine.test(lines[j])) {
+      lines.shift();
+      pullLeadingBlanks();
+    }
+  }
+
   while (lines.length) {
     if (/^\s*$/.test(lines[0])) {
       lines.shift();
