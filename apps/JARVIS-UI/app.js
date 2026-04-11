@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.39';
+const CLIENT_VERSION = '3.3.40';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -4391,8 +4391,8 @@ const TEMPORAL_LEARNING_COLOR = 0xffd36b;
 const TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR = 6.2;
 /** Shared ring radius offset so learnings read as a “satellite belt” (world units beyond commit radius). */
 const TEMPORAL_LEARNING_RING_RADIUS_EXTRA = 22;
-/** Tilt (rad) of learning ring about world X — steeper than flat XZ for clearer depth. */
-const TEMPORAL_LEARNING_RING_TILT = 0.55;
+/** Tilt (rad) of learning ring about world X — shallow like reference HUD plates. */
+const TEMPORAL_LEARNING_RING_TILT = 0.28;
 const _lrSt = Math.sin(TEMPORAL_LEARNING_RING_TILT);
 const _lrCt = Math.cos(TEMPORAL_LEARNING_RING_TILT);
 /** Ring tangent axes: U along +X, V in YZ so the learning circle pitches with the tilt. */
@@ -4406,8 +4406,10 @@ const TEMPORAL_COMMIT_LABEL_GAP = 10;
 const TEMPORAL_ORBIT_BASE_RADIUS = 398;
 /** Secondary ring radius offset when many commits split across two rings. */
 const TEMPORAL_ORBIT_SPACING = 102;
-/** Tilt (rad) of the commit ring plane around local X for depth (reference: orbital diagram). */
-const TEMPORAL_COMMIT_RING_TILT = 0.38;
+/** Tilt (rad) of the commit ring plane around local X — flatter stack (reference mockup). */
+const TEMPORAL_COMMIT_RING_TILT = 0.17;
+/** Fractions of primary radius for extra faint concentric orbit guides. */
+const TEMPORAL_COMMIT_RING_DECO_FRACS = [0.72, 0.84];
 const TEMPORAL_COMMIT_RING_SEGMENTS = 120;
 /** Beyond this count, commits use inner + outer concentric rings. */
 const TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT = 16;
@@ -4647,8 +4649,14 @@ function temporalCommitRingPoint(center, radius, tiltRad, theta) {
   return new THREE.Vector3(center.x + x, center.y + y1, center.z + z1);
 }
 
-/** Faint orbit guide matching the commit ring geometry. */
-function createTemporalCommitOrbitRingLoop(center, radius, tiltRad) {
+/**
+ * Orbit guide matching the commit ring geometry.
+ * @param {{opacity?: number, color?: number}} [style] — defaults tuned to cyan HUD reference.
+ */
+function createTemporalCommitOrbitRingLoop(center, radius, tiltRad, style) {
+  const st = style || {};
+  const opacity = typeof st.opacity === 'number' ? st.opacity : 0.38;
+  const color = typeof st.color === 'number' ? st.color : 0x54c8ff;
   const segs = TEMPORAL_COMMIT_RING_SEGMENTS;
   const pts = [];
   for (let s = 0; s <= segs; s++) {
@@ -4657,9 +4665,9 @@ function createTemporalCommitOrbitRingLoop(center, radius, tiltRad) {
   }
   const geo = new THREE.BufferGeometry().setFromPoints(pts);
   const mat = new THREE.LineBasicMaterial({
-    color: 0x7b9ec4,
+    color,
     transparent: true,
-    opacity: 0.4,
+    opacity,
     depthWrite: false
   });
   const loop = new THREE.LineLoop(geo, mat);
@@ -4976,17 +4984,37 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
     const tilt = TEMPORAL_COMMIT_RING_TILT;
     const splitRings = nCommits > TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT;
     const splitAt = splitRings ? Math.ceil(nCommits / 2) : nCommits;
-    const innerRing = createTemporalCommitOrbitRingLoop(orbitCenter, TEMPORAL_ORBIT_BASE_RADIUS, tilt);
+    const rMain = TEMPORAL_ORBIT_BASE_RADIUS;
+    TEMPORAL_COMMIT_RING_DECO_FRACS.forEach((frac) => {
+      const rad = rMain * frac;
+      if (rad < TEMPORAL_DAY_ANCHOR_RADIUS + 48) {return;}
+      const deco = createTemporalCommitOrbitRingLoop(orbitCenter, rad, tilt, {
+        opacity: 0.11,
+        color: 0x3a8cc8
+      });
+      neurographScene.add(deco);
+      neuroCommitRingLines.push(deco);
+    });
+    const innerRing = createTemporalCommitOrbitRingLoop(orbitCenter, rMain, tilt, {
+      opacity: 0.42,
+      color: 0x5ed4ff
+    });
     neurographScene.add(innerRing);
     neuroCommitRingLines.push(innerRing);
     if (splitRings) {
-      const outerRing = createTemporalCommitOrbitRingLoop(
-        orbitCenter,
-        TEMPORAL_ORBIT_BASE_RADIUS + TEMPORAL_ORBIT_SPACING,
-        tilt
-      );
+      const rOut = TEMPORAL_ORBIT_BASE_RADIUS + TEMPORAL_ORBIT_SPACING;
+      const outerRing = createTemporalCommitOrbitRingLoop(orbitCenter, rOut, tilt, {
+        opacity: 0.4,
+        color: 0x5ed4ff
+      });
       neurographScene.add(outerRing);
       neuroCommitRingLines.push(outerRing);
+      const outerDeco = createTemporalCommitOrbitRingLoop(orbitCenter, rOut * 1.045, tilt, {
+        opacity: 0.1,
+        color: 0x3a8cc8
+      });
+      neurographScene.add(outerDeco);
+      neuroCommitRingLines.push(outerDeco);
     }
 
     const commitThetas = [];
