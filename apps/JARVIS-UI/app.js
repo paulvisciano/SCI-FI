@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.29';
+const CLIENT_VERSION = '3.3.30';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3599,6 +3599,7 @@ function stripRedundantLeadingHeadingFromMarkdown(md, panelTitle) {
  * Strip leading export noise from learning markdown (YAML `---` fence and/or bold `**Date:**` rows)
  * so the panel opens on real prose (SCIAAA-99).
  * Handles files that put `# Title` then **Date:** / **Type:** / **Status:** before the real body.
+ * Trailing `---` / `***` / `___` HR lines left between that block and prose are removed too (SCIAAA-99).
  */
 function stripLeadingLearningFilePreamble(md) {
   const lines = String(md == null ? '' : md).split(/\r?\n/);
@@ -3607,6 +3608,7 @@ function stripLeadingLearningFilePreamble(md) {
       lines.shift();
     }
   };
+  const mdThematicBreakLine = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/;
   const junkKeyLine =
     /^\s*(?:[-*+]\s+|[0-9]+[.)]\s+)?(\*{0,2}\s*)?(date|type|status|source|tags?|author)(\s*\*{0,2})?\s*:\s*.+$/i;
 
@@ -3643,6 +3645,11 @@ function stripLeadingLearningFilePreamble(md) {
       continue;
     }
     break;
+  }
+  pullLeadingBlanks();
+  while (lines.length && mdThematicBreakLine.test(lines[0])) {
+    lines.shift();
+    pullLeadingBlanks();
   }
   return lines.join('\n');
 }
