@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.27';
+const CLIENT_VERSION = '3.3.28';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3595,6 +3595,43 @@ function stripRedundantLeadingHeadingFromMarkdown(md, panelTitle) {
   return lines.join('\n');
 }
 
+/**
+ * Strip leading export noise from learning markdown (YAML `---` fence and/or bold `**Date:**` rows)
+ * so the panel opens on real prose (SCIAAA-99).
+ */
+function stripLeadingLearningFilePreamble(md) {
+  const lines = String(md == null ? '' : md).split(/\r?\n/);
+  while (lines.length && /^\s*$/.test(lines[0])) {
+    lines.shift();
+  }
+  if (lines.length >= 2 && /^---\s*$/.test(lines[0])) {
+    let end = 1;
+    while (end < lines.length && !/^---\s*$/.test(lines[end])) {
+      end++;
+    }
+    if (end < lines.length && /^---\s*$/.test(lines[end])) {
+      lines.splice(0, end + 1);
+      while (lines.length && /^\s*$/.test(lines[0])) {
+        lines.shift();
+      }
+    }
+  }
+  const junkKeyLine =
+    /^\s*(\*{0,2}\s*)?(date|type|status|source|tags?|author)(\s*\*{0,2})?\s*:\s*.+$/i;
+  while (lines.length) {
+    if (/^\s*$/.test(lines[0])) {
+      lines.shift();
+      continue;
+    }
+    if (junkKeyLine.test(lines[0])) {
+      lines.shift();
+      continue;
+    }
+    break;
+  }
+  return lines.join('\n');
+}
+
 /** Learning nodes store `.md` text in attributes.content — render as GFM HTML, sanitized. */
 function renderNeuroLearningMarkdown(rawMd) {
   const text = rawMd == null ? '' : String(rawMd);
@@ -4002,7 +4039,10 @@ function createNodeLabel(nodeData) {
   if (isLearning && attrs) {
     parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary neuro-node-panel__sec--learning-md">');
     if (attrs.content) {
-      const mdBody = stripRedundantLeadingHeadingFromMarkdown(attrs.content, title);
+      const mdBody = stripRedundantLeadingHeadingFromMarkdown(
+        stripLeadingLearningFilePreamble(attrs.content),
+        title
+      );
       parts.push(renderNeuroLearningMarkdown(mdBody));
     } else {
       parts.push('<div class="neuro-node-panel__muted">No content</div>');
