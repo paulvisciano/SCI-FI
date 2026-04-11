@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.26';
+const CLIENT_VERSION = '3.3.27';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -3783,6 +3783,23 @@ function getTemporalCommitHashSubtitle(node, attrs) {
   return node && node.id != null ? String(node.id) : '';
 }
 
+/** Best commit SHA line for learning panels (orbit parent injects `linkedCommitHash`). */
+function getLearningPanelCommitHashDisplay(node, attrs) {
+  if (attrs && attrs.linkedCommitHash != null && String(attrs.linkedCommitHash).trim() !== '') {
+    return String(attrs.linkedCommitHash).trim().toLowerCase();
+  }
+  if (attrs && neuroGitSha1Hex40(attrs.commitHashFull)) {
+    return attrs.commitHashFull.trim().toLowerCase();
+  }
+  if (node && neuroGitSha1Hex40(node.commitHashFull)) {
+    return node.commitHashFull.trim().toLowerCase();
+  }
+  if (node && neuroGitSha1Hex40(node.gitHash)) {
+    return node.gitHash.trim().toLowerCase();
+  }
+  return '';
+}
+
 function neuroCommitAttributeKeys(attrs) {
   const order = [];
   const keys = new Set(Object.keys(attrs));
@@ -3991,11 +4008,20 @@ function createNodeLabel(nodeData) {
       parts.push('<div class="neuro-node-panel__muted">No content</div>');
     }
     parts.push('</section>');
-    // Omit attrs.date here: calendar metadata duplicates the narrative and crowds the panel (SCIAAA-99).
-    if (attrs.sourceFile) {
+    // Omit attrs.date: calendar metadata crowds the panel (SCIAAA-99). Show parent commit hash instead.
+    const learningHash = getLearningPanelCommitHashDisplay(node, attrs);
+    if (learningHash || attrs.sourceFile) {
       parts.push('<section class="neuro-node-panel__sec">');
       parts.push('<div class="neuro-node-panel__sec-title">Learning</div>');
-      parts.push(neuroPanelRow('Source', esc(String(attrs.sourceFile))));
+      if (learningHash) {
+        parts.push(neuroPanelRow(
+          'Commit',
+          `<code class="neuro-node-panel__id neuro-node-panel__id--commit-hash">${esc(learningHash)}</code>`
+        ));
+      }
+      if (attrs.sourceFile) {
+        parts.push(neuroPanelRow('Source', esc(String(attrs.sourceFile))));
+      }
       parts.push('</section>');
     }
   } else if (attrs && Object.keys(attrs).length > 0) {
@@ -4810,6 +4836,8 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
             mesh.position.y + (sinPhiL * Math.sin(thetaL) * orbitRadius),
             mesh.position.z + (cosPhiL * orbitRadius)
           );
+          const parentAttrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+          const linkedCommitHash = getTemporalCommitHashSubtitle(node, parentAttrs);
           learningMesh.userData = {
             id: `${mesh.userData.id}::learning::${learningIdx}`,
             label: learning.title || learning.slug || `Learning ${learningIdx + 1}`,
@@ -4822,7 +4850,8 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
                 date: commitDate,
                 sourceFile: learning.fileName || '',
                 slug: learning.slug || '',
-                content: getTemporalLearningContentPreview(learning.content || '')
+                content: getTemporalLearningContentPreview(learning.content || ''),
+                linkedCommitHash: linkedCommitHash || ''
               }
             },
             isTemporal: true,
