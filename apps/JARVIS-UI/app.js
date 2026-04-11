@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.18';
+const CLIENT_VERSION = '3.3.31';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -2327,11 +2327,10 @@ function getNeuroInfoPanel() {
     neuroInfoPanel.style.cssText = `
       position: fixed;
       opacity: 0;
-      transform: scale(0.98) translateY(6px);
-      transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform: scale(0.985) translateY(5px);
+      transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
     `;
     document.body.appendChild(neuroInfoPanel);
-    console.log('[NeuroInfoPanel] Panel created');
   }
   return neuroInfoPanel;
 }
@@ -2352,7 +2351,8 @@ function positionNeuroInfoPanelNearMesh(mesh) {
     panel.style.top = 'auto';
     panel.style.bottom = 'max(16px, env(safe-area-inset-bottom, 0px))';
     panel.style.transform = 'translateX(-50%)';
-    panel.style.maxWidth = 'min(420px, calc(100vw - 24px))';
+    panel.style.maxWidth = 'min(480px, calc(100vw - 20px))';
+    panel.style.width = '100%';
     return;
   }
 
@@ -2377,7 +2377,8 @@ function positionNeuroInfoPanelNearMesh(mesh) {
   panel.style.position = 'fixed';
   panel.style.bottom = 'auto';
   panel.style.right = 'auto';
-  panel.style.maxWidth = isPanelExpanded ? 'min(420px, 42vw)' : 'min(300px, 34vw)';
+    panel.style.width = 'auto';
+    panel.style.maxWidth = isPanelExpanded ? 'min(480px, min(42vw, 520px))' : 'min(320px, min(34vw, 400px))';
   panel.style.transform = 'none';
 
   const pw = panel.offsetWidth || (isPanelExpanded ? 360 : 260);
@@ -2418,8 +2419,8 @@ function getNeuroHoverPreviewPanel() {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      transform: scale(0.98) translateY(6px);
-      transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform: scale(0.985) translateY(5px);
+      transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
     `;
     document.body.appendChild(neuroHoverPreviewPanel);
   }
@@ -2782,7 +2783,6 @@ function focusNeurographNode(neuron, options = {}) {
     panel.style.display = 'block';
     panel.style.visibility = 'visible';
     isPanelExpanded = true;
-    console.log('[NeuroInfoPanel] Panel shown for focused node, opacity=1, display=block');
     scheduleNeuroInfoPanelPosition(neuron);
   }
 }
@@ -3458,7 +3458,6 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     // Don't hide if clicking inside panel
     const panel = getNeuroInfoPanel();
     if (panel && panel.contains(e.target)) {
-      console.log('[NeuroInfoPanel] Click inside panel - keeping open');
       return;
     }
     
@@ -3486,23 +3485,18 @@ function flyThroughSpace(direction, distance = NEURO_FLY_THROUGH_DISTANCE, durat
     // Don't hide if clicking on UI elements (dock, toggle, etc.)
     const bottomDock = document.querySelector('.jarvis-bottom-dock');
     if (bottomDock && bottomDock.contains(e.target)) {
-      console.log('[NeuroInfoPanel] Click on dock - keeping open');
       return;
     }
     if (e.target.closest('#memory-toggle')) {
-      console.log('[NeuroInfoPanel] Click on toggle - keeping open');
       return;
     }
     if (e.target.closest('#server-status')) {
-      console.log('[NeuroInfoPanel] Click on server-status - keeping open');
       return;
     }
     
     // Click outside - clear focus after a longer delay (300ms for mobile)
-    console.log('[NeuroInfoPanel] Click outside - will clear focus in 300ms');
     setTimeout(() => {
       if (neurographFocusTarget) {
-        console.log('[NeuroInfoPanel] Clearing focus (timeout)');
         clearNeurographNodeFocus();
       }
     }, 300);
@@ -3560,6 +3554,123 @@ function neuroPanelRow(label, valueHtml) {
   return `<div class="neuro-node-panel__row"><span class="neuro-node-panel__k">${escapeHtmlNeuro(label)}</span><span class="neuro-node-panel__v">${valueHtml}</span></div>`;
 }
 
+/** Normalize titles so panel label matches first `# heading` text in .md (dedupe). */
+function neuroPanelNormalizeTitleForDedupe(s) {
+  if (s == null || s === '') {
+    return '';
+  }
+  let t = stripLeadingCalendarEmoji(String(s).trim());
+  t = t.replace(/^\s*🫁\s*/u, '').trim();
+  t = t.replace(/\s+/g, ' ').toLowerCase();
+  return t;
+}
+
+/** Drop leading ATX heading when it duplicates the panel title (already shown in the head). */
+function stripRedundantLeadingHeadingFromMarkdown(md, panelTitle) {
+  const raw = md == null ? '' : String(md);
+  const key = neuroPanelNormalizeTitleForDedupe(panelTitle);
+  if (!key) {
+    return raw;
+  }
+  const lines = raw.replace(/^\uFEFF/, '').split('\n');
+  let i = 0;
+  while (i < lines.length && lines[i].trim() === '') {
+    i++;
+  }
+  if (i >= lines.length) {
+    return raw;
+  }
+  const m = lines[i].match(/^(#{1,6})\s+(.+)$/);
+  if (!m) {
+    return raw;
+  }
+  const headingKey = neuroPanelNormalizeTitleForDedupe(m[2]);
+  if (headingKey !== key) {
+    return raw;
+  }
+  lines.splice(i, 1);
+  while (i < lines.length && lines[i].trim() === '') {
+    lines.splice(i, 1);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Strip leading export noise from learning markdown (YAML `---` fence and/or bold `**Date:**` rows)
+ * so the panel opens on real prose (SCIAAA-99).
+ * Handles files that put `# Title` then **Date:** / **Type:** / **Status:** before the real body.
+ * Trailing `---` / `***` / `___` HR lines left between that block and prose are removed too (SCIAAA-99).
+ */
+function stripLeadingLearningFilePreamble(md) {
+  const lines = String(md == null ? '' : md).split(/\r?\n/);
+  const pullLeadingBlanks = () => {
+    while (lines.length && /^\s*$/.test(lines[0])) {
+      lines.shift();
+    }
+  };
+  const mdThematicBreakLine = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/;
+  const junkKeyLine =
+    /^\s*(?:[-*+]\s+|[0-9]+[.)]\s+)?(\*{0,2}\s*)?(date|type|status|source|tags?|author)(\s*\*{0,2})?\s*:\s*.+$/i;
+
+  pullLeadingBlanks();
+  if (lines.length >= 2 && /^---\s*$/.test(lines[0])) {
+    let end = 1;
+    while (end < lines.length && !/^---\s*$/.test(lines[end])) {
+      end++;
+    }
+    if (end < lines.length && /^---\s*$/.test(lines[end])) {
+      lines.splice(0, end + 1);
+      pullLeadingBlanks();
+    }
+  }
+
+  if (lines.length && /^#{1,6}\s+\S/.test(lines[0])) {
+    let j = 1;
+    while (j < lines.length && /^\s*$/.test(lines[j])) {
+      j++;
+    }
+    if (j < lines.length && junkKeyLine.test(lines[j])) {
+      lines.shift();
+      pullLeadingBlanks();
+    }
+  }
+
+  while (lines.length) {
+    if (/^\s*$/.test(lines[0])) {
+      lines.shift();
+      continue;
+    }
+    if (junkKeyLine.test(lines[0])) {
+      lines.shift();
+      continue;
+    }
+    break;
+  }
+  pullLeadingBlanks();
+  while (lines.length && mdThematicBreakLine.test(lines[0])) {
+    lines.shift();
+    pullLeadingBlanks();
+  }
+  return lines.join('\n');
+}
+
+/** Learning nodes store `.md` text in attributes.content — render as GFM HTML, sanitized. */
+function renderNeuroLearningMarkdown(rawMd) {
+  const text = rawMd == null ? '' : String(rawMd);
+  const purify = typeof DOMPurify !== 'undefined' ? DOMPurify : null;
+  const canParse = typeof marked !== 'undefined' && typeof marked.parse === 'function';
+  if (!canParse || !purify) {
+    return `<div class="neuro-node-panel__primary-body neuro-node-panel__primary-body--plain">${escapeHtmlNeuro(text)}</div>`;
+  }
+  try {
+    const html = marked.parse(text, { breaks: true, gfm: true });
+    const safe = purify.sanitize(html, { USE_PROFILES: { html: true } });
+    return `<div class="neuro-node-panel__md">${safe}</div>`;
+  } catch (_err) {
+    return `<div class="neuro-node-panel__primary-body neuro-node-panel__primary-body--plain">${escapeHtmlNeuro(text)}</div>`;
+  }
+}
+
 function getNeuroEdgesForNode(nodeId) {
   if (!neurographData || !nodeId) {return [];}
   const syn = neurographData.synapses || neurographData.connections || [];
@@ -3578,6 +3689,18 @@ function neuroEdgePeerId(edge, nodeId) {
   return '?';
 }
 
+/** Synapse peer label: raw `day-YYYY-MM-DD` ids read as duplicate dates; show a stable label instead. */
+function formatNeuroSynapsePeerIdForPanel(peerId) {
+  if (peerId == null || peerId === '?') {
+    return String(peerId);
+  }
+  const s = String(peerId);
+  if (/^day-\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return 'Day anchor';
+  }
+  return s;
+}
+
 /** First line of commit subject for hero display; prefers attributes.message over emoji-prefixed label. */
 function getNeuroCommitPrimaryMessage(node) {
   const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
@@ -3589,6 +3712,16 @@ function getNeuroCommitPrimaryMessage(node) {
   lab = stripLeadingCalendarEmoji(String(lab));
   lab = lab.replace(/^\s*🫁\s*/u, '').trim();
   return lab || String(node.id || 'Commit');
+}
+
+/** Full commit message body (may be multiline); used for the primary content block. */
+function getNeuroCommitFullMessage(node) {
+  const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+  const raw = (attrs && attrs.message) || node.message;
+  if (raw == null || raw === '') {
+    return '';
+  }
+  return String(raw).trim();
 }
 
 function pushNeuroPanelChips(parts, node, nodeData) {
@@ -3638,20 +3771,112 @@ function pushNeuroPanelChips(parts, node, nodeData) {
 
 /** Attribute keys to omit for temporal-commit panels (message is the hero; rest is noise). */
 const NEURO_COMMIT_ATTR_EXCLUDE = new Set([
-  'message', 'role', 'commitType', 'created', 'color', 'position', 'source'
+  'message', 'role', 'commitType', 'created', 'color', 'position', 'source',
+  'breathDate', 'timestamp', 'commitHash', 'commitHashFull',
+  'date', 'day', 'time', 'datetime', 'breath_date', 'commitDate', 'commit_date',
+  'anchorId', 'dayAnchorId'
 ]);
 
+function neuroCommitAttrKeyExcluded(key) {
+  const lower = String(key).toLowerCase();
+  for (const ex of NEURO_COMMIT_ATTR_EXCLUDE) {
+    if (String(ex).toLowerCase() === lower) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function neuroGitSha1Hex40(s) {
+  return typeof s === 'string' && /^[0-9a-f]{40}$/i.test(s.trim());
+}
+
+/** Prefer full git SHA (40 hex) when present anywhere in attrs/id; else longest hex run. */
+function getTemporalCommitHashSubtitle(node, attrs) {
+  if (attrs && neuroGitSha1Hex40(attrs.commitHashFull)) {
+    return attrs.commitHashFull.trim().toLowerCase();
+  }
+  if (node && typeof node === 'object') {
+    if (neuroGitSha1Hex40(node.commitHashFull)) {
+      return node.commitHashFull.trim().toLowerCase();
+    }
+    if (neuroGitSha1Hex40(node.gitHash)) {
+      return node.gitHash.trim().toLowerCase();
+    }
+  }
+  const parts = [];
+  if (node && typeof node === 'object') {
+    ['gitHash', 'commitHashFull', 'commitHash', 'gitHashShort'].forEach(k => {
+      if (node[k] != null && node[k] !== '') {
+        parts.push(String(node[k]));
+      }
+    });
+  }
+  if (attrs && typeof attrs === 'object') {
+    ['commitHashFull', 'fullHash', 'sha', 'hash', 'commitHash', 'oid', 'revision', 'gitSha', 'sha1'].forEach(k => {
+      if (attrs[k] != null && attrs[k] !== '') {
+        parts.push(String(attrs[k]));
+      }
+    });
+    parts.push(JSON.stringify(attrs));
+  }
+  if (node && node.id != null && node.id !== '') {
+    parts.push(String(node.id));
+  }
+  const blob = parts.join('\n');
+  const sha1m = blob.match(/\b[0-9a-f]{40}\b/i);
+  if (sha1m) {
+    return sha1m[0].toLowerCase();
+  }
+  let best = '';
+  const re = /[0-9a-f]{7,64}/gi;
+  let m;
+  while ((m = re.exec(blob)) !== null) {
+    if (m[0].length > best.length) {
+      best = m[0];
+    }
+  }
+  if (best) {
+    return best.toLowerCase();
+  }
+  return node && node.id != null ? String(node.id) : '';
+}
+
+/** Best commit SHA line for learning panels (orbit parent injects `linkedCommitHash`). */
+function getLearningPanelCommitHashDisplay(node, attrs) {
+  if (attrs && attrs.linkedCommitHash != null && String(attrs.linkedCommitHash).trim() !== '') {
+    return String(attrs.linkedCommitHash).trim().toLowerCase();
+  }
+  if (attrs && neuroGitSha1Hex40(attrs.commitHashFull)) {
+    return attrs.commitHashFull.trim().toLowerCase();
+  }
+  if (node && neuroGitSha1Hex40(node.commitHashFull)) {
+    return node.commitHashFull.trim().toLowerCase();
+  }
+  if (node && neuroGitSha1Hex40(node.gitHash)) {
+    return node.gitHash.trim().toLowerCase();
+  }
+  return '';
+}
+
 function neuroCommitAttributeKeys(attrs) {
-  const order = ['commitHashFull', 'breathDate', 'timestamp', 'anchorId'];
+  const order = [];
   const keys = new Set(Object.keys(attrs));
   const out = [];
   order.forEach(k => {
-    if (keys.has(k) && !NEURO_COMMIT_ATTR_EXCLUDE.has(k)) {out.push(k);}
+    if (keys.has(k) && !neuroCommitAttrKeyExcluded(k)) {out.push(k);}
   });
   Object.keys(attrs).forEach(k => {
-    if (!out.includes(k) && !NEURO_COMMIT_ATTR_EXCLUDE.has(k)) {out.push(k);}
+    if (!out.includes(k) && !neuroCommitAttrKeyExcluded(k)) {out.push(k);}
   });
   return out;
+}
+
+function neuroCommitDetailRowLabel(key) {
+  if (key === 'anchorId') {
+    return 'Anchor';
+  }
+  return key;
 }
 
 // Minimized tooltip (on hover) - shows just title and category
@@ -3767,6 +3992,8 @@ function createNodeLabel(nodeData) {
   const id = node.id || nodeData.id || '';
   const isCommit = node.type === 'temporal-commit';
   const isLearning = node.type === 'temporal-learning';
+  const attrsEarly = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+  const commitSubtitle = isCommit ? getTemporalCommitHashSubtitle(node, attrsEarly) : String(id);
   const title = isCommit
     ? getNeuroCommitPrimaryMessage(node)
     : stripLeadingCalendarEmoji(node.label || id || 'Node');
@@ -3775,15 +4002,37 @@ function createNodeLabel(nodeData) {
 
   parts.push('<div class="neuro-node-panel">');
   parts.push('<div class="neuro-node-panel__head">');
+  const titleClass = isCommit ? 'neuro-node-panel__title neuro-node-panel__title--lead' : 'neuro-node-panel__title';
+  parts.push(`<h3 class="${titleClass}">${esc(title)}</h3>`);
+  const idRowClass = isCommit ? 'neuro-node-panel__id neuro-node-panel__id--commit-hash' : 'neuro-node-panel__id';
+  parts.push(`<div class="${idRowClass}">${esc(isCommit ? commitSubtitle : id)}</div>`);
   parts.push('<div class="neuro-node-panel__chips">');
   pushNeuroPanelChips(parts, node, nodeData);
   parts.push('</div>');
-  const titleClass = isCommit ? 'neuro-node-panel__title neuro-node-panel__title--lead' : 'neuro-node-panel__title';
-  parts.push(`<h3 class="${titleClass}">${esc(title)}</h3>`);
-  parts.push(`<div class="neuro-node-panel__id">${esc(id)}</div>`);
   parts.push('</div>');
 
   parts.push('<div class="neuro-node-panel__scroll">');
+
+  const commitFullMsg = isCommit ? getNeuroCommitFullMessage(node) : '';
+  const showCommitPrimary =
+    isCommit &&
+    commitFullMsg &&
+    (commitFullMsg.includes('\n') || commitFullMsg.length > 56);
+  if (showCommitPrimary) {
+    parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary">');
+    parts.push('<div class="neuro-node-panel__sec-title">Message</div>');
+    parts.push(`<div class="neuro-node-panel__primary-body">${esc(commitFullMsg)}</div>`);
+    parts.push('</section>');
+  }
+
+  const nodeDescPlain =
+    !isCommit && !isLearning && node.description ? String(node.description).trim() : '';
+  if (nodeDescPlain) {
+    parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary">');
+    parts.push('<div class="neuro-node-panel__sec-title">Description</div>');
+    parts.push(`<div class="neuro-node-panel__primary-body">${esc(nodeDescPlain)}</div>`);
+    parts.push('</section>');
+  }
 
   if (!isCommit && !isLearning) {
     parts.push('<section class="neuro-node-panel__sec">');
@@ -3810,21 +4059,33 @@ function createNodeLabel(nodeData) {
 
   const attrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
   if (isLearning && attrs) {
-    parts.push('<section class="neuro-node-panel__sec">');
-    parts.push('<div class="neuro-node-panel__sec-title">Learning</div>');
-    if (attrs.date) {
-      parts.push(neuroPanelRow('Date', esc(String(attrs.date))));
-    }
-    if (attrs.sourceFile) {
-      parts.push(neuroPanelRow('Source', esc(String(attrs.sourceFile))));
-    }
+    parts.push('<section class="neuro-node-panel__sec neuro-node-panel__sec--primary neuro-node-panel__sec--learning-md">');
     if (attrs.content) {
-      parts.push('<div class="neuro-node-panel__row">');
-      parts.push('<div class="neuro-node-panel__k">Content</div>');
-      parts.push(`<div class="neuro-node-panel__v"><pre style="margin:0;white-space:pre-wrap;">${esc(String(attrs.content))}</pre></div>`);
-      parts.push('</div>');
+      const mdBody = stripRedundantLeadingHeadingFromMarkdown(
+        stripLeadingLearningFilePreamble(attrs.content),
+        title
+      );
+      parts.push(renderNeuroLearningMarkdown(mdBody));
+    } else {
+      parts.push('<div class="neuro-node-panel__muted">No content</div>');
     }
     parts.push('</section>');
+    // Omit attrs.date: calendar metadata crowds the panel (SCIAAA-99). Show parent commit hash instead.
+    const learningHash = getLearningPanelCommitHashDisplay(node, attrs);
+    if (learningHash || attrs.sourceFile) {
+      parts.push('<section class="neuro-node-panel__sec">');
+      parts.push('<div class="neuro-node-panel__sec-title">Learning</div>');
+      if (learningHash) {
+        parts.push(neuroPanelRow(
+          'Commit',
+          `<code class="neuro-node-panel__id neuro-node-panel__id--commit-hash">${esc(learningHash)}</code>`
+        ));
+      }
+      if (attrs.sourceFile) {
+        parts.push(neuroPanelRow('Source', esc(String(attrs.sourceFile))));
+      }
+      parts.push('</section>');
+    }
   } else if (attrs && Object.keys(attrs).length > 0) {
     if (isCommit) {
       const attrKeys = neuroCommitAttributeKeys(attrs);
@@ -3832,7 +4093,7 @@ function createNodeLabel(nodeData) {
         parts.push('<section class="neuro-node-panel__sec">');
         parts.push('<div class="neuro-node-panel__sec-title">Details</div>');
         attrKeys.forEach(k => {
-          parts.push(neuroPanelRow(k, formatNeuroAttrCell(k, attrs[k])));
+          parts.push(neuroPanelRow(neuroCommitDetailRowLabel(k), formatNeuroAttrCell(k, attrs[k])));
         });
         parts.push('</section>');
       }
@@ -3846,7 +4107,7 @@ function createNodeLabel(nodeData) {
     }
   }
 
-  if (node.moments && node.moments.length > 0) {
+  if (node.moments && node.moments.length > 0 && !isCommit && !isLearning) {
     parts.push('<section class="neuro-node-panel__sec">');
     parts.push(`<div class="neuro-node-panel__sec-title">Moments <span class="neuro-node-panel__count">${node.moments.length}</span></div>`);
     node.moments.forEach((m, i) => {
@@ -3869,7 +4130,8 @@ function createNodeLabel(nodeData) {
       const extra = Object.keys(edge).filter(k =>
         !['source', 'target', 'from', 'to', 'weight', 'strength', 'type', 'label'].includes(k)
       );
-      let sub = `<div class="neuro-node-panel__edge-peer">↔ ${esc(peer)}</div>`;
+      const peerDisp = formatNeuroSynapsePeerIdForPanel(peer);
+      let sub = `<div class="neuro-node-panel__edge-peer">↔ ${esc(peerDisp)}</div>`;
       sub += `<div style="margin-top:4px;opacity:0.85;">weight: <code>${esc(String(w))}</code>`;
       if (typ) {sub += ` · ${esc(String(typ))}`;}
       sub += '</div>';
@@ -4636,6 +4898,8 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
             mesh.position.y + (sinPhiL * Math.sin(thetaL) * orbitRadius),
             mesh.position.z + (cosPhiL * orbitRadius)
           );
+          const parentAttrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+          const linkedCommitHash = getTemporalCommitHashSubtitle(node, parentAttrs);
           learningMesh.userData = {
             id: `${mesh.userData.id}::learning::${learningIdx}`,
             label: learning.title || learning.slug || `Learning ${learningIdx + 1}`,
@@ -4648,7 +4912,8 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
                 date: commitDate,
                 sourceFile: learning.fileName || '',
                 slug: learning.slug || '',
-                content: getTemporalLearningContentPreview(learning.content || '')
+                content: getTemporalLearningContentPreview(learning.content || ''),
+                linkedCommitHash: linkedCommitHash || ''
               }
             },
             isTemporal: true,

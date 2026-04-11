@@ -561,9 +561,10 @@
         .neuro-info-panel-host {
             z-index: 6000;
             pointer-events: auto;
-            min-width: 260px;
-            max-width: 420px;
-            max-height: min(72vh, 92dvh);
+            min-width: min(260px, 100%);
+            max-width: min(480px, calc(100vw - 20px));
+            width: auto;
+            max-height: min(72vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 108px));
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
@@ -601,7 +602,43 @@
             display: flex;
             flex-direction: column;
             overflow: visible;
-            transition: opacity 0.22s ease;
+            transition: opacity 0.26s ease;
+        }
+
+        @keyframes neuro-panel-content-settle {
+            from {
+                opacity: 0.88;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .neuro-info-panel-host > .neuro-node-panel,
+        .neuro-info-panel-host > .neuro-panel-collapsed {
+            animation: neuro-panel-content-settle 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .neuro-info-panel-host > .neuro-node-panel,
+            .neuro-info-panel-host > .neuro-panel-collapsed {
+                animation: none;
+            }
+        }
+
+        .neuro-node-panel__sec--learning-md {
+            margin-top: 0;
+        }
+
+        .neuro-node-panel__sec--learning-md .neuro-node-panel__md > :first-child {
+            margin-top: 0;
+        }
+
+        /* Breathing room before Commit/Source meta (SCIAAA-99). */
+        .neuro-node-panel__sec--learning-md + .neuro-node-panel__sec {
+            margin-top: 22px;
         }
 
         .neuro-node-panel__scroll {
@@ -627,6 +664,11 @@
             flex-wrap: wrap;
             gap: 6px;
             margin-bottom: 8px;
+        }
+
+        .neuro-node-panel__head .neuro-node-panel__chips {
+            margin-top: 8px;
+            margin-bottom: 0;
         }
 
         .neuro-chip {
@@ -681,6 +723,14 @@
             overflow-wrap: anywhere;
         }
 
+        .neuro-node-panel__id--commit-hash {
+            font-size: 10px;
+            line-height: 1.45;
+            letter-spacing: 0.02em;
+            color: rgba(0, 230, 255, 0.82);
+            word-break: break-all;
+        }
+
         .neuro-node-panel__sec {
             margin-top: 10px;
         }
@@ -698,6 +748,175 @@
             margin-bottom: 8px;
             padding-bottom: 4px;
             border-bottom: 1px solid rgba(0, 180, 255, 0.12);
+        }
+
+        .neuro-node-panel__sec--primary {
+            margin-top: 0;
+        }
+
+        .neuro-node-panel__sec--primary .neuro-node-panel__sec-title {
+            color: rgba(0, 235, 255, 0.92);
+            border-bottom-color: rgba(0, 210, 255, 0.22);
+        }
+
+        .neuro-node-panel__primary-body {
+            font-size: clamp(13px, 2.85vw, 15px);
+            line-height: 1.58;
+            color: #e9f6fc;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            margin: 2px 0 0;
+            padding: 2px 0 4px;
+        }
+
+        .neuro-node-panel__primary-body--plain {
+            white-space: pre-wrap;
+        }
+
+        /* Markdown body for learning nodes (GFM via marked + DOMPurify) */
+        .neuro-node-panel__md {
+            font-size: clamp(13px, 2.85vw, 15px);
+            line-height: 1.58;
+            color: #e9f6fc;
+            margin: 2px 0 0;
+            padding: 2px 0 4px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .neuro-node-panel__md :first-child {
+            margin-top: 0;
+        }
+
+        .neuro-node-panel__md :last-child {
+            margin-bottom: 0;
+        }
+
+        .neuro-node-panel__md h1,
+        .neuro-node-panel__md h2,
+        .neuro-node-panel__md h3,
+        .neuro-node-panel__md h4 {
+            color: #f0fbff;
+            font-weight: 700;
+            line-height: 1.35;
+            margin: 0.75em 0 0.4em;
+        }
+
+        .neuro-node-panel__md h1 {
+            font-size: 1.35em;
+        }
+
+        .neuro-node-panel__md h2 {
+            font-size: 1.2em;
+        }
+
+        .neuro-node-panel__md h3,
+        .neuro-node-panel__md h4 {
+            font-size: 1.05em;
+        }
+
+        .neuro-node-panel__md p {
+            margin: 0.5em 0;
+        }
+
+        .neuro-node-panel__md ul,
+        .neuro-node-panel__md ol {
+            margin: 0.45em 0 0.45em 1.1em;
+            padding: 0;
+        }
+
+        .neuro-node-panel__md li {
+            margin: 0.25em 0;
+        }
+
+        .neuro-node-panel__md blockquote {
+            margin: 0.5em 0;
+            padding: 6px 0 6px 12px;
+            border-left: 3px solid rgba(0, 200, 255, 0.35);
+            color: rgba(200, 230, 240, 0.95);
+            background: rgba(0, 40, 60, 0.25);
+            border-radius: 0 6px 6px 0;
+        }
+
+        .neuro-node-panel__md hr {
+            border: none;
+            border-top: 1px solid rgba(0, 180, 255, 0.2);
+            margin: 0.75em 0;
+        }
+
+        .neuro-node-panel__md a {
+            color: #7eefff;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .neuro-node-panel__md a:hover {
+            color: #b8f8ff;
+        }
+
+        .neuro-node-panel__md table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92em;
+            margin: 0.5em 0;
+        }
+
+        .neuro-node-panel__md th,
+        .neuro-node-panel__md td {
+            border: 1px solid rgba(0, 180, 255, 0.2);
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        .neuro-node-panel__md th {
+            background: rgba(0, 50, 80, 0.35);
+            color: #b8ecfc;
+        }
+
+        .neuro-node-panel__md pre {
+            margin: 0.5em 0;
+            padding: 8px 10px;
+            font-size: 0.88em;
+            line-height: 1.45;
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(0, 180, 255, 0.15);
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .neuro-node-panel__md code {
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 0.92em;
+            color: #9eefff;
+            background: rgba(0, 40, 60, 0.45);
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
+        .neuro-node-panel__md pre code {
+            padding: 0;
+            background: transparent;
+            font-size: inherit;
+            color: #b8d0e0;
+        }
+
+        .neuro-node-panel__md img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 768px) {
+            .neuro-info-panel-host {
+                max-height: min(68vh, calc(100dvh - 132px));
+            }
+
+            .neuro-node-panel__scroll {
+                padding-bottom: 16px;
+            }
         }
 
         .neuro-node-panel__count {
@@ -862,7 +1081,7 @@
 
         /* Panel collapsed state content (direct child of .neuro-info-panel-host) */
         .neuro-info-panel-host > .neuro-panel-collapsed {
-            padding: 10px 12px 12px;
+            padding: 10px 12px 8px;
             flex: 0 0 auto;
             min-width: 0;
         }
@@ -875,9 +1094,11 @@
         }
 
         .neuro-panel-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #00d9ff;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: #e8fbff;
+            text-shadow: 0 0 16px rgba(0, 200, 255, 0.2);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -2299,4 +2520,6 @@
     <!-- Three.js Neurograph Canvas (behind all UI, transparent) -->
     <canvas id="neurograph-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: auto; background: transparent;"></canvas>
 
-    <script src="app.js?v=3.3.17"></script>
+    <script src="/node_modules/marked/lib/marked.umd.js"></script>
+    <script src="/node_modules/dompurify/dist/purify.min.js"></script>
+    <script src="app.js?v=3.3.31"></script>
