@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.40';
+const CLIENT_VERSION = '3.3.41';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -4639,14 +4639,82 @@ function formatTemporalCommitTimeLabel(node) {
   return `${h12}:${mm} ${isPm ? 'PM' : 'AM'}`;
 }
 
-/** World-space point on a tilted commit ring (ring in unrotated XY, then tilted about X through `center`). */
+/**
+ * World-space point on the commit ring: circle in the horizontal XZ plane through `center`,
+ * then lightly tilted about local X (HUD-style “flat plate” rather than a vertical wheel).
+ */
 function temporalCommitRingPoint(center, radius, tiltRad, theta) {
   const x = radius * Math.cos(theta);
-  const y = radius * Math.sin(theta);
-  const z = 0;
+  const z = radius * Math.sin(theta);
+  const y = 0;
   const y1 = y * Math.cos(tiltRad) - z * Math.sin(tiltRad);
   const z1 = y * Math.sin(tiltRad) + z * Math.cos(tiltRad);
   return new THREE.Vector3(center.x + x, center.y + y1, center.z + z1);
+}
+
+/** Git-like hex refs extracted from learning markdown (header region) for commit association. */
+function extractLearningGitRefsFromMarkdown(md) {
+  if (typeof md !== 'string' || !md.trim()) {
+    return [];
+  }
+  const head = md.slice(0, 3600);
+  const found = new Set();
+  const patterns = [
+    /\*\*Commit:\*\*\s*`([0-9a-f]{7,40})`/gi,
+    /\*\*Commit:\*\*\s+([0-9a-f]{7,40})\b/gi,
+    /(?:^|\n)Commit:\s*`([0-9a-f]{7,40})`/gim,
+    /(?:^|\n)Commit:\s+([0-9a-f]{7,40})\b/gim,
+    /\b([0-9a-f]{40})\b/gi
+  ];
+  patterns.forEach((re) => {
+    let m;
+    while ((m = re.exec(head)) !== null) {
+      const cap = m[1];
+      if (cap && /^[0-9a-f]{7,40}$/i.test(cap)) {
+        found.add(cap.toLowerCase());
+      }
+    }
+  });
+  return Array.from(found);
+}
+
+function learningGitRefsMatchCommitHash(refs, commitHashNorm) {
+  const ch = String(commitHashNorm || '').trim().toLowerCase();
+  if (!ch || refs.length === 0) {
+    return false;
+  }
+  return refs.some((ref) => {
+    const r = String(ref).toLowerCase();
+    if (r.length === 40 && ch.length === 40) {
+      return r === ch;
+    }
+    if (ch.startsWith(r)) {
+      return true;
+    }
+    if (r.startsWith(ch) && ch.length >= 7) {
+      return true;
+    }
+    return r === ch;
+  });
+}
+
+/**
+ * Learnings keyed by calendar day: only orbit commits that own them.
+ * Explicit `**Commit:**` / `Commit:` hashes → match that commit only.
+ * No hashes in the file → single-commit days keep all; multi-commit days attach orphans to index 0 only.
+ */
+function filterTemporalLearningsForCommit(learningEntries, commitNode, parentAttrs, commitIndexInDay, commitsThisDay) {
+  const ch = getTemporalCommitHashSubtitle(commitNode, parentAttrs);
+  return learningEntries.filter((learning) => {
+    const refs = extractLearningGitRefsFromMarkdown(learning.content || '');
+    if (refs.length > 0) {
+      return learningGitRefsMatchCommitHash(refs, ch);
+    }
+    if (commitsThisDay <= 1) {
+      return true;
+    }
+    return commitIndexInDay === 0;
+  });
 }
 
 /**
@@ -5088,7 +5156,15 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
         }
       }
       const commitDate = getTemporalCommitDate(node);
-      const learningEntries = Array.isArray(learningIndexByDate[commitDate]) ? learningIndexByDate[commitDate] : [];
+      const dayLearningEntries = Array.isArray(learningIndexByDate[commitDate]) ? learningIndexByDate[commitDate] : [];
+      const parentAttrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
+      const learningEntries = filterTemporalLearningsForCommit(
+        dayLearningEntries,
+        node,
+        parentAttrs,
+        i,
+        nCommits
+      );
       if (learningEntries.length > 0) {
         const learningGeometry = new THREE.SphereGeometry(TEMPORAL_LEARNING_RADIUS, 22, 22);
         const nLearn = learningEntries.length;
@@ -5106,7 +5182,6 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
             mesh.position.y + ringR * (cos0 * bu.y + sin0 * bv.y),
             mesh.position.z + ringR * (cos0 * bu.z + sin0 * bv.z)
           );
-          const parentAttrs = node.attributes && typeof node.attributes === 'object' ? node.attributes : null;
           const linkedCommitHash = getTemporalCommitHashSubtitle(node, parentAttrs);
           learningMesh.userData = {
             id: `${mesh.userData.id}::learning::${learningIdx}`,
