@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.42';
+const CLIENT_VERSION = '3.3.43';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -4391,25 +4391,25 @@ const TEMPORAL_LEARNING_COLOR = 0xffd36b;
 const TEMPORAL_LEARNING_ORBIT_RADIUS_FACTOR = 6.2;
 /** Shared ring radius offset so learnings read as a “satellite belt” (world units beyond commit radius). */
 const TEMPORAL_LEARNING_RING_RADIUS_EXTRA = 22;
-/** Tilt (rad) of learning ring about world X — steeper read vs commit plate. */
-const TEMPORAL_LEARNING_RING_TILT = 0.52;
+/** Tilt (rad) of the commit ring plane around local X — flatter stack (reference mockup). */
+const TEMPORAL_COMMIT_RING_TILT = 0.17;
+/** Learning mini-orbit uses the same pitch as the commit ring so both read as one HUD plate. */
+const TEMPORAL_LEARNING_RING_TILT = TEMPORAL_COMMIT_RING_TILT;
 const _lrSt = Math.sin(TEMPORAL_LEARNING_RING_TILT);
 const _lrCt = Math.cos(TEMPORAL_LEARNING_RING_TILT);
 /** Ring tangent axes: U along +X, V in YZ so the learning circle pitches with the tilt. */
 const TEMPORAL_LEARNING_RING_AXIS_U = new THREE.Vector3(1, 0, 0);
 const TEMPORAL_LEARNING_RING_AXIS_V = new THREE.Vector3(0, -_lrSt, _lrCt);
 /** Pill label under commit orb: canvas height (px), world scale, gap from sphere surface. */
-const TEMPORAL_COMMIT_LABEL_CANVAS_H = 70;
-const TEMPORAL_COMMIT_LABEL_SCALE = 0.19;
+const TEMPORAL_COMMIT_LABEL_CANVAS_H = 86;
+const TEMPORAL_COMMIT_LABEL_SCALE = 0.24;
 const TEMPORAL_COMMIT_LABEL_GAP = 10;
 /** Primary commit ring radius from day-anchor center (solar-system style). */
 const TEMPORAL_ORBIT_BASE_RADIUS = 398;
-/** Secondary ring radius offset when many commits split across two rings. */
-const TEMPORAL_ORBIT_SPACING = 102;
-/** Tilt (rad) of the commit ring plane around local X — flatter stack (reference mockup). */
-const TEMPORAL_COMMIT_RING_TILT = 0.17;
+/** Secondary ring radius offset when many commits split across two rings (AM vs PM halves). */
+const TEMPORAL_ORBIT_SPACING = 168;
 const TEMPORAL_COMMIT_RING_SEGMENTS = 120;
-/** Beyond this count, commits use inner + outer concentric rings. */
+/** Beyond this count, commits use inner + outer concentric rings (by sorted list halves, not clock 12h). */
 const TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT = 16;
 const TEMPORAL_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const TEMPORAL_FLY_DURATION_MS = 1500;
@@ -4829,12 +4829,12 @@ function createCommitTimeLabelSprite(text) {
   const padX = 12;
   const padY = 6;
   const cornerR = 8;
-  const font = '600 34px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const font = '600 40px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   ctx.font = font;
   const metrics = ctx.measureText(t);
-  const w = Math.ceil(Math.max(metrics.width, 72) + padX * 2);
+  const w = Math.ceil(Math.max(metrics.width, 88) + padX * 2);
   const h = TEMPORAL_COMMIT_LABEL_CANVAS_H;
   canvas.width = w;
   canvas.height = h;
