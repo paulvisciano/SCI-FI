@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.35';
+const CLIENT_VERSION = '3.3.36';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -1904,6 +1904,8 @@ let neurographTemporalMode = false;
 let neuroAnchorLabelSprites = [];
 /** Short time-of-day labels below temporal commit orbs. */
 let neuroCommitTimeLabelSprites = [];
+/** Faint LineLoop guides for temporal commit “planetary” rings. */
+let neuroCommitRingLines = [];
 
 // === Three.js JARVIS Orb Rendering ===
 // Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
@@ -4394,10 +4396,15 @@ const TEMPORAL_LEARNING_RING_RADIUS_EXTRA = 22;
 const TEMPORAL_COMMIT_LABEL_CANVAS_H = 52;
 const TEMPORAL_COMMIT_LABEL_SCALE = 0.14;
 const TEMPORAL_COMMIT_LABEL_GAP = 10;
-/** Distance from day-anchor center to innermost commit shell (clearance past anchor + largest commit). */
+/** Primary commit ring radius from day-anchor center (solar-system style). */
 const TEMPORAL_ORBIT_BASE_RADIUS = 248;
-/** Extra radius per commit index — successive shells farther out. */
+/** Secondary ring radius offset when many commits split across two rings. */
 const TEMPORAL_ORBIT_SPACING = 58;
+/** Tilt (rad) of the commit ring plane around local X for depth (reference: orbital diagram). */
+const TEMPORAL_COMMIT_RING_TILT = 0.38;
+const TEMPORAL_COMMIT_RING_SEGMENTS = 120;
+/** Beyond this count, commits use inner + outer concentric rings. */
+const TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT = 16;
 const TEMPORAL_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const TEMPORAL_FLY_DURATION_MS = 1500;
 /** Wider framing for first paint (refresh / fit + focus today). */
@@ -4622,6 +4629,36 @@ function formatTemporalCommitTimeLabel(node) {
   if (h12 === 0) {h12 = 12;}
   const mm = String(minute).padStart(2, '0');
   return `${h12}:${mm} ${isPm ? 'PM' : 'AM'}`;
+}
+
+/** World-space point on a tilted commit ring (ring in unrotated XY, then tilted about X through `center`). */
+function temporalCommitRingPoint(center, radius, tiltRad, theta) {
+  const x = radius * Math.cos(theta);
+  const y = radius * Math.sin(theta);
+  const z = 0;
+  const y1 = y * Math.cos(tiltRad) - z * Math.sin(tiltRad);
+  const z1 = y * Math.sin(tiltRad) + z * Math.cos(tiltRad);
+  return new THREE.Vector3(center.x + x, center.y + y1, center.z + z1);
+}
+
+/** Faint orbit guide matching the commit ring geometry. */
+function createTemporalCommitOrbitRingLoop(center, radius, tiltRad) {
+  const segs = TEMPORAL_COMMIT_RING_SEGMENTS;
+  const pts = [];
+  for (let s = 0; s <= segs; s++) {
+    const t = (s / segs) * Math.PI * 2;
+    pts.push(temporalCommitRingPoint(center, radius, tiltRad, t));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({
+    color: 0x7b9ec4,
+    transparent: true,
+    opacity: 0.4,
+    depthWrite: false
+  });
+  const loop = new THREE.LineLoop(geo, mat);
+  loop.renderOrder = 2;
+  return loop;
 }
 
 /** Orthonormal `axisU`,`axisV` span the satellite ring plane (perpendicular to anchor→commit). */
@@ -4944,31 +4981,39 @@ function createTemporalNeurograph(_data, dayAnchors, commits) {
       console.warn('[Neurograph] No anchor mesh for', anchorId, 'skipping', list.length, 'commits');
       return;
     }
-    // All commits for this calendar day orbit in world space around the day-anchor sphere center.
+    // Commits sit on one or two tilted coplanar rings (solar-system style) with faint orbit guides.
     const orbitCenter = anchorMesh.position;
     const nCommits = list.length;
+    const tilt = TEMPORAL_COMMIT_RING_TILT;
+    const splitRings = nCommits > TEMPORAL_COMMIT_RING_MAX_BEFORE_SPLIT;
+    const splitAt = splitRings ? Math.ceil(nCommits / 2) : nCommits;
+    const innerRing = createTemporalCommitOrbitRingLoop(orbitCenter, TEMPORAL_ORBIT_BASE_RADIUS, tilt);
+    neurographScene.add(innerRing);
+    neuroCommitRingLines.push(innerRing);
+    if (splitRings) {
+      const outerRing = createTemporalCommitOrbitRingLoop(
+        orbitCenter,
+        TEMPORAL_ORBIT_BASE_RADIUS + TEMPORAL_ORBIT_SPACING,
+        tilt
+      );
+      neurographScene.add(outerRing);
+      neuroCommitRingLines.push(outerRing);
+    }
 
     list.forEach((node, i) => {
       const dayFrac = getTemporalCommitLocalDayFraction(node);
       const tie = i * 1.2e-5;
       let theta;
-      let phi;
       if (dayFrac != null) {
         theta = (dayFrac + tie) * Math.PI * 2;
-        phi =
-          Math.PI * 0.48 +
-          0.34 * Math.sin(i * TEMPORAL_GOLDEN_ANGLE + dayFrac * Math.PI * 2);
       } else {
-        theta = i * TEMPORAL_GOLDEN_ANGLE;
-        phi = Math.acos(1 - 2 * ((i + 0.5) / Math.max(1, nCommits)));
+        theta = ((i + 0.5) / Math.max(1, nCommits)) * Math.PI * 2;
       }
-      const orbitR = TEMPORAL_ORBIT_BASE_RADIUS + i * TEMPORAL_ORBIT_SPACING;
-      const sinPhi = Math.sin(phi);
-      const cosPhi = Math.cos(phi);
-      const pos = orbitCenter.clone();
-      pos.x += sinPhi * Math.cos(theta) * orbitR;
-      pos.y += sinPhi * Math.sin(theta) * orbitR;
-      pos.z += cosPhi * orbitR;
+      const commitRingRadius =
+        !splitRings || i < splitAt
+          ? TEMPORAL_ORBIT_BASE_RADIUS
+          : TEMPORAL_ORBIT_BASE_RADIUS + TEMPORAL_ORBIT_SPACING;
+      const pos = temporalCommitRingPoint(orbitCenter, commitRingRadius, tilt, theta);
       allPoints.push(pos.clone());
 
       const r = getTemporalCommitRadius(node);
@@ -5099,6 +5144,12 @@ function createNeurograph(data) {
     if (spr.material) {spr.material.dispose();}
   });
   neuroCommitTimeLabelSprites = [];
+  neuroCommitRingLines.forEach((line) => {
+    neurographScene.remove(line);
+    if (line.geometry) {line.geometry.dispose();}
+    if (line.material) {line.material.dispose();}
+  });
+  neuroCommitRingLines = [];
 
   // Clear existing objects
   neurons.forEach(neuron => neurographScene.remove(neuron));
