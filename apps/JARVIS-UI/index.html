@@ -1844,6 +1844,19 @@
             z-index: 0;
         }
 
+        /* Inline graph mode: pointer targets the 3D dialogue orb (centered tail) */
+        #transcript.graph-inline::before {
+            left: 50%;
+            margin-left: -10px;
+            bottom: -8px;
+        }
+
+        #transcript.graph-inline::after {
+            left: 50%;
+            margin-left: -9px;
+            bottom: -7px;
+        }
+
         /* Fullscreen/Expand mode - fill space from hamburger menu bottom to orb top */
         #transcript.fullscreen {
             position: fixed !important;
@@ -2522,4 +2535,4 @@
 
     <script src="/node_modules/marked/lib/marked.umd.js"></script>
     <script src="/node_modules/dompurify/dist/purify.min.js"></script>
-    <script src="app.js?v=3.3.31"></script>
+    <script src="app.js?v=3.3.44"></script>

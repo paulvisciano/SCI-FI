@@ -1,7 +1,7 @@
 // JARVIS Voice Recorder UI - extracted from index.html
 
 // Client version (bumped when UI changes ship)
-const CLIENT_VERSION = '3.3.43';
+const CLIENT_VERSION = '3.3.44';
 const CLIENT_BUILD_DATE = '2026-04-09';
 let isRecording = false;
 // Shared with pollForTranscript — cleared when starting a new recording
@@ -85,6 +85,7 @@ function toggleTranscriptFullscreen() {
   transcriptEl.classList.toggle('fullscreen');
 
   if (transcriptEl.classList.contains('fullscreen')) {
+    transcriptEl.classList.remove('graph-inline');
     expandBtn.textContent = '⛶ Collapse';
     expandBtn.classList.add('expanded');
     expandBtn.title = 'Collapse to normal size';
@@ -124,6 +125,14 @@ function positionTranscriptBubble() {
   const tr = document.getElementById('transcript');
   const orb = document.getElementById('jarvis-orb-container');
   if (!tr || !orb || tr.classList.contains('fullscreen')) {return;}
+  if (
+    typeof neuroPanelUseInlineDesktopLayout === 'function' &&
+    neuroPanelUseInlineDesktopLayout() &&
+    conversationOrbAnchor &&
+    isConversationUiActive()
+  ) {
+    return;
+  }
   const r = orb.getBoundingClientRect();
   if (r.width < 4 || r.height < 4) {return;}
   // Close positioning: transcript feels like it's emerging from the orb
@@ -1906,6 +1915,14 @@ let neuroAnchorLabelSprites = [];
 let neuroCommitTimeLabelSprites = [];
 /** Faint LineLoop guides for temporal commit “planetary” rings. */
 let neuroCommitRingLines = [];
+/** World anchor for inline voice/chat UI in the neurograph (SCIAAA-104). */
+let conversationOrbAnchor = null;
+let conversationOrbMesh = null;
+let conversationGraphLayoutWasActive = false;
+const _convoWorldPos = new THREE.Vector3();
+const _convoScreenProj = new THREE.Vector3();
+const _convoCamDir = new THREE.Vector3();
+const _convoRight = new THREE.Vector3();
 // === Three.js JARVIS Orb Rendering ===
 // Video is hidden in DOM; texture maps onto a sphere in #jarvis-orb (.orb-glow-ring)
 
@@ -2060,6 +2077,137 @@ function initJarvisOrb() {
   resizeOrb();
 
   console.log('[JarvisOrb] Three.js orb host ready (sphere attaches when video has frames)');
+}
+
+function isConversationUiActive() {
+  const trEl = document.getElementById('transcript');
+  const jr = document.getElementById('jarvis-response');
+  const visTr = !!(trEl && trEl.classList.contains('visible'));
+  const visJr = !!(jr && jr.style.display === 'block');
+  return visTr || visJr;
+}
+
+function ensureConversationOrbInNeurograph() {
+  if (!neurographScene || conversationOrbAnchor) {
+    return;
+  }
+  conversationOrbAnchor = new THREE.Group();
+  conversationOrbAnchor.name = 'conversationOrbAnchor';
+  const convoRadius = 5.4;
+  const geometry = new THREE.SphereGeometry(convoRadius, 42, 34);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x041a28,
+    emissive: 0x00c8ff,
+    emissiveIntensity: 0.48,
+    metalness: 0.28,
+    roughness: 0.4,
+    transparent: true,
+    opacity: 0.92
+  });
+  conversationOrbMesh = new THREE.Mesh(geometry, material);
+  conversationOrbMesh.name = 'conversationOrb';
+  conversationOrbAnchor.add(conversationOrbMesh);
+  conversationOrbAnchor.visible = false;
+  neurographScene.add(conversationOrbAnchor);
+}
+
+function updateConversationOrbWorldPosition() {
+  if (!conversationOrbAnchor || !neurographCamera || !neurographControls) {
+    return;
+  }
+  _convoCamDir.subVectors(neurographCamera.position, neurographControls.target);
+  const dist = Math.max(_convoCamDir.length(), 1e-4);
+  _convoCamDir.multiplyScalar(1 / dist);
+  _convoRight.crossVectors(_convoCamDir, neurographCamera.up);
+  if (_convoRight.lengthSq() < 1e-8) {
+    _convoRight.set(1, 0, 0);
+  } else {
+    _convoRight.normalize();
+  }
+  conversationOrbAnchor.position
+    .copy(neurographControls.target)
+    .addScaledVector(_convoRight, dist * 0.2)
+    .addScaledVector(neurographCamera.up, dist * 0.09)
+    .addScaledVector(_convoCamDir, dist * 0.065);
+}
+
+/** @returns {boolean} true when the panel was placed from the graph anchor */
+function positionTranscriptPanelGraphInline(tr) {
+  if (!conversationOrbMesh || !neurographCamera || !neurographRenderer || !tr) {
+    return false;
+  }
+  conversationOrbMesh.getWorldPosition(_convoWorldPos);
+  _convoScreenProj.copy(_convoWorldPos).project(neurographCamera);
+  if (_convoScreenProj.z > 1) {
+    tr.classList.remove('graph-inline');
+    positionTranscriptBubble();
+    return false;
+  }
+
+  tr.classList.add('graph-inline');
+  const canvas = neurographRenderer.domElement;
+  const crect = canvas.getBoundingClientRect();
+  const cx = (_convoScreenProj.x * 0.5 + 0.5) * crect.width + crect.left;
+  const cy = (-(_convoScreenProj.y * 0.5) + 0.5) * crect.height + crect.top;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const style = getComputedStyle(tr);
+  const margin = parseFloat(style.getPropertyValue('--transcript-edge-gap')) || 24;
+  const gapAboveOrb = 18;
+
+  tr.style.bottom = 'auto';
+  tr.style.right = 'auto';
+  tr.style.transform = 'none';
+
+  const tw = tr.offsetWidth || tr.getBoundingClientRect().width || 320;
+  const th = tr.offsetHeight || tr.getBoundingClientRect().height || 200;
+  let left = cx - tw / 2;
+  left = Math.max(margin, Math.min(left, vw - tw - margin));
+  let top = cy - th - gapAboveOrb;
+  top = Math.max(margin, Math.min(top, vh - th - margin));
+  tr.style.left = `${Math.round(left)}px`;
+  tr.style.top = `${Math.round(top)}px`;
+  return true;
+}
+
+function updateConversationInlineSession() {
+  if (!neurographScene || !conversationOrbAnchor || !conversationOrbMesh) {
+    return;
+  }
+  const tr = document.getElementById('transcript');
+  if (!tr || !neurographCamera || !neurographRenderer || !neurographControls) {
+    return;
+  }
+  const fullscreen = tr.classList.contains('fullscreen');
+  const active = isConversationUiActive();
+  const useGraph = neuroPanelUseInlineDesktopLayout() && active && !fullscreen;
+
+  if (!useGraph) {
+    conversationOrbAnchor.visible = false;
+    tr.classList.remove('graph-inline');
+    if (conversationGraphLayoutWasActive) {
+      conversationGraphLayoutWasActive = false;
+      scheduleTranscriptBubblePosition();
+    }
+    return;
+  }
+
+  updateConversationOrbWorldPosition();
+
+  const graphOk = positionTranscriptPanelGraphInline(tr);
+  conversationOrbAnchor.visible = graphOk;
+  if (!graphOk) {
+    return;
+  }
+
+  conversationGraphLayoutWasActive = true;
+  const wobble = 1 + 0.035 * Math.sin(neurographAnimFrame * 0.055);
+  conversationOrbMesh.scale.setScalar(wobble);
+  if (conversationOrbMesh.material && 'emissiveIntensity' in conversationOrbMesh.material) {
+    conversationOrbMesh.material.emissiveIntensity =
+      0.38 + 0.22 * (0.5 + 0.5 * Math.sin(neurographAnimFrame * 0.048));
+  }
 }
 
 // Initialize Three.js scene
@@ -2294,6 +2442,7 @@ function initNeurograph() {
 
   // Add starfield to background
   createStarfield();
+  ensureConversationOrbInNeurograph();
 }
 
 // Raycaster + floating label (hover + click-to-focus)
@@ -3040,6 +3189,8 @@ function animateNeurograph() {
       positionNeuroHoverPreviewPanelNearMesh(neuroHoverPreviewTarget);
     }
   }
+
+  updateConversationInlineSession();
 
   neurographRenderer.render(neurographScene, neurographCamera);
 }
