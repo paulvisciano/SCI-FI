@@ -1126,9 +1126,26 @@ function handleRequest(req, res) {
   // Serve static files (index.html, CSS, JS, video)
   if (req.method === 'GET') {
     const urlPath = req.url.split('?')[0];
-    const filePath = path.join(__dirname, urlPath === '/' ? 'index.html' : urlPath);
+    const staticCandidates = [];
+
+    // In preview mode, prefer Vite build output so /vite.html and /assets/*
+    // resolve to dist-vite instead of source files.
+    if (isPreview) {
+      if (urlPath === '/' || urlPath === '/index.html' || urlPath === '/vite.html') {
+        staticCandidates.push(path.join(__dirname, 'dist-vite', 'vite.html'));
+      }
+      if (urlPath.startsWith('/assets/')) {
+        staticCandidates.push(path.join(__dirname, 'dist-vite', urlPath));
+      }
+    }
+
+    staticCandidates.push(path.join(__dirname, urlPath === '/' ? 'index.html' : urlPath));
+
+    const filePath = staticCandidates.find((candidatePath) => (
+      fs.existsSync(candidatePath) && !candidatePath.includes('..')
+    ));
         
-    if (fs.existsSync(filePath) && !filePath.includes('..')) {
+    if (filePath) {
       const ext = path.extname(filePath).toLowerCase();
       const contentTypes = {
         '.html': 'text/html',
