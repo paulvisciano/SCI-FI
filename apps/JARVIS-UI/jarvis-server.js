@@ -10,7 +10,7 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { exec, execFile, execSync } = require('child_process');
+const { exec, execFile, execSync, spawn } = require('child_process');
 const QRCode = require('qrcode');
 const os = require('os');
 
@@ -320,6 +320,158 @@ function cleanTtsResponse(responseText) {
   return cleaned.trim();
 }
 
+const bootstrapState = {
+  phase: 'idle',
+  progress: 0,
+  message: 'Bootstrap idle',
+  nodeCount: 0,
+  commitCount: 0,
+  updatedAt: new Date().toISOString(),
+  toolCalls: []
+};
+let bootstrapNodes = [];
+let bootstrapScanPromise = null;
+const bootstrapClients = new Set();
+const GIT_BOOTSTRAP_LIMIT = 250;
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
+
+function snapshotBootstrapState() {
+  return {
+    ...bootstrapState,
+    toolCalls: bootstrapState.toolCalls.slice(-20)
+  };
+}
+
+function logGatewayToolCall(name, payload = {}) {
+  const call = {
+    id: `tool-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    name,
+    payload,
+    at: new Date().toISOString()
+  };
+  bootstrapState.toolCalls = [...bootstrapState.toolCalls.slice(-19), call];
+  // Structured log so gateway inspection tools can parse tool activity.
+  console.log('[GatewayToolCall]', JSON.stringify(call));
+}
+
+function sendBootstrapEvent(res, eventName, data) {
+  res.write(`event: ${eventName}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+function broadcastBootstrap(eventName, extra = {}) {
+  const payload = {
+    ...snapshotBootstrapState(),
+    ...extra
+  };
+  for (const client of bootstrapClients) {
+    sendBootstrapEvent(client, eventName, payload);
+  }
+}
+
+function updateBootstrapState(patch, eventName = 'bootstrap:update') {
+  Object.assign(bootstrapState, patch, { updatedAt: new Date().toISOString() });
+  broadcastBootstrap(eventName);
+}
+
+async function runGitBootstrapScan() {
+  if (bootstrapScanPromise) {
+    return bootstrapScanPromise;
+  }
+
+  bootstrapScanPromise = new Promise((resolve, reject) => {
+    updateBootstrapState({
+      phase: 'loading_git_commits',
+      progress: 15,
+      message: 'Loading git commits...'
+    });
+    logGatewayToolCall('git.log.scan.start', { repoRoot: REPO_ROOT, limit: GIT_BOOTSTRAP_LIMIT });
+
+    execFile(
+      'git',
+      ['-C', REPO_ROOT, 'log', `-n${GIT_BOOTSTRAP_LIMIT}`, '--date=short', '--pretty=format:%H|%ad|%s'],
+      { encoding: 'utf8', timeout: 10000 },
+      (error, stdout, stderr) => {
+        if (error) {
+          updateBootstrapState({
+            phase: 'error',
+            progress: 100,
+            message: 'Git bootstrap failed'
+          }, 'bootstrap:error');
+          logGatewayToolCall('git.log.scan.error', { message: error.message, stderr: stderr || '' });
+          reject(error);
+          return;
+        }
+
+        const commits = stdout
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => {
+            const [hash, day, ...subjectParts] = line.split('|');
+            return {
+              hash,
+              day,
+              subject: subjectParts.join('|').trim()
+            };
+          });
+
+        updateBootstrapState({
+          phase: 'merging_day_anchors',
+          progress: 65,
+          message: 'Merging day anchors...',
+          commitCount: commits.length
+        });
+        logGatewayToolCall('git.log.scan.complete', { commitCount: commits.length });
+
+        const dayMap = new Map();
+        for (const commit of commits) {
+          if (!dayMap.has(commit.day)) {
+            dayMap.set(commit.day, []);
+          }
+          dayMap.get(commit.day).push(commit);
+        }
+
+        const dayAnchors = Array.from(dayMap.entries()).map(([day, dayCommits]) => ({
+          id: `day-${day}`,
+          title: day,
+          stream: 'temporal',
+          kind: 'day-anchor',
+          commitCount: dayCommits.length
+        }));
+
+        const commitSatellites = commits.map((commit) => ({
+          id: `commit-${commit.hash.slice(0, 12)}`,
+          title: commit.subject || commit.hash.slice(0, 7),
+          stream: 'memory',
+          kind: 'commit-satellite',
+          day: commit.day,
+          hash: commit.hash,
+          shortHash: commit.hash.slice(0, 7)
+        }));
+
+        bootstrapNodes = [...dayAnchors, ...commitSatellites];
+        updateBootstrapState({
+          phase: 'ready',
+          progress: 100,
+          message: `Bootstrap ready (${commits.length} commits)`,
+          nodeCount: bootstrapNodes.length
+        }, 'bootstrap:ready');
+        logGatewayToolCall('git.anchor.merge.complete', {
+          dayAnchorCount: dayAnchors.length,
+          nodeCount: bootstrapNodes.length
+        });
+        resolve(bootstrapNodes);
+      }
+    );
+  })
+    .finally(() => {
+      bootstrapScanPromise = null;
+    });
+
+  return bootstrapScanPromise;
+}
+
 // === Request Handler (used by both HTTP and HTTPS) ===
 function handleRequest(req, res) {
   // Restrict CORS to known origins (configurable via env var)
@@ -336,12 +488,55 @@ function handleRequest(req, res) {
     res.end();
     return;
   }
+  const requestUrl = new URL(req.url || '/', 'http://localhost');
+  const routePath = requestUrl.pathname;
     
   // Standardized error response helper
   const sendError = (code, message, details = null) => {
     res.writeHead(code, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: message, code, details }));
   };
+
+  if (req.method === 'GET' && routePath === '/api/bootstrap/events') {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive'
+    });
+    res.write('\n');
+    bootstrapClients.add(res);
+    sendBootstrapEvent(res, 'bootstrap:snapshot', snapshotBootstrapState());
+
+    req.on('close', () => {
+      bootstrapClients.delete(res);
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && routePath === '/api/bootstrap/status') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(snapshotBootstrapState()));
+    return;
+  }
+
+  if (req.method === 'GET' && routePath === '/api/bootstrap/nodes') {
+    runGitBootstrapScan()
+      .then((nodes) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          nodes,
+          meta: {
+            commitCount: bootstrapState.commitCount,
+            dayAnchorCount: nodes.filter((node) => node.kind === 'day-anchor').length,
+            generatedAt: new Date().toISOString()
+          }
+        }));
+      })
+      .catch((error) => {
+        sendError(500, 'Bootstrap scan failed', error.message);
+      });
+    return;
+  }
 
   // Network scanner endpoints
   if (req.method === 'GET' && req.url === '/network/devices') {
@@ -1928,7 +2123,6 @@ function safeExecWithTimeout(command, args, options = {}, timeoutMs, callback) {
 }
 
 // === HELPER: Spawn with timeout for long-running processes ===
-const { spawn } = require('child_process');
 
 // Track active transcriptions for graceful shutdown
 let activeTranscriptions = 0;
