@@ -1,6 +1,8 @@
 export class NeurographLoader {
   constructor() {
-    this.serverOrigin = (import.meta.env.VITE_JARVIS_SERVER_ORIGIN || 'http://localhost:18787').replace(/\/$/, '');
+    const configuredOrigin = import.meta.env.VITE_JARVIS_SERVER_ORIGIN;
+    const fallbackOrigin = window.location.origin || 'http://localhost:18787';
+    this.serverOrigin = (configuredOrigin || fallbackOrigin).replace(/\/$/, '');
   }
 
   async loadBootstrap(onProgress = () => {}) {
