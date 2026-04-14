@@ -59,10 +59,6 @@ export class StreamLayout {
       const localIndex = orbitCounters.get(orbitCounterKey) || 0;
       orbitCounters.set(orbitCounterKey, localIndex + 1);
       const dayPopulation = Math.max((isAnchor ? dayCounts.get(dayKey) : laneCounts.get(laneKey)) || 1, 1);
-      const angleOffset = side < 0 ? Math.PI * 0.72 : Math.PI * 0.28;
-      const dayFraction = this.dayFractionFor(node);
-      const orbitalSpread = ((localIndex % dayPopulation) / dayPopulation) * (Math.PI * 0.45);
-      const angle = dayFraction * Math.PI * 2 + orbitalSpread + angleOffset;
       const jitter = Math.sin(index * 2.173) * this.config.orbitalJitter;
       const radial = this.config.orbitalRadius + jitter + (localIndex % 4) * 0.16;
       // Older (deeper) nodes spread wider in X — perspective makes them appear at same screen density
@@ -83,13 +79,13 @@ export class StreamLayout {
         ? 0
         : side * (
           this.config.streamOffset * convergence
-          + Math.abs(Math.cos(angle)) * radial * 0.9
+          + radial * 0.42
           + laneIndex * 0.6
           + repulsion * 0.2
         );
       const z = isAnchor
         ? zAnchor
-        : zAnchor + Math.sin(angle) * radial * 1.08 - yBand * 0.34 - repulsion * 0.1;
+        : zAnchor - yBand * 0.34 - repulsion * 0.1 + laneIndex * 0.08;
 
       return {
         ...node,
