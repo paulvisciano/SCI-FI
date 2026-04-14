@@ -261,6 +261,66 @@ function createOverlayTexture(privacy) {
   });
 }
 
+function formatDayAnchorLabel(node) {
+  const rawDay = `${node?.day || node?.title || ''}`.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDay)) {
+    return rawDay || 'Timeline';
+  }
+  const today = new Date();
+  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const dayUtc = Date.parse(`${rawDay}T00:00:00.000Z`);
+  if (!Number.isFinite(dayUtc)) {
+    return rawDay;
+  }
+  const daysAgo = Math.round((todayUtc - dayUtc) / (24 * 60 * 60 * 1000));
+  if (daysAgo === 0) {
+    return 'Today';
+  }
+  if (daysAgo === 1) {
+    return 'Yesterday';
+  }
+  if (daysAgo === 7) {
+    return 'A week ago';
+  }
+  if (daysAgo > 1 && daysAgo < 7) {
+    return new Date(dayUtc).toLocaleDateString(undefined, { weekday: 'short' });
+  }
+  return new Date(dayUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function createDayAnchorLabelSprite(node) {
+  const text = formatDayAnchorLabel(node);
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 72;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(8, 18, 34, 0.72)';
+  ctx.strokeStyle = 'rgba(174, 225, 255, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 20);
+  ctx.fill();
+  ctx.stroke();
+  ctx.font = '600 28px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#dff4ff';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+    })
+  );
+  sprite.scale.set(1.45, 0.42, 1);
+  sprite.position.set(0, 0.75, 0);
+  return sprite;
+}
+
 function categoryForNode(node) {
   const type = `${node.type || node.kind || node.stream || ''}`.toLowerCase();
   const title = `${node.title || ''}`.toLowerCase();
@@ -435,6 +495,11 @@ export const OrbFactory = {
     icon.position.set(0, 0.01, 0.13);
     if (!isCommit) {
       group.add(icon);
+    }
+
+    if (isDayAnchor) {
+      const labelSprite = createDayAnchorLabelSprite(node);
+      group.add(labelSprite);
     }
 
     const overlay = new THREE.Sprite(

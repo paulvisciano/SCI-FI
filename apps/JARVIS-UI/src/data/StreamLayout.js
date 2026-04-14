@@ -6,12 +6,12 @@ const RIGHT_TYPES = new Set(['conversation', 'audio']);
 export class StreamLayout {
   constructor(config = {}) {
     this.config = {
-      streamOffset: config.streamOffset ?? 5.8,
-      orbitalRadius: config.orbitalRadius ?? 2.7,
-      daySpacing: config.daySpacing ?? 1.35,
+      streamOffset: config.streamOffset ?? 7.0,
+      orbitalRadius: config.orbitalRadius ?? 3.2,
+      daySpacing: config.daySpacing ?? 2.2,
       orbitalJitter: config.orbitalJitter ?? 0.56,
-      temporalDepthScale: config.temporalDepthScale ?? 2.8,
-      maxTemporalDepth: config.maxTemporalDepth ?? 54,
+      temporalDepthScale: config.temporalDepthScale ?? 5.0,
+      maxTemporalDepth: config.maxTemporalDepth ?? 140,
       presentZOffset: config.presentZOffset ?? 0,
     };
   }
@@ -57,23 +57,25 @@ export class StreamLayout {
       const angle = dayFraction * Math.PI * 2 + orbitalSpread + angleOffset;
       const jitter = Math.sin(index * 2.173) * this.config.orbitalJitter;
       const radial = this.config.orbitalRadius + jitter + (localIndex % 4) * 0.16;
-      const convergence = 1 - Math.min(Math.abs(normalizedDay) * 0.42, 0.42);
+      // Older (deeper) nodes spread wider in X — perspective makes them appear at same screen density
+      const depthFraction = totalDays <= 1 ? 0 : depthIndexFromPresent / (totalDays - 1);
+      const convergence = 1 + depthFraction * 0.65;
       const laneSpread = Math.ceil(dayPopulation / 9);
       const laneIndex = (localIndex % Math.max(laneSpread, 1)) - (Math.max(laneSpread, 1) - 1) / 2;
 
-      // Keep each day aligned across streams, then fan nodes around the day anchor.
+      // Flatten Y — horizontal fan is dominant, vertical spread is secondary
       const yBand = Math.floor(localIndex / Math.max(laneSpread, 1));
       const depthTilt = Math.abs(zAnchor) * 0.04;
       const y = isAnchor
         ? depthTilt * 0.5
-        : (laneIndex * 0.46) + (side < 0 ? -0.12 : 0.12) + (yBand * 0.34) + depthTilt;
+        : (laneIndex * 0.22) + (side < 0 ? -0.1 : 0.1) + (yBand * 0.16) + depthTilt;
 
       const x = isAnchor
         ? 0
         : side * (
           this.config.streamOffset * convergence
           + Math.abs(Math.cos(angle)) * radial * 0.9
-          + laneIndex * 0.5
+          + laneIndex * 0.4
         );
       const z = isAnchor
         ? zAnchor
