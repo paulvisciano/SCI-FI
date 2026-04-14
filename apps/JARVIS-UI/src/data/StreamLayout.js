@@ -6,12 +6,12 @@ const RIGHT_TYPES = new Set(['conversation', 'audio']);
 export class StreamLayout {
   constructor(config = {}) {
     this.config = {
-      streamOffset: config.streamOffset ?? 3.55,
-      orbitalRadius: config.orbitalRadius ?? 1.55,
-      daySpacing: config.daySpacing ?? 1.15,
-      orbitalJitter: config.orbitalJitter ?? 0.42,
-      temporalDepthScale: config.temporalDepthScale ?? 2.1,
-      maxTemporalDepth: config.maxTemporalDepth ?? 22,
+      streamOffset: config.streamOffset ?? 5.8,
+      orbitalRadius: config.orbitalRadius ?? 2.7,
+      daySpacing: config.daySpacing ?? 1.35,
+      orbitalJitter: config.orbitalJitter ?? 0.56,
+      temporalDepthScale: config.temporalDepthScale ?? 2.8,
+      maxTemporalDepth: config.maxTemporalDepth ?? 54,
       presentZOffset: config.presentZOffset ?? 0,
     };
   }
@@ -63,20 +63,21 @@ export class StreamLayout {
 
       // Keep each day aligned across streams, then fan nodes around the day anchor.
       const yBand = Math.floor(localIndex / Math.max(laneSpread, 1));
+      const depthTilt = Math.abs(zAnchor) * 0.04;
       const y = isAnchor
-        ? 0
-        : (laneIndex * 0.36) + (side < 0 ? -0.08 : 0.08) + (yBand * 0.28);
+        ? depthTilt * 0.5
+        : (laneIndex * 0.46) + (side < 0 ? -0.12 : 0.12) + (yBand * 0.34) + depthTilt;
 
       const x = isAnchor
         ? 0
         : side * (
-          this.config.streamOffset * convergence * 0.9
-          + Math.abs(Math.cos(angle)) * radial * 0.62
-          + laneIndex * 0.32
+          this.config.streamOffset * convergence
+          + Math.abs(Math.cos(angle)) * radial * 0.9
+          + laneIndex * 0.5
         );
       const z = isAnchor
         ? zAnchor
-        : zAnchor + Math.sin(angle) * radial * 0.6 - yBand * 0.2;
+        : zAnchor + Math.sin(angle) * radial * 0.95 - yBand * 0.24;
 
       return {
         ...node,

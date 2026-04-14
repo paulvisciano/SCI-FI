@@ -181,6 +181,15 @@ export class SceneManager {
     this.scene.add(this.timelineNodesGroup);
   }
 
+  focusNodeOrb(nodeOrb) {
+    if (!nodeOrb) {
+      return;
+    }
+    const focusOffset = new THREE.Vector3(0, 1.15, 4.8);
+    const targetCameraPosition = nodeOrb.position.clone().add(focusOffset);
+    this.cameraController.flyTo(targetCameraPosition);
+  }
+
   resize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();

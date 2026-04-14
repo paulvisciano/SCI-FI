@@ -370,12 +370,13 @@ export const OrbFactory = {
 
   createTimelineNodeOrb(node) {
     const category = categoryForNode(node);
+    const isDayAnchor = `${node?.kind || ''}`.toLowerCase() === 'day-anchor';
     const privacy = privacyForNode(node);
     const categoryColor = nodeColorByCategory[category] || nodeColorByCategory.conversation;
-    const color = categoryColor.clone().lerp(streamTintForNode(node), 0.33);
+    const color = (isDayAnchor ? new THREE.Color(0xf7f0b0) : categoryColor).clone().lerp(streamTintForNode(node), isDayAnchor ? 0.15 : 0.33);
     const orbOpacity = privacy === 'private' ? nodePrivateOpacity : nodePublicOpacity;
     const isCommit = category === 'commit';
-    const nodeScale = sizeForNode(node, category);
+    const nodeScale = sizeForNode(node, category) * (isDayAnchor ? 2.35 : 1);
 
     const group = new THREE.Group();
 
@@ -383,7 +384,7 @@ export const OrbFactory = {
       nodeGeometry,
       new THREE.MeshStandardMaterial({
         color,
-        emissive: color.clone().multiplyScalar(isCommit ? 0.08 : 0.19),
+        emissive: color.clone().multiplyScalar(isDayAnchor ? 0.38 : (isCommit ? 0.08 : 0.19)),
         roughness: isCommit ? 0.2 : 0.3,
         metalness: isCommit ? 0.18 : 0.45,
         transparent: true,
@@ -398,7 +399,7 @@ export const OrbFactory = {
       new THREE.MeshBasicMaterial({
         color,
         transparent: true,
-        opacity: isCommit ? 0.14 : 0.2,
+        opacity: isDayAnchor ? 0.34 : (isCommit ? 0.14 : 0.2),
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
@@ -415,7 +416,7 @@ export const OrbFactory = {
         depthWrite: false,
       })
     );
-    border.scale.set(0.5, 0.5, 1);
+    border.scale.set(isDayAnchor ? 0.74 : 0.5, isDayAnchor ? 0.74 : 0.5, 1);
     group.add(border);
 
     const icon = new THREE.Sprite(
@@ -442,7 +443,7 @@ export const OrbFactory = {
         depthWrite: false,
       })
     );
-    overlay.scale.set(0.17, 0.17, 1);
+    overlay.scale.set(isDayAnchor ? 0.25 : 0.17, isDayAnchor ? 0.25 : 0.17, 1);
     overlay.position.set(0.2, 0.2, 0.13);
     group.add(overlay);
 
@@ -456,6 +457,7 @@ export const OrbFactory = {
       baseOpacity: orbOpacity,
       category,
       scale: nodeScale,
+      isDayAnchor,
     };
     return group;
   },
@@ -482,6 +484,12 @@ export const OrbFactory = {
     if (lod.category === 'commit') {
       lod.overlay.visible = false;
       lod.border.visible = false;
+    }
+    if (lod.isDayAnchor) {
+      lod.overlay.visible = false;
+      lod.border.visible = true;
+      lod.border.material.opacity = distance > 22 ? 0.65 : 0.92;
+      lod.aura.material.opacity = distance > 22 ? 0.2 : 0.34;
     }
     lod.mesh.material.opacity = distance > 18
       ? Math.max(0.62, lod.baseOpacity * 0.86)

@@ -58,6 +58,7 @@ export function attachOrbInteractions(canvas, eventBus, sceneManager, host) {
     if (!nodeContainer) {
       return;
     }
+    sceneManager.focusNodeOrb(nodeContainer);
     expander.show(nodeContainer.userData.node);
     eventBus.emit('orb:expand', { node: nodeContainer.userData.node });
   };

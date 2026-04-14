@@ -8,12 +8,12 @@ export class CameraController {
     this.currentPosition = camera.position.clone();
     this.desiredPosition = camera.position.clone();
     this.focusPosition = new THREE.Vector3(0, 1.1, 4.9);
-    this.scrollSpeed = 0.0068;
+    this.scrollSpeed = 0.014;
     this.strafeStep = 0.42;
     this.timeBounds = { min: -20, max: 20 };
     this.altitudeBounds = { min: -5, max: 10 };
     this.lateralBounds = { min: -18, max: 18 };
-    this.depthBounds = { min: 2, max: 12 };
+    this.depthBounds = { min: -48, max: 14 };
     this.damping = 8;
     this.parallaxFactor = 0.35;
   }
@@ -25,8 +25,8 @@ export class CameraController {
     
     // Enhanced parallax: look target shifts with camera position for depth perception
     // This creates motion parallax cues that make the river feel like a 3D volume
-    this.lookTarget.y = this.currentPosition.y + 0.55;
-    this.lookTarget.z = -2.5 + (this.currentPosition.x * this.parallaxFactor * 0.3);
+    this.lookTarget.y = this.currentPosition.y + 0.18;
+    this.lookTarget.z = this.currentPosition.z - 7.5 + (this.currentPosition.x * this.parallaxFactor * 0.3);
     this.lookTarget.x = this.currentPosition.x * this.parallaxFactor;
     
     this.camera.lookAt(this.lookTarget);
@@ -37,10 +37,10 @@ export class CameraController {
   }
 
   flyTime(delta) {
-    this.desiredPosition.y = THREE.MathUtils.clamp(
-      this.desiredPosition.y + delta,
-      this.timeBounds.min,
-      this.timeBounds.max
+    this.desiredPosition.z = THREE.MathUtils.clamp(
+      this.desiredPosition.z + delta,
+      this.depthBounds.min,
+      this.depthBounds.max
     );
   }
 
