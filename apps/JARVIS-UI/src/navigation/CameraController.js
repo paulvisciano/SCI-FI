@@ -35,6 +35,17 @@ export class CameraController {
     this.desiredPosition.copy(position);
   }
 
+  setDepthBounds(min, max) {
+    if (!Number.isFinite(min) || !Number.isFinite(max)) {
+      return;
+    }
+    const safeMin = Math.min(min, max);
+    const safeMax = Math.max(min, max);
+    this.depthBounds = { min: safeMin, max: safeMax };
+    this.desiredPosition.z = THREE.MathUtils.clamp(this.desiredPosition.z, safeMin, safeMax);
+    this.currentPosition.z = THREE.MathUtils.clamp(this.currentPosition.z, safeMin, safeMax);
+  }
+
   flyTime(delta) {
     this.desiredPosition.z = THREE.MathUtils.clamp(
       this.desiredPosition.z + delta,

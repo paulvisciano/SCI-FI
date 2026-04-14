@@ -58,6 +58,15 @@ export class JarvisApp {
     const layout = this.streamLayout.layout(nodes);
     const positionedNodes = layout.nodes;
     const streams = this.streamAssigner.assign(positionedNodes);
+    if (positionedNodes.length) {
+      const zValues = positionedNodes.map((node) => node?.position?.z).filter((z) => Number.isFinite(z));
+      if (zValues.length) {
+        const minZ = Math.min(...zValues);
+        const maxZ = Math.max(...zValues);
+        const padding = 10;
+        this.sceneManager.cameraController.setDepthBounds(minZ - padding, Math.max(maxZ + padding, 18));
+      }
+    }
     this.sceneManager.setTimelineNodes(positionedNodes);
     this.panels.setStreamSummary(streams, layout.meta);
     this.panels.setStatus(
