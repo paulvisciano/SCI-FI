@@ -175,6 +175,59 @@ body {
   color: rgba(215, 245, 255, 0.75);
 }
 
+.jarvis-overlay--system,
+.stream-panel,
+.temporal-badge,
+.river-side-hud {
+  display: none !important;
+}
+
+.jarvis-info-drawer {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  width: min(26rem, calc(100vw - 2rem));
+  border: 1px solid rgba(146, 214, 255, 0.28);
+  border-radius: 0.9rem;
+  background: linear-gradient(160deg, rgba(8, 16, 30, 0.82), rgba(6, 11, 20, 0.7));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+  z-index: 19;
+}
+
+.jarvis-info-drawer__toggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: rgba(212, 242, 255, 0.95);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0.95rem;
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.jarvis-info-drawer__body {
+  border-top: 1px solid rgba(146, 214, 255, 0.24);
+  padding: 0.65rem 0.95rem 0.8rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.jarvis-info-drawer__body p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: rgba(214, 243, 255, 0.84);
+  line-height: 1.4;
+}
+
+.jarvis-info-drawer__voice {
+  color: rgba(255, 219, 145, 0.95) !important;
+}
+
 .pilot-orb-hud {
   position: fixed;
   left: 50%;
@@ -388,6 +441,13 @@ body {
   .cockpit-frame__right,
   .river-side-hud {
     display: none;
+  }
+
+  .jarvis-info-drawer {
+    top: auto;
+    bottom: 6.55rem;
+    left: 0.75rem;
+    width: calc(100vw - 1.5rem);
   }
 }
 

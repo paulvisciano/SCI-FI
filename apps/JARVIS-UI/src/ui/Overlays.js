@@ -17,30 +17,6 @@ export function createOverlays(host) {
   `;
   host.append(frame);
 
-  const shell = document.createElement('div');
-  shell.className = 'jarvis-overlay jarvis-overlay--system';
-  shell.innerHTML = `
-    <h1>J.A.R.V.I.S Timeline</h1>
-    <p id="jarvis-overlay-status">Booting...</p>
-    <p id="jarvis-voice-status" class="jarvis-overlay__voice" aria-live="polite"></p>
-    <p class="jarvis-overlay__hint">Scroll/Pinch = depth travel · Drag = strafe · Click node = focus</p>
-  `;
-  host.append(shell);
-
-  const rightHud = document.createElement('aside');
-  rightHud.className = 'river-side-hud';
-  rightHud.innerHTML = `
-    <div class="river-side-hud__controls" aria-label="Timeline controls">
-      <span>TIME</span>
-      <span>ANCHOR</span>
-      <span>FLOW</span>
-    </div>
-    <p class="river-side-hud__title">River of Time</p>
-    <p class="river-side-hud__subtitle">One anchor per day · memory aligned in depth</p>
-    <div class="river-side-hud__preview" role="img" aria-label="Memory preview image"></div>
-  `;
-  host.append(rightHud);
-
   const pilotHud = document.createElement('div');
   pilotHud.className = 'pilot-orb-hud';
   pilotHud.innerHTML = `
@@ -49,18 +25,10 @@ export function createOverlays(host) {
   `;
   host.append(pilotHud);
 
-  const statusEl = shell.querySelector('#jarvis-overlay-status');
-  const voiceStatusEl = shell.querySelector('#jarvis-voice-status');
   const pilotOrbEl = pilotHud.querySelector('#jarvis-pilot-orb');
   const pilotHintEl = pilotHud.querySelector('#jarvis-pilot-hint');
 
   return {
-    setStatus(status) {
-      statusEl.textContent = status;
-    },
-    setVoiceStatus(text) {
-      voiceStatusEl.textContent = text || '';
-    },
     pilotHud,
     pilotOrbEl,
     pilotHintEl,

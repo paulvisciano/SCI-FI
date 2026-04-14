@@ -26,8 +26,8 @@ export class JarvisApp {
     this.streamAssigner = new StreamAssigner();
     this.streamLayout = new StreamLayout();
     this.lodPolicy = createLodPolicy();
-    this.overlay = createOverlays(this.host);
     this.panels = createPanels(this.host, this.eventBus);
+    this.overlay = createOverlays(this.host);
     this.gatewayInspector = createGatewayInspector(this.host, {
       serverOrigin: this.loader.serverOrigin
     });
@@ -38,7 +38,7 @@ export class JarvisApp {
       pilotHud: this.overlay.pilotHud,
       pilotOrbEl: this.overlay.pilotOrbEl,
       pilotHintEl: this.overlay.pilotHintEl,
-      setVoiceStatus: (text) => this.overlay.setVoiceStatus(text),
+      setVoiceStatus: (text) => this.panels.setVoiceStatus(text),
     });
 
     window.addEventListener('resize', () => this.sceneManager.resize());
@@ -53,14 +53,14 @@ export class JarvisApp {
       const count = Number.isFinite(snapshot.nodeCount) && snapshot.nodeCount > 0
         ? ` · ${snapshot.nodeCount} nodes`
         : '';
-      this.overlay.setStatus(`${snapshot.message}${progress ? ` (${progress})` : ''}${count}`);
+      this.panels.setStatus(`${snapshot.message}${progress ? ` (${progress})` : ''}${count}`);
     });
     const layout = this.streamLayout.layout(nodes);
     const positionedNodes = layout.nodes;
     const streams = this.streamAssigner.assign(positionedNodes);
     this.sceneManager.setTimelineNodes(positionedNodes);
     this.panels.setStreamSummary(streams, layout.meta);
-    this.overlay.setStatus(
+    this.panels.setStatus(
       `Vite + modular scene online · ${positionedNodes.length} nodes · left ${layout.meta.leftCount} / right ${layout.meta.rightCount}`
     );
     this.loop();
