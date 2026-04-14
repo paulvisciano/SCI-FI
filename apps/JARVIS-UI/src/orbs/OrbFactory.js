@@ -266,26 +266,29 @@ function formatDayAnchorLabel(node) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDay)) {
     return rawDay || 'Timeline';
   }
-  const today = new Date();
-  const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-  const dayUtc = Date.parse(`${rawDay}T00:00:00.000Z`);
-  if (!Number.isFinite(dayUtc)) {
+  const [year, month, day] = rawDay.split('-').map(Number);
+  const labelDate = new Date(year, month - 1, day);
+  if (!Number.isFinite(labelDate.getTime())) {
     return rawDay;
   }
-  const daysAgo = Math.round((todayUtc - dayUtc) / (24 * 60 * 60 * 1000));
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const labelStart = new Date(labelDate.getFullYear(), labelDate.getMonth(), labelDate.getDate());
+  const daysAgo = Math.round((todayStart.getTime() - labelStart.getTime()) / (24 * 60 * 60 * 1000));
+
+  if (daysAgo < 0) {
+    return labelDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
   if (daysAgo === 0) {
     return 'Today';
   }
   if (daysAgo === 1) {
     return 'Yesterday';
   }
-  if (daysAgo === 7) {
-    return 'A week ago';
+  if (daysAgo <= 6) {
+    return labelDate.toLocaleDateString(undefined, { weekday: 'short' });
   }
-  if (daysAgo > 1 && daysAgo < 7) {
-    return new Date(dayUtc).toLocaleDateString(undefined, { weekday: 'short' });
-  }
-  return new Date(dayUtc).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return labelDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function createDayAnchorLabelSprite(node) {
