@@ -22,6 +22,9 @@ export class StreamLayout {
     const orbitCounters = new Map();
     const dayCounts = new Map();
     const laneCounts = new Map();
+    const totalDays = Math.max(days.size, 1);
+    const computedDepthSpan = (totalDays - 1) * this.config.daySpacing * this.config.temporalDepthScale;
+    const dynamicMaxTemporalDepth = Math.max(this.config.maxTemporalDepth, computedDepthSpan + 12);
 
     for (const node of sorted) {
       const dayKey = this.dayKeyFor(node);
@@ -37,12 +40,11 @@ export class StreamLayout {
     const positioned = sorted.map((node, index) => {
       const dayKey = this.dayKeyFor(node);
       const dayIndex = days.get(dayKey) || 0;
-      const totalDays = Math.max(days.size, 1);
       const centeredDayIndex = dayIndex - (totalDays - 1) / 2;
       const normalizedDay = totalDays <= 1 ? 0 : centeredDayIndex / ((totalDays - 1) / 2 || 1);
       const depthIndexFromPresent = (totalDays - 1) - dayIndex;
       const dayDepth = -depthIndexFromPresent * this.config.daySpacing * this.config.temporalDepthScale;
-      const zAnchor = THREEClamp(dayDepth, -this.config.maxTemporalDepth, this.config.maxTemporalDepth) + this.config.presentZOffset;
+      const zAnchor = THREEClamp(dayDepth, -dynamicMaxTemporalDepth, dynamicMaxTemporalDepth) + this.config.presentZOffset;
       const isAnchor = node.kind === 'day-anchor';
       const side = isAnchor ? 0 : this.sideFor(node);
 
