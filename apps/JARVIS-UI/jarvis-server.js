@@ -43,6 +43,7 @@ function formatDateForArchive(date = new Date()) {
 const MAX_MESSAGE_LENGTH = 5000;
 const MAX_FILE_SIZE = 52428800; // 50MB in bytes
 const AGENT_TIMEOUT = 15000; // 15 seconds
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // === SECURITY VALIDATION ===
 function isValidInput(input) {
