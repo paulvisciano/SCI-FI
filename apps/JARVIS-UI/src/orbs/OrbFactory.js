@@ -6,14 +6,14 @@ const nodeGeometry = new THREE.SphereGeometry(0.16, 28, 28);
 const nodePrivateOpacity = 0.8;
 const nodePublicOpacity = 1;
 const nodeColorByCategory = {
-  commit: new THREE.Color(0x88f4ff),
-  learning: new THREE.Color(0xa2b5ff),
-  conversation: new THREE.Color(0xe8c9ff),
-  audio: new THREE.Color(0xffb3e1),
-  image: new THREE.Color(0x9fffc7),
-  video: new THREE.Color(0xffd28d),
-  document: new THREE.Color(0xc5d3ff),
-  reflection: new THREE.Color(0xb9ffe9),
+  commit: new THREE.Color(0x00d4ff),
+  learning: new THREE.Color(0x6677ff),
+  conversation: new THREE.Color(0xcc55ff),
+  audio: new THREE.Color(0xff44bb),
+  image: new THREE.Color(0x22ffaa),
+  video: new THREE.Color(0xff9922),
+  document: new THREE.Color(0x7799ff),
+  reflection: new THREE.Color(0x33ffdd),
 };
 
 const textureCache = new Map();
@@ -293,12 +293,12 @@ function privacyForNode(node) {
 function streamTintForNode(node) {
   const side = node?.layout?.side;
   if (side < 0) {
-    return new THREE.Color(0x77d7ff);
+    return new THREE.Color(0x22aaff);
   }
   if (side > 0) {
-    return new THREE.Color(0xffbd84);
+    return new THREE.Color(0xff7722);
   }
-  return new THREE.Color(0xdaf0ff);
+  return new THREE.Color(0x88ddff);
 }
 
 function sizeForNode(node, category) {
@@ -310,62 +310,64 @@ function sizeForNode(node, category) {
   }
   const variance = Math.abs(hash % 5) * 0.035;
   const categoryBoost = category === 'commit' ? 0.08 : 0.12;
-  return THREE.MathUtils.clamp(0.95 + variance + Math.min(base * 0.04, 0.16) + categoryBoost, 0.92, 1.35);
+  return THREE.MathUtils.clamp(1.05 + variance + Math.min(base * 0.04, 0.16) + categoryBoost, 1.0, 1.5);
 }
 
 export const OrbFactory = {
   createPrimaryOrb() {
+    // Video element — plays silently as the sphere surface texture
+    const video = document.createElement('video');
+    video.src = '/jarvis-orb-video.mp4';
+    video.autoplay = true;
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.play().catch(() => {});
+
+    const videoTexture = new THREE.VideoTexture(video);
+    videoTexture.colorSpace = THREE.SRGBColorSpace;
+
     const mesh = new THREE.Mesh(
       orbGeometry,
-      new THREE.MeshPhysicalMaterial({
-        map: createPrimaryOrbTexture(),
-        color: 0xc9e4ff,
-        emissive: 0x18223f,
-        emissiveIntensity: 0.62,
-        roughness: 0.2,
-        metalness: 0.06,
-        transmission: 0.15,
-        clearcoat: 0.95,
-        clearcoatRoughness: 0.2,
+      new THREE.MeshStandardMaterial({
+        map: videoTexture,
+        color: 0xcfe8ff,
+        emissive: new THREE.Color(0x17325f),
+        emissiveIntensity: 0.38,
+        roughness: 0.18,
+        metalness: 0.08,
       })
     );
-    const aura = new THREE.Mesh(
-      new THREE.SphereGeometry(1.22, 32, 32),
-      new THREE.MeshBasicMaterial({
-        color: 0x8fc4ff,
-        transparent: true,
-        opacity: 0.12,
-      })
-    );
-    mesh.add(aura);
+
     mesh.name = 'jarvis-primary-orb';
+    mesh.userData.video = video;
     return mesh;
   },
 
   createAmbientParticles() {
     const particleGeometry = new THREE.BufferGeometry();
-    const points = new Float32Array(300);
+    const points = new Float32Array(1800);
     for (let i = 0; i < points.length; i += 3) {
-      points[i] = (Math.random() - 0.5) * 22;
-      points[i + 1] = (Math.random() - 0.5) * 16;
-      points[i + 2] = (Math.random() - 0.5) * 22;
+      points[i] = (Math.random() - 0.5) * 48;
+      points[i + 1] = (Math.random() - 0.5) * 32;
+      points[i + 2] = (Math.random() - 0.5) * 48;
     }
     particleGeometry.setAttribute('position', new THREE.BufferAttribute(points, 3));
 
     const material = new THREE.PointsMaterial({
-      size: 0.03,
+      size: 0.025,
       color: 0x8addff,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.7,
     });
 
     return new THREE.Points(particleGeometry, material);
   },
 
   animatePrimaryOrb(mesh, elapsed) {
-    mesh.rotation.y = elapsed * 0.35;
-    mesh.rotation.x = Math.sin(elapsed * 0.45) * 0.14;
-    mesh.position.y = Math.sin(elapsed * 0.95) * 0.09;
+    if (!mesh) { return; }
+    mesh.rotation.y = elapsed * 0.18;
+    mesh.rotation.x = Math.sin(elapsed * 0.38) * 0.10;
   },
 
   createTimelineNodeOrb(node) {
@@ -384,9 +386,10 @@ export const OrbFactory = {
       nodeGeometry,
       new THREE.MeshStandardMaterial({
         color,
-        emissive: color.clone().multiplyScalar(isDayAnchor ? 0.38 : (isCommit ? 0.08 : 0.19)),
-        roughness: isCommit ? 0.2 : 0.3,
-        metalness: isCommit ? 0.18 : 0.45,
+        emissive: color.clone().multiplyScalar(isDayAnchor ? 0.22 : 0.12),
+        emissiveIntensity: isDayAnchor ? 0.35 : 0.18,
+        roughness: 0.24,
+        metalness: 0.18,
         transparent: true,
         opacity: orbOpacity,
       })
@@ -399,12 +402,12 @@ export const OrbFactory = {
       new THREE.MeshBasicMaterial({
         color,
         transparent: true,
-        opacity: isDayAnchor ? 0.34 : (isCommit ? 0.14 : 0.2),
+        opacity: isDayAnchor ? 0.24 : (isCommit ? 0.14 : 0.18),
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
     );
-    aura.scale.setScalar(nodeScale * (isCommit ? 1.55 : 1.8));
+    aura.scale.setScalar(nodeScale * (isCommit ? 1.25 : 1.35));
     group.add(aura);
 
     const border = new THREE.Sprite(
@@ -462,11 +465,13 @@ export const OrbFactory = {
     return group;
   },
 
-  updateTimelineNodeLod(nodeGroup, cameraPosition) {
+  updateTimelineNodeLod(nodeGroup, cameraPosition, elapsed = 0) {
     const lod = nodeGroup?.userData?.lod;
     if (!lod) {
       return;
     }
+
+    lod.mesh.material.emissiveIntensity = lod.isDayAnchor ? 0.32 : 0.18;
 
     const distance = cameraPosition.distanceTo(nodeGroup.position);
     const scale = lod.scale || 1;

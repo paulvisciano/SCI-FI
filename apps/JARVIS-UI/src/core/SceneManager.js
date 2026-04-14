@@ -7,11 +7,11 @@ export class SceneManager {
   constructor(canvas) {
     this.canvas = canvas;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x030915);
-    this.scene.fog = new THREE.FogExp2(0x030915, 0.012);
+    this.scene.background = new THREE.Color(0x020508);
+    this.scene.fog = new THREE.FogExp2(0x020508, 0.010);
 
-    this.camera = new THREE.PerspectiveCamera(68, 1, 0.1, 1000);
-    this.camera.position.set(0, 1.2, 7.2);
+    this.camera = new THREE.PerspectiveCamera(82, 1, 0.1, 1000);
+    this.camera.position.set(0, -0.4, 2.8);
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -23,7 +23,7 @@ export class SceneManager {
 
     this.neuroOrb = OrbFactory.createPrimaryOrb();
     this.neuroOrb.scale.setScalar(0.9);
-    this.hudOrbOffset = new THREE.Vector3(0, -1.2, -3.08);
+    this.hudOrbOffset = new THREE.Vector3(0, -2.9, -5.6);
     this.timelineNodesGroup = null;
     this.timelineNodeOrbs = [];
     this.scene.add(this.neuroOrb);
@@ -40,8 +40,8 @@ export class SceneManager {
     key.position.set(4, 7, 6);
     this.scene.add(key);
 
-    const warmFill = new THREE.PointLight(0xffb982, 1.45, 120);
-    warmFill.position.set(0, -3.6, 4.2);
+    const warmFill = new THREE.PointLight(0xffa533, 1.6, 180);
+    warmFill.position.set(9, 2, -6);
     this.scene.add(warmFill);
 
     const rim = new THREE.PointLight(0x2f7bff, 1.15, 100);
@@ -55,11 +55,11 @@ export class SceneManager {
 
     const createRibbonCurve = (side, phase, amplitude = 1) => {
       const points = [];
-      for (let i = 0; i <= 54; i += 1) {
-        const t = i / 54;
-        const y = -9 + i * 0.38;
-        const x = side * (1.45 + (1 - t) * 3.2 + Math.sin(i * 0.22 + phase) * 0.95 * amplitude);
-        const z = -1.2 - t * 7.2 + Math.cos(i * 0.18 + phase) * 1.25 * amplitude + side * -0.35;
+      for (let i = 0; i <= 72; i += 1) {
+        const t = i / 72;
+        const y = -4 + i * 0.38;
+        const x = side * (2.2 + (1 - t) * 7.5 + Math.sin(i * 0.22 + phase) * 0.88 * amplitude);
+        const z = -1.5 - t * 18 + Math.cos(i * 0.18 + phase) * 1.15 * amplitude + side * -0.3;
         points.push(new THREE.Vector3(x, y, z));
       }
       return new THREE.CatmullRomCurve3(points);
@@ -201,14 +201,15 @@ export class SceneManager {
     const elapsed = this.clock.elapsedTime;
     this.cameraController.update(dt);
     OrbFactory.animatePrimaryOrb(this.neuroOrb, elapsed);
-    const hudOffset = this.hudOrbOffset.clone().applyQuaternion(this.camera.quaternion);
-    this.neuroOrb.position.copy(this.camera.position).add(hudOffset);
-    this.neuroOrb.quaternion.copy(this.camera.quaternion);
+    if (this.neuroOrb) {
+      const hudOffset = this.hudOrbOffset.clone().applyQuaternion(this.camera.quaternion);
+      this.neuroOrb.position.copy(this.camera.position).add(hudOffset);
+    }
     for (const nodeOrb of this.timelineNodeOrbs) {
       if (typeof nodeOrb.userData.baseY === 'number') {
-        nodeOrb.position.y = nodeOrb.userData.baseY + Math.sin(elapsed * 0.8 + nodeOrb.userData.floatPhase) * 0.06;
+        nodeOrb.position.y = nodeOrb.userData.baseY + Math.sin(elapsed * 0.8 + nodeOrb.userData.floatPhase) * 0.11;
       }
-      OrbFactory.updateTimelineNodeLod(nodeOrb, this.camera.position);
+      OrbFactory.updateTimelineNodeLod(nodeOrb, this.camera.position, elapsed);
     }
     if (this.riverGuidesGroup) {
       for (const child of this.riverGuidesGroup.children) {

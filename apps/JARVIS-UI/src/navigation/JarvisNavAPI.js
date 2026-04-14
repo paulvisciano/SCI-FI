@@ -3,8 +3,11 @@ export class JarvisNavAPI {
     this.cameraController = cameraController;
     this.dragState = null;
     this.pinchDistance = null;
+    this.flyVelocity = 0;
+    this.flyAnimFrame = null;
     this.onWheel = (event) => {
-      this.cameraController.flyTime(event.deltaY * this.cameraController.scrollSpeed);
+      this.flyVelocity += event.deltaY * this.cameraController.scrollSpeed * 0.9;
+      this.startFlyMomentum();
     };
     this.onPointerDown = (event) => {
       if (event.button !== 0) {
@@ -103,6 +106,23 @@ export class JarvisNavAPI {
     return Math.hypot(dx, dy);
   }
 
+  startFlyMomentum() {
+    if (this.flyAnimFrame) {
+      return;
+    }
+    const tick = () => {
+      this.cameraController.flyTime(this.flyVelocity);
+      this.flyVelocity *= 0.82;
+      if (Math.abs(this.flyVelocity) < 0.0008) {
+        this.flyVelocity = 0;
+        this.flyAnimFrame = null;
+        return;
+      }
+      this.flyAnimFrame = window.requestAnimationFrame(tick);
+    };
+    this.flyAnimFrame = window.requestAnimationFrame(tick);
+  }
+
   update(distance) {
     if (distance < 6) {
       this.cameraController.approachFocus();
@@ -118,5 +138,9 @@ export class JarvisNavAPI {
     window.removeEventListener('touchmove', this.onTouchMove);
     window.removeEventListener('touchend', this.onTouchEnd);
     window.removeEventListener('keydown', this.onKeyDown);
+    if (this.flyAnimFrame) {
+      window.cancelAnimationFrame(this.flyAnimFrame);
+      this.flyAnimFrame = null;
+    }
   }
 }
