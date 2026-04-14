@@ -3,23 +3,32 @@ import * as THREE from 'three';
 export class CameraController {
   constructor(camera) {
     this.camera = camera;
-    this.lookTarget = new THREE.Vector3(0, 0.5, 0);
+    this.lookTarget = new THREE.Vector3(0, 0.35, 0);
     this.presentPosition = camera.position.clone();
     this.currentPosition = camera.position.clone();
     this.desiredPosition = camera.position.clone();
-    this.focusPosition = new THREE.Vector3(0, 1.5, 5.8);
-    this.scrollSpeed = 0.014;
+    this.focusPosition = new THREE.Vector3(0, 1.1, 4.9);
+    this.scrollSpeed = 0.0068;
     this.strafeStep = 0.42;
-    this.timeBounds = { min: -26, max: 14 };
+    this.timeBounds = { min: -20, max: 20 };
     this.altitudeBounds = { min: -5, max: 10 };
     this.lateralBounds = { min: -18, max: 18 };
+    this.depthBounds = { min: 2, max: 12 };
     this.damping = 8;
+    this.parallaxFactor = 0.35;
   }
 
   update(dt) {
     const blend = 1 - Math.exp(-this.damping * dt);
     this.currentPosition.lerp(this.desiredPosition, blend);
     this.camera.position.copy(this.currentPosition);
+    
+    // Enhanced parallax: look target shifts with camera position for depth perception
+    // This creates motion parallax cues that make the river feel like a 3D volume
+    this.lookTarget.y = this.currentPosition.y + 0.55;
+    this.lookTarget.z = -2.5 + (this.currentPosition.x * this.parallaxFactor * 0.3);
+    this.lookTarget.x = this.currentPosition.x * this.parallaxFactor;
+    
     this.camera.lookAt(this.lookTarget);
   }
 
@@ -28,8 +37,8 @@ export class CameraController {
   }
 
   flyTime(delta) {
-    this.desiredPosition.z = THREE.MathUtils.clamp(
-      this.desiredPosition.z + delta,
+    this.desiredPosition.y = THREE.MathUtils.clamp(
+      this.desiredPosition.y + delta,
       this.timeBounds.min,
       this.timeBounds.max
     );
@@ -45,6 +54,11 @@ export class CameraController {
       this.desiredPosition.y + verticalDelta,
       this.altitudeBounds.min,
       this.altitudeBounds.max
+    );
+    this.desiredPosition.z = THREE.MathUtils.clamp(
+      this.desiredPosition.z + horizontalDelta * 0.15,
+      this.depthBounds.min,
+      this.depthBounds.max
     );
   }
 

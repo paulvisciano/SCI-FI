@@ -333,7 +333,92 @@ let bootstrapNodes = [];
 let bootstrapScanPromise = null;
 const bootstrapClients = new Set();
 const GIT_BOOTSTRAP_LIMIT = 250;
+const RAW_ARCHIVE_BOOTSTRAP_LIMIT = 220;
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
+
+function categoryForArchiveFile(extension, relativePath) {
+  const ext = extension.toLowerCase();
+  const rel = relativePath.toLowerCase();
+  if (rel.includes('/audio/') || ['.wav', '.mp3', '.m4a', '.aac', '.flac', '.ogg'].includes(ext)) {
+    return 'audio';
+  }
+  if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.bmp', '.svg'].includes(ext)) {
+    return 'image';
+  }
+  if (['.mp4', '.mov', '.mkv', '.webm', '.avi', '.m4v'].includes(ext)) {
+    return 'video';
+  }
+  if (['.md', '.txt', '.json', '.pdf', '.doc', '.docx', '.rtf'].includes(ext)) {
+    return 'document';
+  }
+  return 'conversation';
+}
+
+function scanRawArchiveNodes(archiveBase, limit = RAW_ARCHIVE_BOOTSTRAP_LIMIT) {
+  if (!archiveBase || !fs.existsSync(archiveBase)) {
+    return [];
+  }
+
+  const stack = [archiveBase];
+  const files = [];
+  while (stack.length > 0) {
+    const directory = stack.pop();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(directory, { withFileTypes: true });
+    } catch (_) {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (!entry.isFile()) {
+        continue;
+      }
+      try {
+        const stats = fs.statSync(fullPath);
+        files.push({ fullPath, stats });
+      } catch (_) {
+        // Ignore file stat errors so one bad file does not block bootstrap.
+      }
+    }
+  }
+
+  return files
+    .sort((a, b) => b.stats.mtimeMs - a.stats.mtimeMs)
+    .slice(0, limit)
+    .map(({ fullPath, stats }) => {
+      const relativePath = path.relative(archiveBase, fullPath);
+      const normalizedRelativePath = relativePath.split(path.sep).join('/');
+      const extension = path.extname(fullPath);
+      const type = categoryForArchiveFile(extension, normalizedRelativePath);
+      const timestamp = stats.mtime.toISOString();
+      const day = timestamp.slice(0, 10);
+      const safeSlug = normalizedRelativePath.replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 64);
+      const id = `raw-${stats.mtimeMs.toString(36)}-${safeSlug || 'node'}`;
+
+      return {
+        id,
+        title: path.basename(fullPath),
+        stream: 'temporal',
+        kind: 'raw-archive-node',
+        type,
+        day,
+        timestamp,
+        createdAt: timestamp,
+        privacy: normalizedRelativePath.toLowerCase().includes('/private/') ? 'private' : 'public',
+        sourcePath: normalizedRelativePath,
+        ext: extension.toLowerCase(),
+        sizeBytes: stats.size,
+        preview: `RAW archive · ${normalizedRelativePath}`,
+        content: `RAW archive file: ${normalizedRelativePath}`
+      };
+    });
+}
 
 function snapshotBootstrapState() {
   return {
@@ -450,16 +535,23 @@ async function runGitBootstrapScan() {
           shortHash: commit.hash.slice(0, 7)
         }));
 
-        bootstrapNodes = [...dayAnchors, ...commitSatellites];
+        const archiveNodes = scanRawArchiveNodes(CONFIG.archiveBase);
+        logGatewayToolCall('raw.archive.scan.complete', {
+          archiveBase: CONFIG.archiveBase,
+          archiveNodeCount: archiveNodes.length
+        });
+
+        bootstrapNodes = [...dayAnchors, ...commitSatellites, ...archiveNodes];
         updateBootstrapState({
           phase: 'ready',
           progress: 100,
-          message: `Bootstrap ready (${commits.length} commits)`,
+          message: `Bootstrap ready (${commits.length} commits, ${archiveNodes.length} RAW nodes)`,
           nodeCount: bootstrapNodes.length
         }, 'bootstrap:ready');
         logGatewayToolCall('git.anchor.merge.complete', {
           dayAnchorCount: dayAnchors.length,
-          nodeCount: bootstrapNodes.length
+          nodeCount: bootstrapNodes.length,
+          archiveNodeCount: archiveNodes.length
         });
         resolve(bootstrapNodes);
       }

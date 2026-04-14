@@ -9,7 +9,7 @@ import { createPanels } from '../ui/Panels.js';
 import { createOverlays } from '../ui/Overlays.js';
 import { createGatewayInspector } from '../ui/GatewayInspector.js';
 import { createLodPolicy } from '../utils/LOD.js';
-import { iconForStream } from '../utils/Icons.js';
+import { attachPilotVoiceRecorder } from '../voice/PilotVoiceRecorder.js';
 
 export class JarvisApp {
   constructor(host) {
@@ -33,6 +33,14 @@ export class JarvisApp {
     });
     this.stopInteractions = attachOrbInteractions(this.canvas, this.eventBus, this.sceneManager, this.host);
 
+    this.stopVoiceRecorder = attachPilotVoiceRecorder({
+      apiBase: this.loader.serverOrigin,
+      pilotHud: this.overlay.pilotHud,
+      pilotOrbEl: this.overlay.pilotOrbEl,
+      pilotHintEl: this.overlay.pilotHintEl,
+      setVoiceStatus: (text) => this.overlay.setVoiceStatus(text),
+    });
+
     window.addEventListener('resize', () => this.sceneManager.resize());
   }
 
@@ -51,9 +59,7 @@ export class JarvisApp {
     const positionedNodes = layout.nodes;
     const streams = this.streamAssigner.assign(positionedNodes);
     this.sceneManager.setTimelineNodes(positionedNodes);
-    this.panels.setStreamSummary(
-      streams.map((stream) => `${iconForStream(stream.name)} ${stream.name}: ${stream.nodes.length}`).join(' | ')
-    );
+    this.panels.setStreamSummary(streams, layout.meta);
     this.overlay.setStatus(
       `Vite + modular scene online · ${positionedNodes.length} nodes · left ${layout.meta.leftCount} / right ${layout.meta.rightCount}`
     );
@@ -68,6 +74,9 @@ export class JarvisApp {
 
   destroy() {
     this.stopInteractions();
+    if (this.stopVoiceRecorder) {
+      this.stopVoiceRecorder();
+    }
     this.nav.destroy();
     this.gatewayInspector.destroy();
     window.cancelAnimationFrame(this.raf);

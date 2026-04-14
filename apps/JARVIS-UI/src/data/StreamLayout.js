@@ -6,10 +6,13 @@ const RIGHT_TYPES = new Set(['conversation', 'audio']);
 export class StreamLayout {
   constructor(config = {}) {
     this.config = {
-      streamOffset: config.streamOffset ?? 4.6,
-      orbitalRadius: config.orbitalRadius ?? 1.05,
-      daySpacing: config.daySpacing ?? 1.5,
-      orbitalJitter: config.orbitalJitter ?? 0.18,
+      streamOffset: config.streamOffset ?? 3.55,
+      orbitalRadius: config.orbitalRadius ?? 1.55,
+      daySpacing: config.daySpacing ?? 1.15,
+      orbitalJitter: config.orbitalJitter ?? 0.42,
+      temporalDepthScale: config.temporalDepthScale ?? 2.1,
+      maxTemporalDepth: config.maxTemporalDepth ?? 22,
+      presentZOffset: config.presentZOffset ?? 0,
     };
   }
 
@@ -31,7 +34,11 @@ export class StreamLayout {
       const dayKey = this.dayKeyFor(node);
       const dayIndex = days.get(dayKey) || 0;
       const totalDays = Math.max(days.size, 1);
-      const y = (dayIndex - (totalDays - 1) / 2) * this.config.daySpacing;
+      const centeredDayIndex = dayIndex - (totalDays - 1) / 2;
+      const normalizedDay = totalDays <= 1 ? 0 : centeredDayIndex / ((totalDays - 1) / 2 || 1);
+      const depthIndexFromPresent = (totalDays - 1) - dayIndex;
+      const dayDepth = -depthIndexFromPresent * this.config.daySpacing * this.config.temporalDepthScale;
+      const zAnchor = THREEClamp(dayDepth, -this.config.maxTemporalDepth, this.config.maxTemporalDepth) + this.config.presentZOffset;
       const isAnchor = node.kind === 'day-anchor';
       const side = isAnchor ? 0 : this.sideFor(node);
 
@@ -45,11 +52,31 @@ export class StreamLayout {
       orbitCounters.set(dayKey, localIndex + 1);
       const dayPopulation = Math.max(dayCounts.get(dayKey) || 1, 1);
       const angleOffset = side < 0 ? Math.PI * 0.72 : Math.PI * 0.28;
-      const angle = ((localIndex % dayPopulation) / dayPopulation) * Math.PI * 2 + angleOffset;
+      const dayFraction = this.dayFractionFor(node);
+      const orbitalSpread = ((localIndex % dayPopulation) / dayPopulation) * (Math.PI * 0.45);
+      const angle = dayFraction * Math.PI * 2 + orbitalSpread + angleOffset;
       const jitter = Math.sin(index * 2.173) * this.config.orbitalJitter;
-      const radial = this.config.orbitalRadius + jitter;
-      const x = isAnchor ? 0 : side * (this.config.streamOffset + Math.abs(Math.cos(angle)) * radial * 0.35);
-      const z = isAnchor ? 0 : Math.sin(angle) * radial;
+      const radial = this.config.orbitalRadius + jitter + (localIndex % 4) * 0.16;
+      const convergence = 1 - Math.min(Math.abs(normalizedDay) * 0.42, 0.42);
+      const laneSpread = Math.ceil(dayPopulation / 9);
+      const laneIndex = (localIndex % Math.max(laneSpread, 1)) - (Math.max(laneSpread, 1) - 1) / 2;
+
+      // Keep each day aligned across streams, then fan nodes around the day anchor.
+      const yBand = Math.floor(localIndex / Math.max(laneSpread, 1));
+      const y = isAnchor
+        ? 0
+        : (laneIndex * 0.36) + (side < 0 ? -0.08 : 0.08) + (yBand * 0.28);
+
+      const x = isAnchor
+        ? 0
+        : side * (
+          this.config.streamOffset * convergence * 0.9
+          + Math.abs(Math.cos(angle)) * radial * 0.62
+          + laneIndex * 0.32
+        );
+      const z = isAnchor
+        ? zAnchor
+        : zAnchor + Math.sin(angle) * radial * 0.6 - yBand * 0.2;
 
       return {
         ...node,
@@ -60,6 +87,7 @@ export class StreamLayout {
           dayIndex,
           isAnchor,
           epochMs: this.epochFor(node),
+          normalizedDay,
         },
       };
     });
@@ -130,4 +158,22 @@ export class StreamLayout {
     const parsed = Date.parse(`${dayKey}T00:00:00.000Z`);
     return Number.isNaN(parsed) ? 0 : parsed;
   }
+
+  dayFractionFor(node) {
+    const epoch = this.epochFor(node);
+    if (!Number.isFinite(epoch)) {
+      return 0;
+    }
+    const date = new Date(epoch);
+    const seconds =
+      (date.getUTCHours() * 3600) +
+      (date.getUTCMinutes() * 60) +
+      date.getUTCSeconds() +
+      (date.getUTCMilliseconds() / 1000);
+    return seconds / 86400;
+  }
+}
+
+function THREEClamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
