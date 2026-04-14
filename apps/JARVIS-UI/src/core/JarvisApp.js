@@ -83,9 +83,13 @@ export class JarvisApp {
         return true;
       }
       if (node.kind === 'commit-satellite') {
-        return true;
+        return `${node.stream || ''}`.toLowerCase() === 'memory';
       }
-      return node.kind === 'raw-archive-node';
+      if (node.kind !== 'raw-archive-node') {
+        return false;
+      }
+      const absolutePath = `${node.absolutePath || ''}`.replaceAll('\\', '/');
+      return absolutePath.startsWith('/Users/paulvisciano/RAW/archive/');
     });
   }
 
