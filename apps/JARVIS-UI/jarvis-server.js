@@ -374,6 +374,23 @@ function categoryForArchiveFile(extension, relativePath) {
   return 'conversation';
 }
 
+const TEXT_PREVIEW_EXTENSIONS = new Set([
+  '.md', '.txt', '.json', '.js', '.ts', '.tsx', '.jsx', '.css', '.html', '.xml', '.csv', '.log', '.yaml', '.yml'
+]);
+
+function readArchivePreview(fullPath, extension) {
+  if (!TEXT_PREVIEW_EXTENSIONS.has((extension || '').toLowerCase())) {
+    return '';
+  }
+  try {
+    const bytes = fs.readFileSync(fullPath);
+    const slice = bytes.subarray(0, 2048).toString('utf8').replace(/\s+/g, ' ').trim();
+    return slice.slice(0, 280);
+  } catch (_) {
+    return '';
+  }
+}
+
 function scanRawArchiveNodes(archiveBase, limit = RAW_ARCHIVE_BOOTSTRAP_LIMIT) {
   if (!archiveBase || !fs.existsSync(archiveBase)) {
     return [];
@@ -420,6 +437,7 @@ function scanRawArchiveNodes(archiveBase, limit = RAW_ARCHIVE_BOOTSTRAP_LIMIT) {
       const day = timestamp.slice(0, 10);
       const safeSlug = normalizedRelativePath.replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 64);
       const id = `raw-${stats.mtimeMs.toString(36)}-${safeSlug || 'node'}`;
+      const contentPreview = readArchivePreview(fullPath, extension);
 
       return {
         id,
@@ -432,10 +450,13 @@ function scanRawArchiveNodes(archiveBase, limit = RAW_ARCHIVE_BOOTSTRAP_LIMIT) {
         createdAt: timestamp,
         privacy: normalizedRelativePath.toLowerCase().includes('/private/') ? 'private' : 'public',
         sourcePath: normalizedRelativePath,
+        absolutePath: fullPath,
         ext: extension.toLowerCase(),
         sizeBytes: stats.size,
-        preview: `RAW archive · ${normalizedRelativePath}`,
-        content: `RAW archive file: ${normalizedRelativePath}`
+        modifiedAt: stats.mtime.toISOString(),
+        createdAtFs: stats.birthtime ? stats.birthtime.toISOString() : null,
+        preview: contentPreview || `RAW archive file · ${normalizedRelativePath}`,
+        content: contentPreview || `RAW archive file: ${normalizedRelativePath}`
       };
     });
 }
