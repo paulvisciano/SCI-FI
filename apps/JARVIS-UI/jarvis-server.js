@@ -336,7 +336,10 @@ const parsedGitBootstrapLimit = Number.parseInt(process.env.GIT_BOOTSTRAP_LIMIT 
 const GIT_BOOTSTRAP_LIMIT = Number.isFinite(parsedGitBootstrapLimit) && parsedGitBootstrapLimit > 0
   ? parsedGitBootstrapLimit
   : 5000;
-const RAW_ARCHIVE_BOOTSTRAP_LIMIT = 220;
+const parsedRawArchiveBootstrapLimit = Number.parseInt(process.env.RAW_ARCHIVE_BOOTSTRAP_LIMIT || '5000', 10);
+const RAW_ARCHIVE_BOOTSTRAP_LIMIT = Number.isFinite(parsedRawArchiveBootstrapLimit) && parsedRawArchiveBootstrapLimit > 0
+  ? parsedRawArchiveBootstrapLimit
+  : 5000;
 const REQUIRED_BOOTSTRAP_REPO_ROOT = '/Users/paulvisciano/JARVIS';
 const REQUIRED_BOOTSTRAP_ARCHIVE_BASE = '/Users/paulvisciano/RAW/archive';
 
