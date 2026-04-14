@@ -29,7 +29,6 @@ export class SceneManager {
     this.scene.add(this.neuroOrb);
     this.scene.add(OrbFactory.createAmbientParticles());
     this.addDefaultLights();
-    this.addRiverGuides();
   }
 
   addDefaultLights() {
@@ -49,79 +48,6 @@ export class SceneManager {
     this.scene.add(rim);
   }
 
-  addRiverGuides() {
-    const group = new THREE.Group();
-    group.name = 'jarvis-river-guides';
-
-    const createRibbonCurve = (side, phase, amplitude = 1) => {
-      const points = [];
-      for (let i = 0; i <= 72; i += 1) {
-        const t = i / 72;
-        const y = -4 + i * 0.38;
-        const x = side * (2.2 + (1 - t) * 7.5 + Math.sin(i * 0.22 + phase) * 0.88 * amplitude);
-        const z = -1.5 - t * 18 + Math.cos(i * 0.18 + phase) * 1.15 * amplitude + side * -0.3;
-        points.push(new THREE.Vector3(x, y, z));
-      }
-      return new THREE.CatmullRomCurve3(points);
-    };
-
-    const createRibbonTube = (curve, colorHex, opacity, radius) => {
-      const geometry = new THREE.TubeGeometry(curve, 180, radius, 10, false);
-      const material = new THREE.MeshBasicMaterial({
-        color: colorHex,
-        transparent: true,
-        opacity,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-      return new THREE.Mesh(geometry, material);
-    };
-
-    const createFlowParticles = (side, colorHex, phase) => {
-      const curve = createRibbonCurve(side, phase, 0.82);
-      const points = [];
-      for (let i = 0; i < 260; i += 1) {
-        const t = i / 259;
-        const base = curve.getPoint(t);
-        points.push(
-          base.x + (Math.random() - 0.5) * 0.95,
-          base.y + (Math.random() - 0.5) * 0.75,
-          base.z + (Math.random() - 0.5) * 1.2
-        );
-      }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-      const material = new THREE.PointsMaterial({
-        color: colorHex,
-        size: 0.11,
-        transparent: true,
-        opacity: 0.7,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-      const cloud = new THREE.Points(geometry, material);
-      cloud.userData.phase = phase;
-      cloud.userData.side = side;
-      return cloud;
-    };
-
-    const leftPrimaryCurve = createRibbonCurve(-1, 0, 1);
-    const leftSecondaryCurve = createRibbonCurve(-1, 1.3, 0.84);
-    const rightPrimaryCurve = createRibbonCurve(1, 0.68, 1);
-    const rightSecondaryCurve = createRibbonCurve(1, 2.08, 0.84);
-
-    group.add(
-      createRibbonTube(leftPrimaryCurve, 0x57bfff, 0.18, 0.2),
-      createRibbonTube(leftSecondaryCurve, 0xa9edff, 0.12, 0.14),
-      createRibbonTube(rightPrimaryCurve, 0xffb16a, 0.2, 0.2),
-      createRibbonTube(rightSecondaryCurve, 0xffd7ac, 0.12, 0.14),
-      createFlowParticles(-1, 0x93dcff, 0.2),
-      createFlowParticles(1, 0xffc994, 0.9)
-    );
-
-    this.scene.add(group);
-    this.riverGuidesGroup = group;
-  }
 
   setTimelineNodes(nodes) {
     if (this.timelineNodesGroup) {
@@ -179,14 +105,6 @@ export class SceneManager {
         nodeOrb.position.y = nodeOrb.userData.baseY + Math.sin(elapsed * 0.8 + nodeOrb.userData.floatPhase) * 0.11;
       }
       OrbFactory.updateTimelineNodeLod(nodeOrb, this.camera.position, elapsed);
-    }
-    if (this.riverGuidesGroup) {
-      for (const child of this.riverGuidesGroup.children) {
-        if (child.isPoints) {
-          child.rotation.y = Math.sin(elapsed * 0.05 + (child.userData.phase || 0)) * 0.02;
-          child.position.z = Math.sin(elapsed * 0.5 + (child.userData.phase || 0)) * 0.18;
-        }
-      }
     }
     this.performance.tick(dt);
     this.renderer.render(this.scene, this.camera);
