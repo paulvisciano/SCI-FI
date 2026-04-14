@@ -509,21 +509,41 @@ async function runGitBootstrapScan() {
         });
         logGatewayToolCall('git.log.scan.complete', { commitCount: commits.length });
 
-        const dayMap = new Map();
+        const archiveNodes = scanRawArchiveNodes(CONFIG.archiveBase);
+        logGatewayToolCall('raw.archive.scan.complete', {
+          archiveBase: CONFIG.archiveBase,
+          archiveNodeCount: archiveNodes.length
+        });
+
+        const dayCounts = new Map();
         for (const commit of commits) {
-          if (!dayMap.has(commit.day)) {
-            dayMap.set(commit.day, []);
+          const current = dayCounts.get(commit.day) || { commits: 0, archive: 0 };
+          current.commits += 1;
+          dayCounts.set(commit.day, current);
+        }
+        for (const node of archiveNodes) {
+          const day = node.day;
+          if (!day) {
+            continue;
           }
-          dayMap.get(commit.day).push(commit);
+          const current = dayCounts.get(day) || { commits: 0, archive: 0 };
+          current.archive += 1;
+          dayCounts.set(day, current);
         }
 
-        const dayAnchors = Array.from(dayMap.entries()).map(([day, dayCommits]) => ({
-          id: `day-${day}`,
-          title: day,
-          stream: 'temporal',
-          kind: 'day-anchor',
-          commitCount: dayCommits.length
-        }));
+        const dayAnchors = Array.from(dayCounts.entries())
+          .sort(([a], [b]) => Date.parse(a) - Date.parse(b))
+          .map(([day, counts]) => ({
+            id: `day-${day}`,
+            title: day,
+            day,
+            timestamp: `${day}T12:00:00.000Z`,
+            createdAt: `${day}T12:00:00.000Z`,
+            stream: 'temporal',
+            kind: 'day-anchor',
+            commitCount: counts.commits,
+            archiveCount: counts.archive
+          }));
 
         const commitSatellites = commits.map((commit) => ({
           id: `commit-${commit.hash.slice(0, 12)}`,
@@ -534,12 +554,6 @@ async function runGitBootstrapScan() {
           hash: commit.hash,
           shortHash: commit.hash.slice(0, 7)
         }));
-
-        const archiveNodes = scanRawArchiveNodes(CONFIG.archiveBase);
-        logGatewayToolCall('raw.archive.scan.complete', {
-          archiveBase: CONFIG.archiveBase,
-          archiveNodeCount: archiveNodes.length
-        });
 
         bootstrapNodes = [...dayAnchors, ...commitSatellites, ...archiveNodes];
         updateBootstrapState({
