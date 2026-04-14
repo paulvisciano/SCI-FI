@@ -5,7 +5,9 @@ export class NeurographLoader {
     this.serverOrigin = (configuredOrigin || fallbackOrigin).replace(/\/$/, '');
   }
 
-  async loadBootstrap(onProgress = () => {}) {
+  async loadBootstrap(onProgress = () => {}, options = {}) {
+    const offsetDays = Number.isFinite(options.offsetDays) ? options.offsetDays : 0;
+    const windowDays = Number.isFinite(options.windowDays) ? options.windowDays : 7;
     let events;
     try {
       events = new EventSource(`${this.serverOrigin}/api/bootstrap/events`);
@@ -18,7 +20,10 @@ export class NeurographLoader {
     }
 
     try {
-      const response = await fetch(`${this.serverOrigin}/api/bootstrap/nodes`);
+      const url = new URL(`${this.serverOrigin}/api/bootstrap/nodes`);
+      url.searchParams.set('offsetDays', String(offsetDays));
+      url.searchParams.set('windowDays', String(windowDays));
+      const response = await fetch(url.toString());
       if (!response.ok) {
         throw new Error(`Bootstrap request failed (${response.status})`);
       }
@@ -29,7 +34,7 @@ export class NeurographLoader {
         message: 'Bootstrap ready',
         nodeCount: payload.nodes.length
       });
-      return payload.nodes;
+      return payload;
     } finally {
       if (events) {
         events.close();

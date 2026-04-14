@@ -461,6 +461,62 @@ function scanRawArchiveNodes(archiveBase, limit = RAW_ARCHIVE_BOOTSTRAP_LIMIT) {
     });
 }
 
+function epochForNode(node) {
+  const values = [node?.timestamp, node?.createdAt, node?.day];
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Date.parse(value);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return Date.UTC(2020, 0, 1);
+}
+
+function dayKeyForNode(node) {
+  if (typeof node?.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(node.day)) {
+    return node.day;
+  }
+  const epoch = epochForNode(node);
+  return new Date(epoch).toISOString().slice(0, 10);
+}
+
+function filterBootstrapWindow(nodes, offsetDays, windowDays) {
+  const safeWindowDays = Math.max(1, Math.min(windowDays, 3650));
+  const safeOffsetDays = Math.max(0, Math.min(offsetDays, 3650));
+  const now = new Date();
+  const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const windowEnd = todayStart - (safeOffsetDays * DAY_MS) + DAY_MS;
+  const windowStart = windowEnd - (safeWindowDays * DAY_MS);
+
+  const inWindow = nodes.filter((node) => {
+    if (node.kind === 'day-anchor') {
+      return false;
+    }
+    const epoch = epochForNode(node);
+    return epoch >= windowStart && epoch < windowEnd;
+  });
+  const includedDays = new Set(inWindow.map((node) => dayKeyForNode(node)));
+  const dayAnchors = nodes.filter((node) => node.kind === 'day-anchor' && includedDays.has(dayKeyForNode(node)));
+  const filtered = [...dayAnchors, ...inWindow];
+
+  const oldestEpoch = nodes.reduce((min, node) => Math.min(min, epochForNode(node)), Number.POSITIVE_INFINITY);
+  const hasMore = Number.isFinite(oldestEpoch) ? windowStart > oldestEpoch : false;
+
+  return {
+    nodes: filtered,
+    window: {
+      offsetDays: safeOffsetDays,
+      windowDays: safeWindowDays,
+      hasMore,
+    },
+  };
+}
+
 function snapshotBootstrapState() {
   return {
     ...bootstrapState,
@@ -673,16 +729,21 @@ function handleRequest(req, res) {
   }
 
   if (req.method === 'GET' && routePath === '/api/bootstrap/nodes') {
+    const offsetDays = Number.parseInt(requestUrl.searchParams.get('offsetDays') || '0', 10);
+    const windowDays = Number.parseInt(requestUrl.searchParams.get('windowDays') || '7', 10);
     runGitBootstrapScan()
-      .then((nodes) => {
+      .then((allNodes) => {
+        const payload = filterBootstrapWindow(allNodes, offsetDays, windowDays);
+        const nodes = payload.nodes;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           nodes,
           meta: {
             commitCount: bootstrapState.commitCount,
             dayAnchorCount: nodes.filter((node) => node.kind === 'day-anchor').length,
-            generatedAt: new Date().toISOString()
-          }
+            generatedAt: new Date().toISOString(),
+            window: payload.window,
+          },
         }));
       })
       .catch((error) => {
