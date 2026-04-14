@@ -3,17 +3,17 @@ import * as THREE from 'three';
 export class CameraController {
   constructor(camera) {
     this.camera = camera;
-    this.lookTarget = new THREE.Vector3(0, 0.35, 0);
+    this.lookTarget = new THREE.Vector3(0, 2.5, -6);
     this.presentPosition = camera.position.clone();
     this.currentPosition = camera.position.clone();
     this.desiredPosition = camera.position.clone();
-    this.focusPosition = new THREE.Vector3(0, 1.1, 4.9);
+    this.focusPosition = new THREE.Vector3(0, 0.5, 1.5);
     this.scrollSpeed = 0.014;
     this.strafeStep = 0.42;
     this.timeBounds = { min: -20, max: 20 };
     this.altitudeBounds = { min: -5, max: 10 };
     this.lateralBounds = { min: -18, max: 18 };
-    this.depthBounds = { min: -48, max: 14 };
+    this.depthBounds = { min: -180, max: 18 };
     this.damping = 8;
     this.parallaxFactor = 0.35;
   }
@@ -23,10 +23,9 @@ export class CameraController {
     this.currentPosition.lerp(this.desiredPosition, blend);
     this.camera.position.copy(this.currentPosition);
     
-    // Enhanced parallax: look target shifts with camera position for depth perception
-    // This creates motion parallax cues that make the river feel like a 3D volume
-    this.lookTarget.y = this.currentPosition.y + 0.18;
-    this.lookTarget.z = this.currentPosition.z - 7.5 + (this.currentPosition.x * this.parallaxFactor * 0.3);
+    // Look up and forward into the river's vanishing point, with parallax on lateral movement
+    this.lookTarget.y = 2.5 + this.currentPosition.y * 0.12;
+    this.lookTarget.z = this.currentPosition.z - 9 + (this.currentPosition.x * this.parallaxFactor * 0.3);
     this.lookTarget.x = this.currentPosition.x * this.parallaxFactor;
     
     this.camera.lookAt(this.lookTarget);
