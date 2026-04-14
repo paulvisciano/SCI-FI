@@ -261,33 +261,103 @@ function createOverlayTexture(privacy) {
   });
 }
 
-function fileTypeMarkerForCategory(category) {
-  switch (category) {
-  case 'audio': return 'AUD';
-  case 'image': return 'IMG';
-  case 'video': return 'VID';
-  case 'document': return 'DOC';
-  case 'conversation': return 'TXT';
-  default: return null;
-  }
+function createNodeSurfaceTexture(category) {
+  return textureFromCanvas(`surface:${category}`, (context, width, height) => {
+    const gradient = context.createRadialGradient(
+      width * 0.36,
+      height * 0.32,
+      width * 0.08,
+      width * 0.52,
+      height * 0.56,
+      width * 0.62
+    );
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.88)');
+    gradient.addColorStop(0.36, 'rgba(170, 225, 255, 0.25)');
+    gradient.addColorStop(1, 'rgba(15, 35, 58, 0.92)');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+
+    context.globalAlpha = 0.3;
+    context.strokeStyle = 'rgba(216, 242, 255, 0.8)';
+    context.lineWidth = 2;
+    for (let i = 0; i < 5; i += 1) {
+      const y = 12 + i * 24;
+      context.beginPath();
+      context.moveTo(8, y);
+      context.lineTo(width - 8, y + ((i % 2 === 0) ? 10 : -10));
+      context.stroke();
+    }
+    context.globalAlpha = 1;
+
+    context.strokeStyle = 'rgba(230, 247, 255, 0.95)';
+    context.fillStyle = 'rgba(230, 247, 255, 0.95)';
+    context.lineWidth = 4;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    const c = width / 2;
+    const r = width * 0.24;
+    switch (category) {
+    case 'audio':
+      for (let i = 0; i < 5; i += 1) {
+        const x = c - 28 + i * 14;
+        const h = [12, 22, 30, 22, 12][i];
+        context.beginPath();
+        context.moveTo(x, c - h / 2);
+        context.lineTo(x, c + h / 2);
+        context.stroke();
+      }
+      break;
+    case 'image':
+      context.beginPath();
+      context.roundRect(c - r, c - r, r * 2, r * 2, 10);
+      context.stroke();
+      context.beginPath();
+      context.arc(c + 14, c - 10, 5, 0, Math.PI * 2);
+      context.fill();
+      break;
+    case 'video':
+      context.beginPath();
+      context.arc(c, c, r, 0, Math.PI * 2);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(c - 8, c - 12);
+      context.lineTo(c + 12, c);
+      context.lineTo(c - 8, c + 12);
+      context.closePath();
+      context.fill();
+      break;
+    case 'document':
+      context.beginPath();
+      context.moveTo(c - 18, c - 20);
+      context.lineTo(c + 10, c - 20);
+      context.lineTo(c + 18, c - 12);
+      context.lineTo(c + 18, c + 20);
+      context.lineTo(c - 18, c + 20);
+      context.closePath();
+      context.stroke();
+      break;
+    case 'conversation':
+      context.beginPath();
+      context.roundRect(c - 22, c - 16, 44, 30, 11);
+      context.stroke();
+      break;
+    default:
+      context.beginPath();
+      context.arc(c, c, 16, 0, Math.PI * 2);
+      context.stroke();
+    }
+  });
 }
 
-function createFileTypeMarkerTexture(marker) {
-  return textureFromCanvas(`filetype:${marker}`, (context, width, height) => {
-    context.clearRect(0, 0, width, height);
-    context.fillStyle = 'rgba(8, 20, 38, 0.92)';
-    context.strokeStyle = 'rgba(145, 222, 255, 0.9)';
-    context.lineWidth = 3;
-    context.beginPath();
-    context.roundRect(14, 30, width - 28, 68, 16);
-    context.fill();
-    context.stroke();
-    context.fillStyle = '#d9f6ff';
-    context.font = '700 26px Inter, sans-serif';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(marker, width / 2, 64);
-  });
+function materialProfileForCategory(category) {
+  switch (category) {
+  case 'audio': return { roughness: 0.16, metalness: 0.52, clearcoat: 1.0 };
+  case 'image': return { roughness: 0.1, metalness: 0.42, clearcoat: 1.0 };
+  case 'video': return { roughness: 0.14, metalness: 0.58, clearcoat: 0.94 };
+  case 'document': return { roughness: 0.2, metalness: 0.36, clearcoat: 0.88 };
+  case 'conversation': return { roughness: 0.18, metalness: 0.34, clearcoat: 0.9 };
+  default: return { roughness: 0.12, metalness: 0.35, clearcoat: 0.92 };
+  }
 }
 
 function formatDayAnchorLabel(node) {
@@ -472,6 +542,8 @@ export const OrbFactory = {
     const isCommit = category === 'commit';
     const isRawArchiveNode = `${node?.kind || ''}`.toLowerCase() === 'raw-archive-node';
     const nodeScale = sizeForNode(node, category) * (isDayAnchor ? 2.35 : 1);
+    const materialProfile = materialProfileForCategory(category);
+    const typeSurfaceTexture = isRawArchiveNode ? createNodeSurfaceTexture(category) : null;
 
     const group = new THREE.Group();
 
@@ -479,11 +551,12 @@ export const OrbFactory = {
       nodeGeometry,
       new THREE.MeshPhysicalMaterial({
         color,
+        map: typeSurfaceTexture,
         emissive: 0x000000,
         emissiveIntensity: 0,
-        roughness: isDayAnchor ? 0.08 : 0.12,
-        metalness: isDayAnchor ? 0.45 : 0.35,
-        clearcoat: 0.92,
+        roughness: isDayAnchor ? 0.08 : materialProfile.roughness,
+        metalness: isDayAnchor ? 0.45 : materialProfile.metalness,
+        clearcoat: isDayAnchor ? 0.92 : materialProfile.clearcoat,
         clearcoatRoughness: 0.1,
         reflectivity: 1,
         transparent: true,
@@ -520,23 +593,6 @@ export const OrbFactory = {
       group.add(icon);
     }
 
-    let typeBadge = null;
-    const fileTypeMarker = isRawArchiveNode ? fileTypeMarkerForCategory(category) : null;
-    if (fileTypeMarker) {
-      typeBadge = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: createFileTypeMarkerTexture(fileTypeMarker),
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0.92,
-          depthWrite: false,
-        })
-      );
-      typeBadge.scale.set(0.28, 0.12, 1);
-      typeBadge.position.set(-0.22, -0.2, 0.15);
-      group.add(typeBadge);
-    }
-
     if (isDayAnchor) {
       const labelSprite = createDayAnchorLabelSprite(node);
       group.add(labelSprite);
@@ -558,7 +614,6 @@ export const OrbFactory = {
     group.userData.node = node;
     group.userData.lod = {
       icon,
-      typeBadge,
       overlay,
       border,
       mesh,
@@ -583,12 +638,6 @@ export const OrbFactory = {
     const iconScale = THREE.MathUtils.clamp(distance * 0.0085, 0.12, 0.28) * scale;
     lod.icon.scale.set(iconScale, iconScale, 1);
     lod.border.scale.set(iconScale * 2.55, iconScale * 2.55, 1);
-    if (lod.typeBadge) {
-      const badgeScale = THREE.MathUtils.clamp(distance * 0.006, 0.12, 0.22);
-      lod.typeBadge.scale.set(badgeScale * 1.45, badgeScale * 0.62, 1);
-      lod.typeBadge.visible = distance < 28;
-      lod.typeBadge.material.opacity = distance > 18 ? 0.6 : 0.92;
-    }
     const far = distance > 14;
     lod.overlay.visible = !far;
     lod.overlay.material.opacity = distance > 9 ? 0.8 : 0.96;
