@@ -1,12 +1,6 @@
 export function createOverlays(host) {
   const frame = document.createElement('div');
   frame.className = 'cockpit-frame';
-  frame.innerHTML = `
-    <div class="cockpit-frame__top" aria-hidden="true"></div>
-    <div class="cockpit-frame__left" aria-hidden="true"></div>
-    <div class="cockpit-frame__right" aria-hidden="true"></div>
-    <div class="cockpit-frame__deck" aria-hidden="true"></div>
-  `;
   host.append(frame);
 
   const pilotHud = document.createElement('div');
