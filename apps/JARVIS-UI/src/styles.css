@@ -43,8 +43,8 @@ body {
   top: 8%;
   width: 58vw;
   height: 64vh;
-  filter: blur(1px);
-  opacity: 0.9;
+  filter: blur(0.6px);
+  opacity: 0.7;
 }
 
 .river-visual-fallback__lane--left {
@@ -65,13 +65,13 @@ body {
 
 .jarvis-overlay {
   position: fixed;
-  margin: 1rem;
-  padding: 0.72rem 0.9rem;
-  border: 1px solid rgba(108, 219, 255, 0.32);
-  border-radius: 0.6rem;
-  background: rgba(5, 12, 24, 0.54);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.26);
+  margin: 1rem 1rem 0;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(146, 214, 255, 0.26);
+  border-radius: 0.9rem;
+  background: linear-gradient(160deg, rgba(8, 16, 30, 0.7), rgba(6, 11, 20, 0.56));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
   z-index: 14;
 }
 
@@ -81,16 +81,17 @@ body {
 }
 
 .jarvis-overlay h1 {
-  margin: 0 0 0.25rem;
-  font-size: 0.9rem;
-  letter-spacing: 0.08em;
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  color: rgba(188, 235, 255, 0.96);
 }
 
 .jarvis-overlay p {
   margin: 0;
-  font-size: 0.74rem;
-  color: rgba(200, 240, 255, 0.85);
+  font-size: 0.72rem;
+  color: rgba(205, 240, 255, 0.82);
 }
 
 .jarvis-overlay__hint {
@@ -107,13 +108,14 @@ body {
 
 .stream-panel {
   position: fixed;
-  bottom: 6.6rem;
-  width: min(17rem, calc(50vw - 1.8rem));
-  padding: 0.75rem 0.9rem;
-  border: 1px solid rgba(145, 212, 255, 0.32);
-  border-radius: 0.62rem;
-  background: rgba(5, 12, 24, 0.45);
-  backdrop-filter: blur(7px);
+  bottom: 6.4rem;
+  width: min(16.5rem, calc(50vw - 1.8rem));
+  padding: 0.82rem 0.95rem;
+  border: 1px solid rgba(145, 212, 255, 0.26);
+  border-radius: 0.92rem;
+  background: linear-gradient(170deg, rgba(7, 14, 26, 0.74), rgba(5, 10, 20, 0.45));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
   z-index: 12;
 }
 
@@ -127,10 +129,11 @@ body {
 }
 
 .stream-panel h2 {
-  margin: 0 0 0.3rem;
-  font-size: 0.78rem;
-  letter-spacing: 0.07em;
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .stream-panel--left h2 {
@@ -144,36 +147,36 @@ body {
 .stream-panel p {
   margin: 0;
   font-size: 0.72rem;
-  line-height: 1.4;
-  color: rgba(220, 246, 255, 0.86);
+  line-height: 1.45;
+  color: rgba(220, 246, 255, 0.8);
 }
 
 .temporal-badge {
   position: fixed;
-  top: 8.6rem;
+  top: 5.6rem;
   left: 50%;
   transform: translateX(-50%);
-  padding: 0.55rem 0.72rem;
-  border-radius: 0.62rem;
-  border: 1px solid rgba(145, 212, 255, 0.3);
-  background: rgba(8, 16, 31, 0.58);
+  padding: 0.58rem 0.76rem;
+  border-radius: 999px;
+  border: 1px solid rgba(145, 212, 255, 0.24);
+  background: rgba(8, 16, 31, 0.5);
   text-align: center;
-  min-width: 14rem;
+  min-width: 18.5rem;
   z-index: 12;
 }
 
 .temporal-badge h3 {
   margin: 0 0 0.2rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #bde9ff;
+  color: #c9eeff;
 }
 
 .temporal-badge p {
   margin: 0;
   font-size: 0.68rem;
-  color: rgba(215, 245, 255, 0.8);
+  color: rgba(215, 245, 255, 0.75);
 }
 
 .pilot-orb-hud {
@@ -229,8 +232,8 @@ body {
   pointer-events: none;
   z-index: 8;
   background:
-    radial-gradient(circle at 50% 66%, rgba(0, 0, 0, 0) 0 35%, rgba(0, 0, 0, 0.08) 60%, rgba(0, 0, 0, 0.2) 100%),
-    linear-gradient(180deg, rgba(2, 4, 10, 0.24), rgba(2, 4, 10, 0) 22%, rgba(2, 4, 10, 0) 74%, rgba(2, 4, 10, 0.2) 100%);
+    radial-gradient(circle at 50% 66%, rgba(0, 0, 0, 0) 0 40%, rgba(0, 0, 0, 0.06) 66%, rgba(0, 0, 0, 0.16) 100%),
+    linear-gradient(180deg, rgba(2, 4, 10, 0.16), rgba(2, 4, 10, 0) 22%, rgba(2, 4, 10, 0) 76%, rgba(2, 4, 10, 0.14) 100%);
 }
 
 .cockpit-frame__top,
@@ -238,11 +241,11 @@ body {
 .cockpit-frame__right,
 .cockpit-frame__deck {
   position: absolute;
-  border: 1px solid rgba(120, 176, 255, 0.18);
-  background: rgba(4, 8, 16, 0.34);
+  border: 1px solid rgba(120, 176, 255, 0.1);
+  background: rgba(4, 8, 16, 0.16);
   box-shadow:
-    inset 0 0 22px rgba(111, 170, 255, 0.08),
-    0 0 26px rgba(0, 0, 0, 0.24);
+    inset 0 0 16px rgba(111, 170, 255, 0.05),
+    0 0 20px rgba(0, 0, 0, 0.18);
 }
 
 .cockpit-frame__top {
@@ -294,11 +297,11 @@ body {
   bottom: 5.45rem;
   width: min(16.5rem, 32vw);
   padding: 0.75rem;
-  border: 1px solid rgba(255, 198, 146, 0.5);
+  border: 1px solid rgba(255, 198, 146, 0.3);
   border-radius: 0.95rem;
-  background: linear-gradient(165deg, rgba(24, 17, 12, 0.62), rgba(9, 12, 20, 0.72));
+  background: linear-gradient(165deg, rgba(24, 17, 12, 0.5), rgba(9, 12, 20, 0.68));
   backdrop-filter: blur(8px);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.34);
   z-index: 16;
 }
 
@@ -309,20 +312,23 @@ body {
 }
 
 .river-side-hud__controls span {
-  width: 2.05rem;
+  min-width: 2.05rem;
   height: 2.05rem;
+  padding: 0 0.45rem;
   display: grid;
   place-items: center;
   border-radius: 0.55rem;
-  border: 1px solid rgba(255, 208, 168, 0.44);
+  border: 1px solid rgba(255, 208, 168, 0.32);
   background: rgba(25, 29, 42, 0.62);
   color: #ffe8cc;
-  font-size: 1rem;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  font-weight: 600;
 }
 
 .river-side-hud__title {
   margin: 0;
-  font-size: 1.08rem;
+  font-size: 0.94rem;
   color: #ffe6ca;
   font-weight: 600;
 }
@@ -330,7 +336,8 @@ body {
 .river-side-hud__subtitle {
   margin: 0.15rem 0 0.5rem;
   color: rgba(255, 230, 205, 0.85);
-  font-size: 0.85rem;
+  font-size: 0.74rem;
+  line-height: 1.35;
 }
 
 .river-side-hud__preview {
@@ -574,10 +581,10 @@ body {
   position: fixed;
   max-width: 18rem;
   padding: 0.55rem 0.65rem;
-  border: 1px solid rgba(108, 219, 255, 0.36);
+  border: 1px solid rgba(108, 219, 255, 0.44);
   border-radius: 0.6rem;
   background: rgba(4, 11, 22, 0.9);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.42);
   pointer-events: none;
   z-index: 25;
   opacity: 0;
@@ -659,6 +666,12 @@ body {
   width: 2rem;
   height: 2rem;
   cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.orb-expander__close:hover {
+  border-color: rgba(148, 228, 255, 0.64);
+  transform: translateY(-1px);
 }
 
 .orb-expander__timestamp {

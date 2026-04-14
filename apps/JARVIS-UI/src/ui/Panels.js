@@ -19,7 +19,7 @@ export function createPanels(host, eventBus) {
   temporalBadge.className = 'temporal-badge';
   temporalBadge.innerHTML = `
     <h3>River of Time</h3>
-    <p>Near = present · Deep = past</p>
+    <p>Near = present · Far = past</p>
     <p id="jarvis-temporal-position">Present moment</p>
   `;
   host.append(temporalBadge);
@@ -54,8 +54,8 @@ export function createPanels(host, eventBus) {
         }
       }
 
-      leftSummary.textContent = `Temporal node · ${jarvisStreams.join(' · ') || 'No stream groups'} · ${leftCount} visible`;
-      rightSummary.textContent = `${paulStreams.join(' · ') || 'No stream groups'} · ${rightCount} visible`;
+      leftSummary.textContent = `Jarvis stream · ${jarvisStreams.join(' · ') || 'No stream groups'} · ${leftCount} visible`;
+      rightSummary.textContent = `Paul stream · ${paulStreams.join(' · ') || 'No stream groups'} · ${rightCount} visible`;
     },
     destroy() {
       unsubscribe();
