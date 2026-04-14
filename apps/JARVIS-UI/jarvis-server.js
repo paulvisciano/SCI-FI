@@ -337,8 +337,21 @@ const GIT_BOOTSTRAP_LIMIT = Number.isFinite(parsedGitBootstrapLimit) && parsedGi
   ? parsedGitBootstrapLimit
   : 5000;
 const RAW_ARCHIVE_BOOTSTRAP_LIMIT = 220;
-const BOOTSTRAP_REPO_ROOT = process.env.BOOTSTRAP_REPO_ROOT || path.join(process.env.HOME, 'JARVIS');
-const BOOTSTRAP_ARCHIVE_BASE = process.env.BOOTSTRAP_ARCHIVE_BASE || path.join(process.env.HOME, 'RAW', 'archive');
+const REQUIRED_BOOTSTRAP_REPO_ROOT = '/Users/paulvisciano/JARVIS';
+const REQUIRED_BOOTSTRAP_ARCHIVE_BASE = '/Users/paulvisciano/RAW/archive';
+
+function resolveBootstrapPath(envValue, requiredPath) {
+  if (typeof envValue === 'string' && envValue.trim() && fs.existsSync(envValue.trim())) {
+    return envValue.trim();
+  }
+  if (fs.existsSync(requiredPath)) {
+    return requiredPath;
+  }
+  return requiredPath;
+}
+
+const BOOTSTRAP_REPO_ROOT = resolveBootstrapPath(process.env.BOOTSTRAP_REPO_ROOT, REQUIRED_BOOTSTRAP_REPO_ROOT);
+const BOOTSTRAP_ARCHIVE_BASE = resolveBootstrapPath(process.env.BOOTSTRAP_ARCHIVE_BASE, REQUIRED_BOOTSTRAP_ARCHIVE_BASE);
 
 function categoryForArchiveFile(extension, relativePath) {
   const ext = extension.toLowerCase();
