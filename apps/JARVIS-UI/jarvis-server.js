@@ -477,7 +477,7 @@ async function runGitBootstrapScan() {
 
     execFile(
       'git',
-      ['-C', REPO_ROOT, 'log', `-n${GIT_BOOTSTRAP_LIMIT}`, '--date=short', '--pretty=format:%H|%ad|%s'],
+      ['-C', REPO_ROOT, 'log', `-n${GIT_BOOTSTRAP_LIMIT}`, '--date=iso-strict', '--pretty=format:%H|%ad|%s'],
       { encoding: 'utf8', timeout: 25000 },
       (error, stdout, stderr) => {
         if (error) {
@@ -496,9 +496,13 @@ async function runGitBootstrapScan() {
           .map((line) => line.trim())
           .filter(Boolean)
           .map((line) => {
-            const [hash, day, ...subjectParts] = line.split('|');
+            const [hash, timestamp, ...subjectParts] = line.split('|');
+            const parsedTimestamp = Date.parse(timestamp);
+            const isoTimestamp = Number.isNaN(parsedTimestamp) ? null : new Date(parsedTimestamp).toISOString();
+            const day = isoTimestamp ? isoTimestamp.slice(0, 10) : (timestamp || '').slice(0, 10);
             return {
               hash,
+              timestamp: isoTimestamp || timestamp,
               day,
               subject: subjectParts.join('|').trim()
             };
@@ -554,6 +558,8 @@ async function runGitBootstrapScan() {
           stream: 'memory',
           kind: 'commit-satellite',
           day: commit.day,
+          timestamp: commit.timestamp,
+          createdAt: commit.timestamp,
           hash: commit.hash,
           shortHash: commit.hash.slice(0, 7)
         }));
