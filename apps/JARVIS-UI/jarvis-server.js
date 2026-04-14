@@ -337,7 +337,8 @@ const GIT_BOOTSTRAP_LIMIT = Number.isFinite(parsedGitBootstrapLimit) && parsedGi
   ? parsedGitBootstrapLimit
   : 5000;
 const RAW_ARCHIVE_BOOTSTRAP_LIMIT = 220;
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const BOOTSTRAP_REPO_ROOT = process.env.BOOTSTRAP_REPO_ROOT || path.join(process.env.HOME, 'JARVIS');
+const BOOTSTRAP_ARCHIVE_BASE = process.env.BOOTSTRAP_ARCHIVE_BASE || path.join(process.env.HOME, 'RAW', 'archive');
 
 function categoryForArchiveFile(extension, relativePath) {
   const ext = extension.toLowerCase();
@@ -473,11 +474,11 @@ async function runGitBootstrapScan() {
       progress: 15,
       message: 'Loading git commits...'
     });
-    logGatewayToolCall('git.log.scan.start', { repoRoot: REPO_ROOT, limit: GIT_BOOTSTRAP_LIMIT });
+    logGatewayToolCall('git.log.scan.start', { repoRoot: BOOTSTRAP_REPO_ROOT, limit: GIT_BOOTSTRAP_LIMIT });
 
     execFile(
       'git',
-      ['-C', REPO_ROOT, 'log', `-n${GIT_BOOTSTRAP_LIMIT}`, '--date=iso-strict', '--pretty=format:%H|%ad|%s'],
+      ['-C', BOOTSTRAP_REPO_ROOT, 'log', `-n${GIT_BOOTSTRAP_LIMIT}`, '--date=iso-strict', '--pretty=format:%H|%ad|%s'],
       { encoding: 'utf8', timeout: 25000 },
       (error, stdout, stderr) => {
         if (error) {
@@ -516,9 +517,9 @@ async function runGitBootstrapScan() {
         });
         logGatewayToolCall('git.log.scan.complete', { commitCount: commits.length });
 
-        const archiveNodes = scanRawArchiveNodes(CONFIG.archiveBase);
+        const archiveNodes = scanRawArchiveNodes(BOOTSTRAP_ARCHIVE_BASE);
         logGatewayToolCall('raw.archive.scan.complete', {
-          archiveBase: CONFIG.archiveBase,
+          archiveBase: BOOTSTRAP_ARCHIVE_BASE,
           archiveNodeCount: archiveNodes.length
         });
 
