@@ -813,13 +813,53 @@ function handleRequest(req, res) {
         s.source === nodeId || s.target === nodeId
       );
       
+      // Lazy-load learning content from git (if learning node)
+      let learningContent = null;
+      if (node.category === 'learning' && node.attributes && node.attributes.linkedCommit) {
+        try {
+          const commitHash = node.attributes.linkedCommit;
+          const sourceDoc = node.attributes.sourceDocument || '';
+          // Extract path from sourceDocument (e.g., ~/JARVIS/RAW/learnings/2026-04-14/filename.md)
+          const match = sourceDoc.match(/RAW\/learnings\/(\d{4}-\d{2}-\d{2})\/(.+\.md)/);
+          if (match) {
+            const date = match[1];
+            const filename = match[2];
+            const gitPath = `RAW/learnings/${date}/${filename}`;
+            
+            // Resolve JARVIS_HOME (expand ~ if needed)
+            let jarvisHome = JARVIS_HOME;
+            if (jarvisHome.startsWith('~/')) {
+              jarvisHome = path.join(os.homedir(), jarvisHome.slice(2));
+            }
+            
+            // Fetch content from git: git show <commit>:<path>
+            const content = execSync(`git -C "${jarvisHome}" show ${commitHash}:${gitPath}`, {
+              encoding: 'utf8',
+              maxBuffer: 10 * 1024 * 1024
+            });
+            
+            learningContent = {
+              markdown: content,
+              gitPath: gitPath,
+              commit: commitHash,
+              loadedFrom: 'git'
+            };
+          }
+        } catch (gitErr) {
+          console.warn(`[node API] Failed to load learning content from git for ${nodeId}:`, gitErr.message);
+          // Non-fatal - return node without content
+        }
+      }
+      
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         node: node,
         connectedSynapses: connectedSynapses,
+        learningContent: learningContent,
         meta: {
           connectedCount: connectedSynapses.length,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          lazyLoaded: !!learningContent
         }
       }));
     } catch (err) {
