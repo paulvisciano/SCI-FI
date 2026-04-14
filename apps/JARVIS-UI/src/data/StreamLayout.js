@@ -21,10 +21,14 @@ export class StreamLayout {
     const days = this.buildDayIndex(sorted);
     const orbitCounters = new Map();
     const dayCounts = new Map();
+    const laneCounts = new Map();
 
     for (const node of sorted) {
       const dayKey = this.dayKeyFor(node);
       dayCounts.set(dayKey, (dayCounts.get(dayKey) || 0) + 1);
+      const side = node.kind === 'day-anchor' ? 0 : this.sideFor(node);
+      const laneKey = `${dayKey}:${side}`;
+      laneCounts.set(laneKey, (laneCounts.get(laneKey) || 0) + 1);
     }
 
     let leftCount = 0;
@@ -48,9 +52,11 @@ export class StreamLayout {
         rightCount += 1;
       }
 
-      const localIndex = orbitCounters.get(dayKey) || 0;
-      orbitCounters.set(dayKey, localIndex + 1);
-      const dayPopulation = Math.max(dayCounts.get(dayKey) || 1, 1);
+      const laneKey = `${dayKey}:${side}`;
+      const orbitCounterKey = isAnchor ? dayKey : laneKey;
+      const localIndex = orbitCounters.get(orbitCounterKey) || 0;
+      orbitCounters.set(orbitCounterKey, localIndex + 1);
+      const dayPopulation = Math.max((isAnchor ? dayCounts.get(dayKey) : laneCounts.get(laneKey)) || 1, 1);
       const angleOffset = side < 0 ? Math.PI * 0.72 : Math.PI * 0.28;
       const dayFraction = this.dayFractionFor(node);
       const orbitalSpread = ((localIndex % dayPopulation) / dayPopulation) * (Math.PI * 0.45);
@@ -60,26 +66,28 @@ export class StreamLayout {
       // Older (deeper) nodes spread wider in X — perspective makes them appear at same screen density
       const depthFraction = totalDays <= 1 ? 0 : depthIndexFromPresent / (totalDays - 1);
       const convergence = 1 + depthFraction * 0.65;
-      const laneSpread = Math.ceil(dayPopulation / 9);
+      const laneSpread = Math.ceil(dayPopulation / 7);
       const laneIndex = (localIndex % Math.max(laneSpread, 1)) - (Math.max(laneSpread, 1) - 1) / 2;
+      const repulsion = Math.sqrt(localIndex + 1);
 
       // Flatten Y — horizontal fan is dominant, vertical spread is secondary
       const yBand = Math.floor(localIndex / Math.max(laneSpread, 1));
       const depthTilt = Math.abs(zAnchor) * 0.04;
       const y = isAnchor
         ? depthTilt * 0.5
-        : (laneIndex * 0.22) + (side < 0 ? -0.1 : 0.1) + (yBand * 0.16) + depthTilt;
+        : (laneIndex * 0.28) + (side < 0 ? -0.1 : 0.1) + (yBand * 0.22) + (repulsion * 0.03) + depthTilt;
 
       const x = isAnchor
         ? 0
         : side * (
           this.config.streamOffset * convergence
           + Math.abs(Math.cos(angle)) * radial * 0.9
-          + laneIndex * 0.4
+          + laneIndex * 0.6
+          + repulsion * 0.2
         );
       const z = isAnchor
         ? zAnchor
-        : zAnchor + Math.sin(angle) * radial * 0.95 - yBand * 0.24;
+        : zAnchor + Math.sin(angle) * radial * 1.08 - yBand * 0.34 - repulsion * 0.1;
 
       return {
         ...node,
