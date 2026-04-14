@@ -31,11 +31,7 @@ body {
 }
 
 .river-visual-fallback {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 4;
-  overflow: hidden;
+  display: none;
 }
 
 .river-visual-fallback__lane {
@@ -182,48 +178,49 @@ body {
 .pilot-orb-hud {
   position: fixed;
   left: 50%;
-  bottom: 1.25rem;
+  bottom: 1rem;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.32rem;
+  gap: 0.2rem;
   z-index: 18;
 }
 
 .pilot-orb-hud__orb {
-  width: 7.5rem;
+  width: 8.25rem;
   aspect-ratio: 1;
   border-radius: 50%;
   padding: 0;
   cursor: pointer;
   font: inherit;
   appearance: none;
-  border: 1px solid rgba(196, 224, 255, 0.86);
+  border: none;
   background:
-    radial-gradient(circle at 48% 28%, rgba(231, 244, 255, 0.95), rgba(158, 206, 255, 0.75) 36%, rgba(48, 72, 112, 0.85) 67%, rgba(18, 28, 52, 0.96)),
-    radial-gradient(circle at 52% 86%, rgba(255, 196, 128, 0.86), rgba(255, 196, 128, 0) 58%);
+    radial-gradient(circle at 48% 24%, rgba(226, 241, 255, 0.88), rgba(146, 196, 252, 0.64) 35%, rgba(50, 78, 125, 0.8) 66%, rgba(16, 28, 50, 0.93)),
+    radial-gradient(circle at 50% 90%, rgba(240, 188, 118, 0.48), rgba(240, 188, 118, 0) 58%);
   box-shadow:
-    0 0 52px rgba(112, 184, 255, 0.52),
-    0 12px 30px rgba(0, 0, 0, 0.35),
-    inset 0 -18px 30px rgba(255, 189, 121, 0.28),
-    inset 0 0 36px rgba(189, 229, 255, 0.36);
-  animation: pilotPulse 3s ease-in-out infinite;
+    0 0 18px rgba(112, 184, 255, 0.34),
+    inset 0 -14px 26px rgba(255, 189, 121, 0.18),
+    inset 0 0 28px rgba(189, 229, 255, 0.26);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  animation: none;
 }
 
 .pilot-orb-hud--recording .pilot-orb-hud__orb {
-  animation: none;
-  border-color: rgba(255, 120, 120, 0.95);
+  transform: scale(1.02);
   box-shadow:
-    0 0 42px rgba(255, 90, 90, 0.55),
-    inset 0 0 28px rgba(255, 160, 160, 0.35);
+    0 0 22px rgba(255, 90, 90, 0.42),
+    inset 0 0 22px rgba(255, 160, 160, 0.26);
 }
 
 .pilot-orb-hud p {
   margin: 0;
-  font-size: 0.9rem;
-  color: rgba(221, 246, 255, 0.9);
-  text-shadow: 0 0 10px rgba(115, 200, 255, 0.3);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(221, 246, 255, 0.76);
+  text-shadow: 0 0 8px rgba(115, 200, 255, 0.24);
 }
 
 .cockpit-frame {
@@ -232,8 +229,8 @@ body {
   pointer-events: none;
   z-index: 8;
   background:
-    radial-gradient(circle at 50% 66%, rgba(0, 0, 0, 0) 0 40%, rgba(0, 0, 0, 0.06) 66%, rgba(0, 0, 0, 0.16) 100%),
-    linear-gradient(180deg, rgba(2, 4, 10, 0.16), rgba(2, 4, 10, 0) 22%, rgba(2, 4, 10, 0) 76%, rgba(2, 4, 10, 0.14) 100%);
+    radial-gradient(circle at 50% 56%, rgba(0, 0, 0, 0) 0 28%, rgba(0, 0, 0, 0.22) 62%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, rgba(2, 4, 10, 0.38), rgba(2, 4, 10, 0) 18%, rgba(2, 4, 10, 0) 72%, rgba(2, 4, 10, 0.32) 100%);
 }
 
 .cockpit-frame__top,
@@ -388,7 +385,7 @@ body {
   }
 
   .pilot-orb-hud__orb {
-    width: 4.2rem;
+    width: 5.2rem;
   }
 
   .cockpit-frame__left,
