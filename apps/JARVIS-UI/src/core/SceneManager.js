@@ -65,18 +65,6 @@ export class SceneManager {
       return new THREE.CatmullRomCurve3(points);
     };
 
-    const createRibbonLine = (curve, colorHex, opacity) => {
-      const sampled = curve.getPoints(320);
-      const geometry = new THREE.BufferGeometry().setFromPoints(sampled);
-      const material = new THREE.LineBasicMaterial({
-        color: colorHex,
-        transparent: true,
-        opacity,
-        blending: THREE.AdditiveBlending,
-      });
-      return new THREE.Line(geometry, material);
-    };
-
     const createRibbonTube = (curve, colorHex, opacity, radius) => {
       const geometry = new THREE.TubeGeometry(curve, 180, radius, 10, false);
       const material = new THREE.MeshBasicMaterial({
@@ -127,28 +115,9 @@ export class SceneManager {
       createRibbonTube(leftSecondaryCurve, 0xa9edff, 0.12, 0.14),
       createRibbonTube(rightPrimaryCurve, 0xffb16a, 0.2, 0.2),
       createRibbonTube(rightSecondaryCurve, 0xffd7ac, 0.12, 0.14),
-      createRibbonLine(leftPrimaryCurve, 0x71ccff, 1),
-      createRibbonLine(leftSecondaryCurve, 0x8ce7ff, 0.72),
-      createRibbonLine(rightPrimaryCurve, 0xffbc88, 1),
-      createRibbonLine(rightSecondaryCurve, 0xffd1aa, 0.72),
       createFlowParticles(-1, 0x93dcff, 0.2),
       createFlowParticles(1, 0xffc994, 0.9)
     );
-
-    const axisGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(0, -22, -1),
-      new THREE.Vector3(0, 22, -12),
-    ]);
-    const axisMaterial = new THREE.LineDashedMaterial({
-      color: 0xbbe9ff,
-      transparent: true,
-      opacity: 0.32,
-      dashSize: 0.7,
-      gapSize: 0.34,
-    });
-    const axis = new THREE.Line(axisGeometry, axisMaterial);
-    axis.computeLineDistances();
-    group.add(axis);
 
     this.scene.add(group);
     this.riverGuidesGroup = group;

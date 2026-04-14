@@ -1,12 +1,4 @@
 export function createOverlays(host) {
-  const riverFallback = document.createElement('div');
-  riverFallback.className = 'river-visual-fallback';
-  riverFallback.innerHTML = `
-    <div class="river-visual-fallback__lane river-visual-fallback__lane--left" aria-hidden="true"></div>
-    <div class="river-visual-fallback__lane river-visual-fallback__lane--right" aria-hidden="true"></div>
-  `;
-  host.append(riverFallback);
-
   const frame = document.createElement('div');
   frame.className = 'cockpit-frame';
   frame.innerHTML = `
