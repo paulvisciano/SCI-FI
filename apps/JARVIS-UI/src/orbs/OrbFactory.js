@@ -444,31 +444,21 @@ export const OrbFactory = {
 
     const mesh = new THREE.Mesh(
       nodeGeometry,
-      new THREE.MeshStandardMaterial({
+      new THREE.MeshPhysicalMaterial({
         color,
-        emissive: color.clone().multiplyScalar(isDayAnchor ? 0.22 : 0.12),
-        emissiveIntensity: isDayAnchor ? 0.35 : 0.18,
-        roughness: 0.24,
-        metalness: 0.18,
+        emissive: 0x000000,
+        emissiveIntensity: 0,
+        roughness: isDayAnchor ? 0.08 : 0.12,
+        metalness: isDayAnchor ? 0.45 : 0.35,
+        clearcoat: 0.92,
+        clearcoatRoughness: 0.1,
+        reflectivity: 1,
         transparent: true,
         opacity: orbOpacity,
       })
     );
     mesh.scale.setScalar(nodeScale);
     group.add(mesh);
-
-    const aura = new THREE.Mesh(
-      new THREE.SphereGeometry(0.24, 20, 20),
-      new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity: isDayAnchor ? 0.24 : (isCommit ? 0.14 : 0.18),
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      })
-    );
-    aura.scale.setScalar(nodeScale * (isCommit ? 1.25 : 1.35));
-    group.add(aura);
 
     const border = new THREE.Sprite(
       new THREE.SpriteMaterial({
@@ -520,7 +510,6 @@ export const OrbFactory = {
       icon,
       overlay,
       border,
-      aura,
       mesh,
       baseOpacity: orbOpacity,
       category,
@@ -536,21 +525,16 @@ export const OrbFactory = {
       return;
     }
 
-    lod.mesh.material.emissiveIntensity = lod.isDayAnchor ? 0.32 : 0.18;
+    lod.mesh.material.emissiveIntensity = 0;
 
     const distance = cameraPosition.distanceTo(nodeGroup.position);
     const scale = lod.scale || 1;
     const iconScale = THREE.MathUtils.clamp(distance * 0.0085, 0.12, 0.28) * scale;
     lod.icon.scale.set(iconScale, iconScale, 1);
     lod.border.scale.set(iconScale * 2.55, iconScale * 2.55, 1);
-    lod.aura.scale.setScalar(scale * THREE.MathUtils.clamp(1.1 + distance * 0.02, 1.3, 1.95));
-
     const far = distance > 14;
     lod.overlay.visible = !far;
     lod.overlay.material.opacity = distance > 9 ? 0.8 : 0.96;
-    lod.aura.material.opacity = distance > 16
-      ? (lod.category === 'commit' ? 0.08 : 0.12)
-      : (lod.category === 'commit' ? 0.14 : 0.2);
     if (lod.category === 'commit') {
       lod.overlay.visible = false;
       lod.border.visible = false;
@@ -559,7 +543,6 @@ export const OrbFactory = {
       lod.overlay.visible = false;
       lod.border.visible = true;
       lod.border.material.opacity = distance > 22 ? 0.65 : 0.92;
-      lod.aura.material.opacity = distance > 22 ? 0.2 : 0.34;
     }
     lod.mesh.material.opacity = distance > 18
       ? Math.max(0.62, lod.baseOpacity * 0.86)
