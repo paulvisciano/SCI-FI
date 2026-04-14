@@ -42,13 +42,28 @@ export class OrbMediaDock {
     if (kind === 'audio') {
       this.element.innerHTML = `
         <h3>${title}</h3>
-        <audio controls autoplay preload="metadata" src="${src}"></audio>
+        <audio controls preload="metadata" src="${src}"></audio>
       `;
+      const audioEl = this.element.querySelector('audio');
+      if (audioEl) {
+        audioEl.addEventListener('error', () => {
+          this.element.innerHTML = `<h3>${title}</h3><p>Unable to load audio preview.</p>`;
+        }, { once: true });
+        audioEl.play().catch(() => {
+          // Autoplay can be blocked; controls remain available for manual play.
+        });
+      }
     } else {
       this.element.innerHTML = `
         <h3>${title}</h3>
         <img src="${src}" alt="${title}" loading="lazy" />
       `;
+      const imgEl = this.element.querySelector('img');
+      if (imgEl) {
+        imgEl.addEventListener('error', () => {
+          this.element.innerHTML = `<h3>${title}</h3><p>Unable to load image preview.</p>`;
+        }, { once: true });
+      }
     }
     this.element.classList.add('orb-media-dock--visible');
     this.element.setAttribute('aria-hidden', 'false');

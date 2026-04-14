@@ -805,3 +805,9 @@ body {
 .orb-media-dock audio {
   width: 100%;
 }
+
+.orb-media-dock p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: rgba(220, 244, 255, 0.82);
+}
