@@ -31,6 +31,7 @@ export class JarvisNavAPI {
       this.dragState = null;
     };
     this.onTouchStart = (event) => {
+      event.preventDefault();
       if (event.touches.length === 1) {
         const touch = event.touches[0];
         this.dragState = { x: touch.clientX, y: touch.clientY };
@@ -40,6 +41,7 @@ export class JarvisNavAPI {
       }
     };
     this.onTouchMove = (event) => {
+      event.preventDefault();
       if (event.touches.length === 1 && this.dragState) {
         const touch = event.touches[0];
         const dx = touch.clientX - this.dragState.x;
@@ -94,8 +96,8 @@ export class JarvisNavAPI {
     window.addEventListener('pointerdown', this.onPointerDown);
     window.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('pointerup', this.onPointerUp);
-    window.addEventListener('touchstart', this.onTouchStart, { passive: true });
-    window.addEventListener('touchmove', this.onTouchMove, { passive: true });
+    window.addEventListener('touchstart', this.onTouchStart, { passive: false });
+    window.addEventListener('touchmove', this.onTouchMove, { passive: false });
     window.addEventListener('touchend', this.onTouchEnd, { passive: true });
     window.addEventListener('keydown', this.onKeyDown);
   }

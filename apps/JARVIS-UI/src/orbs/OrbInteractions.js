@@ -14,6 +14,14 @@ function nodeContainerForObject(object3d) {
   return null;
 }
 
+function isMediaPreviewNode(node) {
+  if (!node || node.kind !== 'raw-archive-node') {
+    return false;
+  }
+  const type = `${node.type || ''}`.toLowerCase();
+  return type === 'audio' || type === 'image';
+}
+
 export function attachOrbInteractions(canvas, eventBus, sceneManager, host, options = {}) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -49,7 +57,11 @@ export function attachOrbInteractions(canvas, eventBus, sceneManager, host, opti
 
     hoveredNodeContainer = nodeContainer;
     const node = nodeContainer.userData.node;
-    tooltip.show(node, event.clientX, event.clientY);
+    if (isMediaPreviewNode(node)) {
+      tooltip.hide();
+    } else {
+      tooltip.show(node, event.clientX, event.clientY);
+    }
     mediaDock.show(node);
   };
 
