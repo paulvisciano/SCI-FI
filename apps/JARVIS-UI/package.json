@@ -5,7 +5,10 @@
   "main": "jarvis-server.js",
   "scripts": {
     "postinstall": "node -e \"const fs=require('fs');const cp=require('child_process');const hook='scripts/setup-jarvis-git-hooks.js';if(fs.existsSync(hook)){cp.execFileSync('node',[hook],{stdio:'inherit'});}else{console.log('[postinstall] setup-jarvis-git-hooks.js not found, skipping.');}\"",
-    "dev": "vite --config vite.config.js",
+    "dev": "VOICE_PORT=18923 VITE_API_TARGET=https://localhost:18923 concurrently -k -n client,server -c cyan,magenta \"npm:dev:client\" \"npm:dev:server\"",
+    "dev:client": "vite --config vite.config.js",
+    "dev:server": "VOICE_PORT=${VOICE_PORT:-18923} nodemon --watch jarvis-server.js --watch vite.config.js --ext js,cjs,mjs,json --signal SIGTERM jarvis-server.js",
+    "dev:server:once": "node jarvis-server.js",
     "build": "vite build --config vite.config.js",
     "preview": "vite preview --config vite.config.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -21,7 +24,9 @@
     "three": "^0.180.0"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "eslint": "^10.1.0",
+    "nodemon": "^3.1.14",
     "vite": "^7.1.10"
   }
 }
