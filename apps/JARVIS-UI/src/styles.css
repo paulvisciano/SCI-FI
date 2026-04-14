@@ -760,3 +760,48 @@ body {
   display: grid;
   gap: 0.25rem;
 }
+
+.orb-media-dock {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(22rem, calc(100vw - 2rem));
+  border: 1px solid rgba(126, 206, 255, 0.34);
+  border-radius: 0.7rem;
+  background: rgba(5, 12, 24, 0.92);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(8px);
+  padding: 0.65rem;
+  z-index: 26;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.orb-media-dock--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.orb-media-dock h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(197, 238, 255, 0.92);
+}
+
+.orb-media-dock img {
+  width: 100%;
+  max-height: 16rem;
+  object-fit: contain;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(126, 206, 255, 0.24);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.orb-media-dock audio {
+  width: 100%;
+}

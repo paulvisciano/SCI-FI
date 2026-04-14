@@ -752,6 +752,47 @@ function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === 'GET' && routePath === '/api/bootstrap/archive-file') {
+    const sourcePath = requestUrl.searchParams.get('sourcePath');
+    if (!sourcePath || sourcePath.includes('\0')) {
+      sendError(400, 'Missing sourcePath');
+      return;
+    }
+    const normalized = sourcePath.split('\\').join('/');
+    const resolvedPath = path.resolve(BOOTSTRAP_ARCHIVE_BASE, normalized);
+    const baseWithSep = `${path.resolve(BOOTSTRAP_ARCHIVE_BASE)}${path.sep}`;
+    if (!(resolvedPath === path.resolve(BOOTSTRAP_ARCHIVE_BASE) || resolvedPath.startsWith(baseWithSep))) {
+      sendError(403, 'Invalid archive path');
+      return;
+    }
+    if (!fs.existsSync(resolvedPath) || !fs.statSync(resolvedPath).isFile()) {
+      sendError(404, 'Archive file not found');
+      return;
+    }
+    const ext = path.extname(resolvedPath).toLowerCase();
+    const contentTypes = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.bmp': 'image/bmp',
+      '.svg': 'image/svg+xml',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.ogg': 'audio/ogg',
+      '.m4a': 'audio/mp4',
+      '.flac': 'audio/flac',
+      '.aac': 'audio/aac',
+    };
+    res.writeHead(200, {
+      'Content-Type': contentTypes[ext] || 'application/octet-stream',
+      'Cache-Control': 'public, max-age=60',
+    });
+    fs.createReadStream(resolvedPath).pipe(res);
+    return;
+  }
+
   // Network scanner endpoints
   if (req.method === 'GET' && req.url === '/network/devices') {
     getNetworkInfo((err, info) => {

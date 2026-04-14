@@ -31,7 +31,9 @@ export class JarvisApp {
     this.gatewayInspector = createGatewayInspector(this.host, {
       serverOrigin: this.loader.serverOrigin
     });
-    this.stopInteractions = attachOrbInteractions(this.canvas, this.eventBus, this.sceneManager, this.host);
+    this.stopInteractions = attachOrbInteractions(this.canvas, this.eventBus, this.sceneManager, this.host, {
+      serverOrigin: this.loader.serverOrigin,
+    });
     this.windowDays = 7;
     this.offsetDays = 0;
     this.hasMoreHistory = true;

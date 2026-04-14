@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbTooltip } from './OrbTooltip.js';
 import { OrbExpander } from './OrbExpander.js';
+import { OrbMediaDock } from './OrbMediaDock.js';
 
 function nodeContainerForObject(object3d) {
   let current = object3d;
@@ -13,11 +14,12 @@ function nodeContainerForObject(object3d) {
   return null;
 }
 
-export function attachOrbInteractions(canvas, eventBus, sceneManager, host) {
+export function attachOrbInteractions(canvas, eventBus, sceneManager, host, options = {}) {
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   const tooltip = new OrbTooltip(host);
   const expander = new OrbExpander(host);
+  const mediaDock = new OrbMediaDock(host, options.serverOrigin);
   let hoveredNodeContainer = null;
 
   const pickNodeAtEvent = (event) => {
@@ -41,16 +43,20 @@ export function attachOrbInteractions(canvas, eventBus, sceneManager, host) {
     if (!nodeContainer) {
       hoveredNodeContainer = null;
       tooltip.hide();
+      mediaDock.hide();
       return;
     }
 
     hoveredNodeContainer = nodeContainer;
-    tooltip.show(nodeContainer.userData.node, event.clientX, event.clientY);
+    const node = nodeContainer.userData.node;
+    tooltip.show(node, event.clientX, event.clientY);
+    mediaDock.show(node);
   };
 
   const handleLeave = () => {
     hoveredNodeContainer = null;
     tooltip.hide();
+    mediaDock.hide();
   };
 
   const handleClick = (event) => {
@@ -73,5 +79,6 @@ export function attachOrbInteractions(canvas, eventBus, sceneManager, host) {
     canvas.removeEventListener('click', handleClick);
     tooltip.destroy();
     expander.destroy();
+    mediaDock.destroy();
   };
 }
