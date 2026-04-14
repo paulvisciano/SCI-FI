@@ -261,6 +261,35 @@ function createOverlayTexture(privacy) {
   });
 }
 
+function fileTypeMarkerForCategory(category) {
+  switch (category) {
+  case 'audio': return 'AUD';
+  case 'image': return 'IMG';
+  case 'video': return 'VID';
+  case 'document': return 'DOC';
+  case 'conversation': return 'TXT';
+  default: return null;
+  }
+}
+
+function createFileTypeMarkerTexture(marker) {
+  return textureFromCanvas(`filetype:${marker}`, (context, width, height) => {
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = 'rgba(8, 20, 38, 0.92)';
+    context.strokeStyle = 'rgba(145, 222, 255, 0.9)';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.roundRect(14, 30, width - 28, 68, 16);
+    context.fill();
+    context.stroke();
+    context.fillStyle = '#d9f6ff';
+    context.font = '700 26px Inter, sans-serif';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(marker, width / 2, 64);
+  });
+}
+
 function formatDayAnchorLabel(node) {
   const rawDay = `${node?.day || node?.title || ''}`.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(rawDay)) {
@@ -441,6 +470,7 @@ export const OrbFactory = {
     const color = (isDayAnchor ? new THREE.Color(0xf7f0b0) : categoryColor).clone().lerp(streamTintForNode(node), isDayAnchor ? 0.15 : 0.33);
     const orbOpacity = privacy === 'private' ? nodePrivateOpacity : nodePublicOpacity;
     const isCommit = category === 'commit';
+    const isRawArchiveNode = `${node?.kind || ''}`.toLowerCase() === 'raw-archive-node';
     const nodeScale = sizeForNode(node, category) * (isDayAnchor ? 2.35 : 1);
 
     const group = new THREE.Group();
@@ -490,6 +520,23 @@ export const OrbFactory = {
       group.add(icon);
     }
 
+    let typeBadge = null;
+    const fileTypeMarker = isRawArchiveNode ? fileTypeMarkerForCategory(category) : null;
+    if (fileTypeMarker) {
+      typeBadge = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: createFileTypeMarkerTexture(fileTypeMarker),
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.92,
+          depthWrite: false,
+        })
+      );
+      typeBadge.scale.set(0.28, 0.12, 1);
+      typeBadge.position.set(-0.22, -0.2, 0.15);
+      group.add(typeBadge);
+    }
+
     if (isDayAnchor) {
       const labelSprite = createDayAnchorLabelSprite(node);
       group.add(labelSprite);
@@ -511,6 +558,7 @@ export const OrbFactory = {
     group.userData.node = node;
     group.userData.lod = {
       icon,
+      typeBadge,
       overlay,
       border,
       mesh,
@@ -535,6 +583,12 @@ export const OrbFactory = {
     const iconScale = THREE.MathUtils.clamp(distance * 0.0085, 0.12, 0.28) * scale;
     lod.icon.scale.set(iconScale, iconScale, 1);
     lod.border.scale.set(iconScale * 2.55, iconScale * 2.55, 1);
+    if (lod.typeBadge) {
+      const badgeScale = THREE.MathUtils.clamp(distance * 0.006, 0.12, 0.22);
+      lod.typeBadge.scale.set(badgeScale * 1.45, badgeScale * 0.62, 1);
+      lod.typeBadge.visible = distance < 28;
+      lod.typeBadge.material.opacity = distance > 18 ? 0.6 : 0.92;
+    }
     const far = distance > 14;
     lod.overlay.visible = !far;
     lod.overlay.material.opacity = distance > 9 ? 0.8 : 0.96;

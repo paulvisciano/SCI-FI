@@ -64,28 +64,28 @@ export class StreamLayout {
       // Older (deeper) nodes spread wider in X — perspective makes them appear at same screen density
       const depthFraction = totalDays <= 1 ? 0 : depthIndexFromPresent / (totalDays - 1);
       const convergence = 1 + depthFraction * 0.65;
-      const laneSpread = Math.ceil(dayPopulation / 7);
+      const laneSpread = Math.ceil(dayPopulation / 5);
       const laneIndex = (localIndex % Math.max(laneSpread, 1)) - (Math.max(laneSpread, 1) - 1) / 2;
-      const repulsion = Math.sqrt(localIndex + 1);
+      const repulsion = Math.pow(localIndex + 1, 0.62);
 
       // Flatten Y — horizontal fan is dominant, vertical spread is secondary
       const yBand = Math.floor(localIndex / Math.max(laneSpread, 1));
       const depthTilt = Math.abs(zAnchor) * 0.04;
       const y = isAnchor
         ? depthTilt * 0.5
-        : (laneIndex * 0.28) + (side < 0 ? -0.1 : 0.1) + (yBand * 0.22) + (repulsion * 0.03) + depthTilt;
+        : (laneIndex * 0.34) + (side < 0 ? -0.1 : 0.1) + (yBand * 0.28) + (repulsion * 0.05) + depthTilt;
 
       const x = isAnchor
         ? 0
         : side * (
           this.config.streamOffset * convergence
-          + radial * 0.42
-          + laneIndex * 0.6
-          + repulsion * 0.2
+          + radial * 0.48
+          + laneIndex * 0.85
+          + repulsion * 0.38
         );
       const z = isAnchor
         ? zAnchor
-        : zAnchor - yBand * 0.34 - repulsion * 0.1 + laneIndex * 0.08;
+        : zAnchor - yBand * 0.48 - repulsion * 0.18 + laneIndex * 0.12;
 
       return {
         ...node,
