@@ -332,7 +332,10 @@ const bootstrapState = {
 let bootstrapNodes = [];
 let bootstrapScanPromise = null;
 const bootstrapClients = new Set();
-const GIT_BOOTSTRAP_LIMIT = 250;
+const parsedGitBootstrapLimit = Number.parseInt(process.env.GIT_BOOTSTRAP_LIMIT || '5000', 10);
+const GIT_BOOTSTRAP_LIMIT = Number.isFinite(parsedGitBootstrapLimit) && parsedGitBootstrapLimit > 0
+  ? parsedGitBootstrapLimit
+  : 5000;
 const RAW_ARCHIVE_BOOTSTRAP_LIMIT = 220;
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
@@ -475,7 +478,7 @@ async function runGitBootstrapScan() {
     execFile(
       'git',
       ['-C', REPO_ROOT, 'log', `-n${GIT_BOOTSTRAP_LIMIT}`, '--date=short', '--pretty=format:%H|%ad|%s'],
-      { encoding: 'utf8', timeout: 10000 },
+      { encoding: 'utf8', timeout: 25000 },
       (error, stdout, stderr) => {
         if (error) {
           updateBootstrapState({
