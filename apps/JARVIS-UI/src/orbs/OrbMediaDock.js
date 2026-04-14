@@ -8,13 +8,19 @@ function escapeHtml(value) {
 }
 
 function mediaKindFor(node) {
-  const type = `${node?.type || ''}`.toLowerCase();
+  const type = `${node?.type || node?.kind || ''}`.toLowerCase();
   const ext = `${node?.ext || ''}`.toLowerCase();
   if (type === 'audio' || ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'].includes(ext)) {
     return 'audio';
   }
   if (type === 'image' || ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'].includes(ext)) {
     return 'image';
+  }
+  if (type === 'document' || type === 'conversation' || type === 'text' || type === 'voice-live-node') {
+    return 'text';
+  }
+  if (`${node?.preview || node?.content || ''}`.trim()) {
+    return 'text';
   }
   return null;
 }
@@ -36,12 +42,12 @@ export class OrbMediaDock {
 
   show(node) {
     const kind = mediaKindFor(node);
-    if (!kind || !node?.sourcePath) {
+    if (!kind) {
       this.hide();
       return;
     }
-    const sourcePath = encodeURIComponent(node.sourcePath);
-    const src = `${this.serverOrigin}/api/bootstrap/archive-file?sourcePath=${sourcePath}`;
+    const sourcePath = node?.sourcePath ? encodeURIComponent(node.sourcePath) : null;
+    const src = sourcePath ? `${this.serverOrigin}/api/bootstrap/archive-file?sourcePath=${sourcePath}` : '';
     const title = escapeHtml(node?.title || node?.sourcePath || 'Archive media');
 
     if (kind === 'audio') {
@@ -63,7 +69,7 @@ export class OrbMediaDock {
           // Autoplay can be blocked; controls remain available for manual play.
         });
       }
-    } else {
+    } else if (kind === 'image') {
       this.element.innerHTML = `
         <h3>${title}</h3>
         <img src="${src}" alt="${title}" loading="lazy" />
@@ -74,6 +80,17 @@ export class OrbMediaDock {
           this.element.innerHTML = `<h3>${title}</h3><p>Unable to load image preview.</p>`;
         }, { once: true });
       }
+    } else {
+      const preview = escapeHtml(`${node?.preview || node?.content || 'No text preview available.'}`);
+      const response = `${node?.jarvisResponse || ''}`.trim();
+      const responseHtml = response
+        ? `<p class="orb-media-dock__response"><strong>Jarvis:</strong> ${escapeHtml(response)}</p>`
+        : '';
+      this.element.innerHTML = `
+        <h3>${title}</h3>
+        <p class="orb-media-dock__text">${preview}</p>
+        ${responseHtml}
+      `;
     }
     this.element.classList.add('orb-media-dock--visible');
     this.element.setAttribute('aria-hidden', 'false');

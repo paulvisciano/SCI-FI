@@ -465,6 +465,17 @@ body {
   z-index: 20;
 }
 
+.gateway-inspector--embedded {
+  position: static;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  margin-top: 0.45rem;
+  background: rgba(5, 12, 24, 0.6);
+  box-shadow: none;
+  z-index: auto;
+}
+
 .gateway-inspector__toggle {
   width: 100%;
   border: none;
@@ -822,4 +833,20 @@ body {
   margin: 0;
   font-size: 0.72rem;
   color: rgba(220, 244, 255, 0.82);
+}
+
+.orb-media-dock__text {
+  max-height: 15rem;
+  overflow: auto;
+  border: 1px solid rgba(126, 206, 255, 0.24);
+  border-radius: 0.55rem;
+  background: rgba(6, 14, 26, 0.72);
+  padding: 0.65rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.orb-media-dock__response {
+  margin-top: 0.45rem !important;
+  line-height: 1.45;
 }

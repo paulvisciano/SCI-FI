@@ -51,8 +51,9 @@ function inferOutput(payload) {
 
 export function createGatewayInspector(host, options = {}) {
   const serverOrigin = (options.serverOrigin || window.location.origin).replace(/\/$/, '');
+  const container = options.container || host;
   const panel = document.createElement('section');
-  panel.className = 'gateway-inspector';
+  panel.className = `gateway-inspector${container !== host ? ' gateway-inspector--embedded' : ''}`;
   panel.innerHTML = `
     <button type="button" class="gateway-inspector__toggle" aria-expanded="false">
       <span>Gateway Inspector</span>
@@ -79,7 +80,7 @@ export function createGatewayInspector(host, options = {}) {
       </div>
     </div>
   `;
-  host.append(panel);
+  container.append(panel);
 
   const toggleButton = panel.querySelector('.gateway-inspector__toggle');
   const body = panel.querySelector('.gateway-inspector__body');

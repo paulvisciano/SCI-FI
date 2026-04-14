@@ -15,11 +15,17 @@ function nodeContainerForObject(object3d) {
 }
 
 function isMediaPreviewNode(node) {
-  if (!node || node.kind !== 'raw-archive-node') {
+  if (!node) {
+    return false;
+  }
+  if (node.kind === 'voice-live-node') {
+    return true;
+  }
+  if (node.kind !== 'raw-archive-node') {
     return false;
   }
   const type = `${node.type || ''}`.toLowerCase();
-  return type === 'audio' || type === 'image';
+  return type === 'audio' || type === 'image' || type === 'document' || type === 'conversation';
 }
 
 export function attachOrbInteractions(canvas, eventBus, sceneManager, host, options = {}) {

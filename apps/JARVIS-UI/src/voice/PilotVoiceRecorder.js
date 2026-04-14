@@ -26,6 +26,9 @@ export function attachPilotVoiceRecorder(options) {
     pilotOrbEl,
     pilotHintEl,
     setVoiceStatus,
+    onRecordingStart,
+    onUploadAccepted,
+    onTranscriptionUpdate,
   } = options;
 
   let mediaRecorder = null;
@@ -76,6 +79,9 @@ export function attachPilotVoiceRecorder(options) {
 
       if (result.ok && result.filename) {
         setVoiceStatus('Processing…');
+        if (typeof onUploadAccepted === 'function') {
+          onUploadAccepted(result.filename);
+        }
         startTranscriptPoll(result.filename);
       } else {
         setVoiceStatus(result.message ? `Upload: ${result.message}` : 'Upload failed');
@@ -111,13 +117,32 @@ export function attachPilotVoiceRecorder(options) {
 
         if (data.status === 'transcribing' || data.status === 'processing') {
           setVoiceStatus(data.transcript ? `Agent: ${data.transcript.slice(0, 120)}…` : 'Transcribing…');
+          if (typeof onTranscriptionUpdate === 'function') {
+            onTranscriptionUpdate({
+              status: data.status,
+              transcript: data.transcript || '',
+            });
+          }
         } else if (data.status === 'done' && data.transcript) {
           clearPoll();
           const snippet = `${data.transcript}`.slice(0, 160);
           setVoiceStatus(data.jarvisResponse ? `Done · ${snippet}` : `Transcript · ${snippet}`);
+          if (typeof onTranscriptionUpdate === 'function') {
+            onTranscriptionUpdate({
+              status: 'done',
+              transcript: data.transcript || '',
+              jarvisResponse: data.jarvisResponse || '',
+            });
+          }
         } else if (data.status === 'error') {
           clearPoll();
           setVoiceStatus(data.error || 'Transcription error');
+          if (typeof onTranscriptionUpdate === 'function') {
+            onTranscriptionUpdate({
+              status: 'error',
+              error: data.error || 'Transcription error',
+            });
+          }
         } else if (data.status === 'idle') {
           setVoiceStatus('Waiting…');
         }
@@ -178,6 +203,9 @@ export function attachPilotVoiceRecorder(options) {
 
       mediaRecorder.start(2000);
       isRecording = true;
+      if (typeof onRecordingStart === 'function') {
+        onRecordingStart();
+      }
       pilotHud.classList.add('pilot-orb-hud--recording');
       if (pilotHintEl) {
         pilotHintEl.textContent = 'Jarvis · Press Spacebar to stop';

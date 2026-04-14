@@ -5,7 +5,9 @@ export class JarvisNavAPI {
     this.pinchDistance = null;
     this.flyVelocity = 0;
     this.flyAnimFrame = null;
+    this.pointerNorm = { x: 0, y: 0 };
     this.onWheel = (event) => {
+      this.updatePointerNorm(event.clientX, event.clientY);
       this.flyVelocity += event.deltaY * this.cameraController.scrollSpeed * 0.9;
       this.startFlyMomentum();
     };
@@ -21,6 +23,7 @@ export class JarvisNavAPI {
       }
       const dx = event.clientX - this.dragState.x;
       const dy = event.clientY - this.dragState.y;
+      this.updatePointerNorm(event.clientX, event.clientY);
       this.dragState = { x: event.clientX, y: event.clientY };
       this.cameraController.strafe(
         dx * 0.02,
@@ -34,9 +37,14 @@ export class JarvisNavAPI {
       event.preventDefault();
       if (event.touches.length === 1) {
         const touch = event.touches[0];
+        this.updatePointerNorm(touch.clientX, touch.clientY);
         this.dragState = { x: touch.clientX, y: touch.clientY };
       }
       if (event.touches.length === 2) {
+        this.updatePointerNorm(
+          (event.touches[0].clientX + event.touches[1].clientX) * 0.5,
+          (event.touches[0].clientY + event.touches[1].clientY) * 0.5
+        );
         this.pinchDistance = this.touchDistance(event.touches[0], event.touches[1]);
       }
     };
@@ -46,14 +54,19 @@ export class JarvisNavAPI {
         const touch = event.touches[0];
         const dx = touch.clientX - this.dragState.x;
         const dy = touch.clientY - this.dragState.y;
+        this.updatePointerNorm(touch.clientX, touch.clientY);
         this.dragState = { x: touch.clientX, y: touch.clientY };
         this.cameraController.strafe(dx * 0.02, -dy * 0.02);
       }
       if (event.touches.length === 2) {
+        this.updatePointerNorm(
+          (event.touches[0].clientX + event.touches[1].clientX) * 0.5,
+          (event.touches[0].clientY + event.touches[1].clientY) * 0.5
+        );
         const nextDistance = this.touchDistance(event.touches[0], event.touches[1]);
         if (this.pinchDistance != null) {
           const pinchDelta = (this.pinchDistance - nextDistance) * 0.03;
-          this.cameraController.flyTime(pinchDelta);
+          this.cameraController.flyTimeAt(pinchDelta, this.pointerNorm.x, this.pointerNorm.y);
         }
         this.pinchDistance = nextDistance;
       }
@@ -113,7 +126,7 @@ export class JarvisNavAPI {
       return;
     }
     const tick = () => {
-      this.cameraController.flyTime(this.flyVelocity);
+      this.cameraController.flyTimeAt(this.flyVelocity, this.pointerNorm.x, this.pointerNorm.y);
       this.flyVelocity *= 0.82;
       if (Math.abs(this.flyVelocity) < 0.0008) {
         this.flyVelocity = 0;
@@ -123,6 +136,13 @@ export class JarvisNavAPI {
       this.flyAnimFrame = window.requestAnimationFrame(tick);
     };
     this.flyAnimFrame = window.requestAnimationFrame(tick);
+  }
+
+  updatePointerNorm(clientX, clientY) {
+    const width = Math.max(window.innerWidth, 1);
+    const height = Math.max(window.innerHeight, 1);
+    this.pointerNorm.x = ((clientX / width) - 0.5) * 2;
+    this.pointerNorm.y = (0.5 - (clientY / height)) * 2;
   }
 
   update(distance) {

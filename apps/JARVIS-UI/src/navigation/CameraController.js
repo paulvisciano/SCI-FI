@@ -54,6 +54,21 @@ export class CameraController {
     );
   }
 
+  flyTimeAt(delta, anchorX = 0, anchorY = 0) {
+    this.flyTime(delta);
+    const factor = THREE.MathUtils.clamp(Math.abs(delta) * 2.8, 0.02, 0.24);
+    this.desiredPosition.x = THREE.MathUtils.clamp(
+      this.desiredPosition.x + anchorX * factor,
+      this.lateralBounds.min,
+      this.lateralBounds.max
+    );
+    this.desiredPosition.y = THREE.MathUtils.clamp(
+      this.desiredPosition.y + anchorY * factor * 0.7,
+      this.altitudeBounds.min,
+      this.altitudeBounds.max
+    );
+  }
+
   strafe(horizontalDelta, verticalDelta) {
     this.desiredPosition.x = THREE.MathUtils.clamp(
       this.desiredPosition.x + horizontalDelta,

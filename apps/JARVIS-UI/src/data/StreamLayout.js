@@ -6,11 +6,11 @@ const RIGHT_TYPES = new Set(['conversation', 'audio']);
 export class StreamLayout {
   constructor(config = {}) {
     this.config = {
-      streamOffset: config.streamOffset ?? 7.0,
-      orbitalRadius: config.orbitalRadius ?? 3.2,
-      daySpacing: config.daySpacing ?? 2.2,
+      streamOffset: config.streamOffset ?? 9.4,
+      orbitalRadius: config.orbitalRadius ?? 3.8,
+      daySpacing: config.daySpacing ?? 2.8,
       orbitalJitter: config.orbitalJitter ?? 0.56,
-      temporalDepthScale: config.temporalDepthScale ?? 5.0,
+      temporalDepthScale: config.temporalDepthScale ?? 6.2,
       maxTemporalDepth: config.maxTemporalDepth ?? 140,
       presentZOffset: config.presentZOffset ?? 0,
     };
@@ -63,29 +63,29 @@ export class StreamLayout {
       const radial = this.config.orbitalRadius + jitter + (localIndex % 4) * 0.16;
       // Older (deeper) nodes spread wider in X — perspective makes them appear at same screen density
       const depthFraction = totalDays <= 1 ? 0 : depthIndexFromPresent / (totalDays - 1);
-      const convergence = 1 + depthFraction * 0.65;
-      const laneSpread = Math.ceil(dayPopulation / 5);
+      const convergence = 1 + depthFraction * 0.72;
+      const laneSpread = Math.ceil(dayPopulation / 4);
       const laneIndex = (localIndex % Math.max(laneSpread, 1)) - (Math.max(laneSpread, 1) - 1) / 2;
-      const repulsion = Math.pow(localIndex + 1, 0.62);
+      const repulsion = Math.pow(localIndex + 1, 0.7);
 
       // Flatten Y — horizontal fan is dominant, vertical spread is secondary
       const yBand = Math.floor(localIndex / Math.max(laneSpread, 1));
       const depthTilt = Math.abs(zAnchor) * 0.04;
       const y = isAnchor
         ? depthTilt * 0.5
-        : (laneIndex * 0.34) + (side < 0 ? -0.1 : 0.1) + (yBand * 0.28) + (repulsion * 0.05) + depthTilt;
+        : (laneIndex * 0.46) + (side < 0 ? -0.1 : 0.1) + (yBand * 0.34) + (repulsion * 0.07) + depthTilt;
 
       const x = isAnchor
         ? 0
         : side * (
           this.config.streamOffset * convergence
-          + radial * 0.48
-          + laneIndex * 0.85
-          + repulsion * 0.38
+          + radial * 0.6
+          + laneIndex * 1.1
+          + repulsion * 0.56
         );
       const z = isAnchor
         ? zAnchor
-        : zAnchor - yBand * 0.48 - repulsion * 0.18 + laneIndex * 0.12;
+        : zAnchor - yBand * 0.62 - repulsion * 0.26 + laneIndex * 0.2;
 
       return {
         ...node,

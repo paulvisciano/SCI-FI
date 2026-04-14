@@ -29,7 +29,8 @@ export class JarvisApp {
     this.panels = createPanels(this.host, this.eventBus);
     this.overlay = createOverlays(this.host);
     this.gatewayInspector = createGatewayInspector(this.host, {
-      serverOrigin: this.loader.serverOrigin
+      serverOrigin: this.loader.serverOrigin,
+      container: this.panels.bodyElement,
     });
     this.stopInteractions = attachOrbInteractions(this.canvas, this.eventBus, this.sceneManager, this.host, {
       serverOrigin: this.loader.serverOrigin,
@@ -39,6 +40,7 @@ export class JarvisApp {
     this.hasMoreHistory = true;
     this.loadingMoreHistory = false;
     this.loadedNodeMap = new Map();
+    this.liveVoiceNodeId = null;
 
     this.stopVoiceRecorder = attachPilotVoiceRecorder({
       apiBase: this.loader.serverOrigin,
@@ -46,6 +48,9 @@ export class JarvisApp {
       pilotOrbEl: this.overlay.pilotOrbEl,
       pilotHintEl: this.overlay.pilotHintEl,
       setVoiceStatus: (text) => this.panels.setVoiceStatus(text),
+      onRecordingStart: () => this.createLiveVoiceNode(),
+      onUploadAccepted: () => this.updateLiveVoiceNode({ stage: 'transcribing' }),
+      onTranscriptionUpdate: (payload) => this.updateLiveVoiceNode(payload),
     });
 
     window.addEventListener('resize', () => this.sceneManager.resize());
@@ -121,6 +126,66 @@ export class JarvisApp {
     this.panels.setStatus(
       `Vite + modular scene online · ${positionedNodes.length} nodes · left ${layout.meta.leftCount} / right ${layout.meta.rightCount}`
     );
+  }
+
+  createLiveVoiceNode() {
+    const now = new Date();
+    const day = now.toISOString().slice(0, 10);
+    const id = `voice-live-${Date.now().toString(36)}`;
+    const node = {
+      id,
+      title: 'Live voice note',
+      stream: 'temporal',
+      kind: 'voice-live-node',
+      type: 'conversation',
+      day,
+      timestamp: now.toISOString(),
+      createdAt: now.toISOString(),
+      preview: 'Recording in progress…',
+      content: 'Recording in progress…',
+      jarvisResponse: '',
+      privacy: 'private',
+    };
+    this.liveVoiceNodeId = id;
+    this.loadedNodeMap.set(id, node);
+    this.refreshScene();
+  }
+
+  updateLiveVoiceNode(payload = {}) {
+    if (!this.liveVoiceNodeId || !this.loadedNodeMap.has(this.liveVoiceNodeId)) {
+      return;
+    }
+    const existing = this.loadedNodeMap.get(this.liveVoiceNodeId);
+    const next = { ...existing };
+    const status = `${payload.status || payload.stage || ''}`.toLowerCase();
+
+    if (status === 'transcribing' || status === 'processing') {
+      next.title = 'Voice note · Transcribing';
+      next.preview = payload.transcript
+        ? `Transcribing… ${payload.transcript}`.slice(0, 320)
+        : 'Transcribing…';
+      next.content = next.preview;
+    } else if (status === 'done') {
+      next.title = 'Voice note · Complete';
+      const transcript = `${payload.transcript || ''}`.trim();
+      const response = `${payload.jarvisResponse || ''}`.trim();
+      next.preview = transcript || 'Transcript captured.';
+      next.content = transcript || 'Transcript captured.';
+      next.jarvisResponse = response;
+    } else if (status === 'error') {
+      next.title = 'Voice note · Error';
+      const errorMessage = `${payload.error || 'Transcription failed'}`;
+      next.preview = errorMessage;
+      next.content = errorMessage;
+    } else {
+      next.title = 'Voice note · Recording';
+      next.preview = 'Recording in progress…';
+      next.content = 'Recording in progress…';
+    }
+
+    next.timestamp = new Date().toISOString();
+    this.loadedNodeMap.set(this.liveVoiceNodeId, next);
+    this.refreshScene();
   }
 
   async maybeLoadMoreHistory() {

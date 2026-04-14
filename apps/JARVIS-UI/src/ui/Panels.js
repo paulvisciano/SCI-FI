@@ -38,6 +38,7 @@ export function createPanels(host, eventBus) {
   });
 
   return {
+    bodyElement: body,
     setStatus(text) {
       statusEl.textContent = text || '';
     },
