@@ -10,6 +10,7 @@ import { createOverlays } from '../ui/Overlays.js';
 import { createGatewayInspector } from '../ui/GatewayInspector.js';
 import { createLodPolicy } from '../utils/LOD.js';
 import { attachPilotVoiceRecorder } from '../voice/PilotVoiceRecorder.js';
+import { OrbVideoRenderer } from '../orbs/OrbVideoRenderer.js';
 
 export class JarvisApp {
   constructor(host) {
@@ -42,15 +43,27 @@ export class JarvisApp {
     this.loadedNodeMap = new Map();
     this.liveVoiceNodeId = null;
 
+    // Dedicated video-sphere orb renderer mounted inside the pilot button
+    this.orbVideoRenderer = new OrbVideoRenderer(this.overlay.pilotOrbEl);
+    window.addEventListener('resize', () => this.orbVideoRenderer.resize());
+
     this.stopVoiceRecorder = attachPilotVoiceRecorder({
       apiBase: this.loader.serverOrigin,
       pilotHud: this.overlay.pilotHud,
       pilotOrbEl: this.overlay.pilotOrbEl,
       pilotHintEl: this.overlay.pilotHintEl,
       setVoiceStatus: (text) => this.panels.setVoiceStatus(text),
-      onRecordingStart: () => this.createLiveVoiceNode(),
+      onRecordingStart: () => {
+        this.orbVideoRenderer.setRecording(true);
+        this.createLiveVoiceNode();
+      },
       onUploadAccepted: () => this.updateLiveVoiceNode({ stage: 'transcribing' }),
-      onTranscriptionUpdate: (payload) => this.updateLiveVoiceNode(payload),
+      onTranscriptionUpdate: (payload) => {
+        if (payload.status === 'done' || payload.status === 'error') {
+          this.orbVideoRenderer.setRecording(false);
+        }
+        this.updateLiveVoiceNode(payload);
+      },
     });
 
     window.addEventListener('resize', () => this.sceneManager.resize());
@@ -85,6 +98,9 @@ export class JarvisApp {
   onlyTimelineNodes(nodes) {
     return nodes.filter((node) => {
       if (node.kind === 'day-anchor') {
+        return true;
+      }
+      if (node.kind === 'voice-live-node') {
         return true;
       }
       if (node.kind === 'commit-satellite') {
@@ -134,15 +150,15 @@ export class JarvisApp {
     const id = `voice-live-${Date.now().toString(36)}`;
     const node = {
       id,
-      title: 'Live voice note',
-      stream: 'temporal',
+      title: 'Recording…',
+      stream: 'temporal',         // right stream (Paul's side)
       kind: 'voice-live-node',
       type: 'conversation',
       day,
       timestamp: now.toISOString(),
       createdAt: now.toISOString(),
-      preview: 'Recording in progress…',
-      content: 'Recording in progress…',
+      preview: '',
+      content: '',
       jarvisResponse: '',
       privacy: 'private',
     };
@@ -160,27 +176,24 @@ export class JarvisApp {
     const status = `${payload.status || payload.stage || ''}`.toLowerCase();
 
     if (status === 'transcribing' || status === 'processing') {
-      next.title = 'Voice note · Transcribing';
-      next.preview = payload.transcript
-        ? `Transcribing… ${payload.transcript}`.slice(0, 320)
-        : 'Transcribing…';
+      next.title = 'Transcribing…';
+      next.preview = `${payload.transcript || ''}`.trim();
       next.content = next.preview;
     } else if (status === 'done') {
-      next.title = 'Voice note · Complete';
+      next.title = 'Voice note';
       const transcript = `${payload.transcript || ''}`.trim();
       const response = `${payload.jarvisResponse || ''}`.trim();
       next.preview = transcript || 'Transcript captured.';
-      next.content = transcript || 'Transcript captured.';
+      next.content = next.preview;
       next.jarvisResponse = response;
     } else if (status === 'error') {
-      next.title = 'Voice note · Error';
-      const errorMessage = `${payload.error || 'Transcription failed'}`;
-      next.preview = errorMessage;
-      next.content = errorMessage;
+      next.title = 'Error';
+      next.preview = `${payload.error || 'Transcription failed'}`;
+      next.content = next.preview;
     } else {
-      next.title = 'Voice note · Recording';
-      next.preview = 'Recording in progress…';
-      next.content = 'Recording in progress…';
+      next.title = 'Recording…';
+      next.preview = '';
+      next.content = '';
     }
 
     next.timestamp = new Date().toISOString();
@@ -223,6 +236,7 @@ export class JarvisApp {
     if (this.stopVoiceRecorder) {
       this.stopVoiceRecorder();
     }
+    this.orbVideoRenderer?.destroy();
     this.nav.destroy();
     this.gatewayInspector.destroy();
     window.cancelAnimationFrame(this.raf);

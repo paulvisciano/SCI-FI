@@ -423,6 +423,138 @@ function createDayAnchorLabelSprite(node) {
   return sprite;
 }
 
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) { lines.push(line); }
+  return lines;
+}
+
+function statusStyleFor(node) {
+  const title = `${node?.title || ''}`.toLowerCase();
+  const isDone = Boolean(`${node?.jarvisResponse || ''}`.trim()) || title === 'voice note';
+  if (title.includes('error'))    { return { dot: '✕', color: '#ff6666', border: 'rgba(255,80,80,0.7)',   pulse: false }; }
+  if (isDone)                     { return { dot: '✓', color: '#66ffcc', border: 'rgba(80,240,160,0.7)',  pulse: false }; }
+  if (title.includes('transcrib')){ return { dot: '◈', color: '#ffcc44', border: 'rgba(255,190,50,0.7)', pulse: true  }; }
+  return                            { dot: '●', color: '#ff8844', border: 'rgba(255,120,50,0.8)',         pulse: true  }; // recording
+}
+
+function createVoiceNodeCard(node) {
+  const style    = statusStyleFor(node);
+  const title    = `${node?.title || 'Voice note'}`;
+  const preview  = `${node?.preview || ''}`.trim();
+  const response = `${node?.jarvisResponse || ''}`.trim();
+
+  const W   = 720;
+  const PAD = 26;
+  const LH_BODY = 32;
+  const LH_RESP = 30;
+
+  const FONT_LABEL = '700 18px Inter,sans-serif';
+  const FONT_TITLE = '700 28px Inter,sans-serif';
+  const FONT_BODY  = '400 22px Inter,sans-serif';
+  const FONT_RESP  = '400 21px Inter,sans-serif';
+
+  const measure = document.createElement('canvas').getContext('2d');
+  measure.font = FONT_BODY;
+  const previewLines  = preview  ? wrapText(measure, preview,  W - PAD * 2).slice(0, 6) : [];
+  measure.font = FONT_RESP;
+  const responseLines = response ? wrapText(measure, response, W - PAD * 2).slice(0, 6) : [];
+
+  // Height: title + (you section) + (jarvis section)
+  let H = PAD + 36; // title
+  if (previewLines.length)  { H += 20 + previewLines.length * LH_BODY + 8; }
+  if (responseLines.length) { H += 20 + responseLines.length * LH_RESP + 8; }
+  H += PAD;
+  H = Math.max(H, 90);
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Card background — darker, more opaque
+  ctx.fillStyle = 'rgba(4, 10, 20, 0.96)';
+  ctx.strokeStyle = style.border;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(2, 2, W - 4, H - 4, 18);
+  ctx.fill();
+  ctx.stroke();
+
+  // Status title
+  ctx.font = FONT_TITLE;
+  ctx.fillStyle = style.color;
+  ctx.fillText(`${style.dot}  ${title}`, PAD, PAD + 28);
+
+  let y = PAD + 36;
+
+  // "YOU" section
+  if (previewLines.length) {
+    y += 14;
+    ctx.font = FONT_LABEL;
+    ctx.fillStyle = 'rgba(140, 200, 255, 0.55)';
+    ctx.fillText('YOU', PAD, y);
+    y += 6;
+    ctx.strokeStyle = 'rgba(140, 200, 255, 0.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(W - PAD, y);
+    ctx.stroke();
+    y += 18;
+    ctx.font = FONT_BODY;
+    ctx.fillStyle = 'rgba(225, 248, 255, 0.95)';
+    for (const line of previewLines) {
+      ctx.fillText(line, PAD, y);
+      y += LH_BODY;
+    }
+  }
+
+  // "JARVIS" section
+  if (responseLines.length) {
+    y += 14;
+    ctx.font = FONT_LABEL;
+    ctx.fillStyle = 'rgba(255, 195, 100, 0.55)';
+    ctx.fillText('JARVIS', PAD, y);
+    y += 6;
+    ctx.strokeStyle = 'rgba(255, 195, 100, 0.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD, y);
+    ctx.lineTo(W - PAD, y);
+    ctx.stroke();
+    y += 18;
+    ctx.font = FONT_RESP;
+    ctx.fillStyle = 'rgba(255, 225, 170, 0.97)';
+    for (const line of responseLines) {
+      ctx.fillText(line, PAD, y);
+      y += LH_RESP;
+    }
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false })
+  );
+  const aspect  = W / H;
+  const spriteH = 2.0 + (previewLines.length + responseLines.length) * 0.18;
+  sprite.scale.set(spriteH * aspect, spriteH, 1);
+  sprite.position.set(spriteH * aspect * 0.52 + 0.5, 0.1, 0);
+  return sprite;
+}
+
 function categoryForNode(node) {
   const type = `${node.type || node.kind || node.stream || ''}`.toLowerCase();
   const title = `${node.title || ''}`.toLowerCase();
@@ -472,7 +604,8 @@ function sizeForNode(node, category) {
   }
   const variance = Math.abs(hash % 5) * 0.035;
   const categoryBoost = category === 'commit' ? 0.08 : 0.12;
-  return THREE.MathUtils.clamp(1.05 + variance + Math.min(base * 0.04, 0.16) + categoryBoost, 1.0, 1.5);
+  const baseScale = THREE.MathUtils.clamp(1.05 + variance + Math.min(base * 0.04, 0.16) + categoryBoost, 1.0, 1.5);
+  return baseScale * 2;
 }
 
 export const OrbFactory = {
@@ -594,8 +727,12 @@ export const OrbFactory = {
     }
 
     if (isDayAnchor) {
-      const labelSprite = createDayAnchorLabelSprite(node);
-      group.add(labelSprite);
+      group.add(createDayAnchorLabelSprite(node));
+    }
+
+    const isLiveVoice = `${node?.kind || ''}` === 'voice-live-node';
+    if (isLiveVoice) {
+      group.add(createVoiceNodeCard(node));
     }
 
     const overlay = new THREE.Sprite(
@@ -621,6 +758,7 @@ export const OrbFactory = {
       category,
       scale: nodeScale,
       isDayAnchor,
+      isLiveVoice,
     };
     return group;
   },
@@ -631,9 +769,34 @@ export const OrbFactory = {
       return;
     }
 
-    lod.mesh.material.emissiveIntensity = 0;
+    // Live voice node: pulse while active, settle once response arrives
+    if (lod.isLiveVoice) {
+      const node  = nodeGroup.userData.node;
+      const style = statusStyleFor(node);
+      lod.border.visible  = false;
+      lod.icon.visible    = false;
+      lod.overlay.visible = false;
+      if (style.pulse) {
+        const p = 0.5 + Math.sin(elapsed * 3.5) * 0.4;
+        lod.mesh.material.emissiveIntensity = p;
+        lod.mesh.material.color.setHex(0xff7733);
+        lod.mesh.material.emissive.setHex(0xff5500);
+        nodeGroup.scale.setScalar(1 + Math.sin(elapsed * 3.5) * 0.08);
+      } else {
+        // Response received — settle to calm green glow, no scale jitter
+        lod.mesh.material.emissiveIntensity = 0.35;
+        lod.mesh.material.color.setHex(0x44ffaa);
+        lod.mesh.material.emissive.setHex(0x00cc66);
+        nodeGroup.scale.setScalar(1);
+      }
+    } else {
+      lod.mesh.material.emissiveIntensity = 0;
+      nodeGroup.scale.setScalar(1);
+    }
 
     const distance = cameraPosition.distanceTo(nodeGroup.position);
+    if (lod.isLiveVoice) { return; } // card handles all visuals for live nodes
+
     const scale = lod.scale || 1;
     const iconScale = THREE.MathUtils.clamp(distance * 0.0085, 0.12, 0.28) * scale;
     lod.icon.scale.set(iconScale, iconScale, 1);

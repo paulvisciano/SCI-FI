@@ -2,43 +2,39 @@ export function createPanels(host, eventBus) {
   const drawer = document.createElement('aside');
   drawer.className = 'jarvis-info-drawer';
   drawer.innerHTML = `
-    <button type="button" class="jarvis-info-drawer__toggle" aria-expanded="false">
-      <span>Timeline Info</span>
-      <span class="jarvis-info-drawer__chevron">+</span>
-    </button>
-    <div class="jarvis-info-drawer__body" hidden>
+    <div class="jarvis-info-drawer__body">
       <p id="jarvis-drawer-status">Booting…</p>
       <p id="jarvis-drawer-voice-status" class="jarvis-info-drawer__voice"></p>
       <p id="jarvis-left-stream-summary">Jarvis stream calibrating…</p>
       <p id="jarvis-right-stream-summary">Paul stream calibrating…</p>
-      <p id="jarvis-temporal-position">Pointer 0.000, 0.000</p>
     </div>
+    <button type="button" class="jarvis-info-drawer__toggle" aria-expanded="false" aria-label="Toggle timeline info">
+      <span class="jarvis-info-drawer__chevron">›</span>
+      <span>Info</span>
+    </button>
   `;
   host.append(drawer);
 
   const toggleButton = drawer.querySelector('.jarvis-info-drawer__toggle');
-  const body = drawer.querySelector('.jarvis-info-drawer__body');
   const chevron = drawer.querySelector('.jarvis-info-drawer__chevron');
   const statusEl = drawer.querySelector('#jarvis-drawer-status');
   const voiceStatusEl = drawer.querySelector('#jarvis-drawer-voice-status');
   const leftSummary = drawer.querySelector('#jarvis-left-stream-summary');
   const rightSummary = drawer.querySelector('#jarvis-right-stream-summary');
-  const temporalPosition = drawer.querySelector('#jarvis-temporal-position');
 
   let expanded = false;
   toggleButton.addEventListener('click', () => {
     expanded = !expanded;
-    body.hidden = !expanded;
+    drawer.classList.toggle('jarvis-info-drawer--open', expanded);
     toggleButton.setAttribute('aria-expanded', String(expanded));
-    chevron.textContent = expanded ? '−' : '+';
+    chevron.textContent = expanded ? '‹' : '›';
   });
 
-  const unsubscribe = eventBus.on('orb:hover', ({ x, y }) => {
-    temporalPosition.textContent = `Pointer ${x}, ${y}`;
-  });
+  // No-op unsubscribe since we removed the hover position display
+  const unsubscribe = eventBus.on('orb:hover', () => {});
 
   return {
-    bodyElement: body,
+    bodyElement: drawer.querySelector('.jarvis-info-drawer__body'),
     setStatus(text) {
       statusEl.textContent = text || '';
     },

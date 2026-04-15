@@ -21,12 +21,9 @@ export class SceneManager {
     this.clock = new THREE.Clock();
     this.cameraController = new CameraController(this.camera);
 
-    this.neuroOrb = OrbFactory.createPrimaryOrb();
-    this.neuroOrb.scale.setScalar(0.9);
-    this.hudOrbOffset = new THREE.Vector3(0, -2.9, -5.6);
+    this.neuroOrb = null; // Orb lives in its own dedicated renderer (OrbVideoRenderer)
     this.timelineNodesGroup = null;
     this.timelineNodeOrbs = [];
-    this.scene.add(this.neuroOrb);
     this.scene.add(OrbFactory.createAmbientParticles());
     this.addDefaultLights();
   }
@@ -82,7 +79,7 @@ export class SceneManager {
     }
     const focusOffset = new THREE.Vector3(0, 1.15, 4.8);
     const targetCameraPosition = nodeOrb.position.clone().add(focusOffset);
-    this.cameraController.flyTo(targetCameraPosition);
+    this.cameraController.flyToNode(targetCameraPosition);
   }
 
   resize() {
@@ -95,11 +92,6 @@ export class SceneManager {
     const dt = this.clock.getDelta();
     const elapsed = this.clock.elapsedTime;
     this.cameraController.update(dt);
-    OrbFactory.animatePrimaryOrb(this.neuroOrb, elapsed);
-    if (this.neuroOrb) {
-      const hudOffset = this.hudOrbOffset.clone().applyQuaternion(this.camera.quaternion);
-      this.neuroOrb.position.copy(this.camera.position).add(hudOffset);
-    }
     for (const nodeOrb of this.timelineNodeOrbs) {
       if (typeof nodeOrb.userData.baseY === 'number') {
         nodeOrb.position.y = nodeOrb.userData.baseY + Math.sin(elapsed * 0.8 + nodeOrb.userData.floatPhase) * 0.11;

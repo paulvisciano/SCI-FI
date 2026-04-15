@@ -54,38 +54,40 @@ export class StreamLayout {
         rightCount += 1;
       }
 
+      // Per-type counter key — nodes of the same type on the same day share a Y band
+      const typeKey = isAnchor ? dayKey : `${dayKey}:${this.typeBandFor(node)}`;
+      const localIndex = orbitCounters.get(typeKey) || 0;
+      orbitCounters.set(typeKey, localIndex + 1);
+
+      // X spread still uses side lane population for horizontal density
       const laneKey = `${dayKey}:${side}`;
-      const orbitCounterKey = isAnchor ? dayKey : laneKey;
-      const localIndex = orbitCounters.get(orbitCounterKey) || 0;
-      orbitCounters.set(orbitCounterKey, localIndex + 1);
-      const dayPopulation = Math.max((isAnchor ? dayCounts.get(dayKey) : laneCounts.get(laneKey)) || 1, 1);
+      const lanePopulation = Math.max((isAnchor ? dayCounts.get(dayKey) : laneCounts.get(laneKey)) || 1, 1);
       const jitter = Math.sin(index * 2.173) * this.config.orbitalJitter;
       const radial = this.config.orbitalRadius + jitter + (localIndex % 4) * 0.16;
-      // Older (deeper) nodes spread wider in X — perspective makes them appear at same screen density
       const depthFraction = totalDays <= 1 ? 0 : depthIndexFromPresent / (totalDays - 1);
       const convergence = 1 + depthFraction * 0.72;
-      const laneSpread = Math.ceil(dayPopulation / 4);
+      const laneSpread = Math.ceil(lanePopulation / 4);
       const laneIndex = (localIndex % Math.max(laneSpread, 1)) - (Math.max(laneSpread, 1) - 1) / 2;
-      const repulsion = Math.pow(localIndex + 1, 0.7);
 
-      // Flatten Y — horizontal fan is dominant, vertical spread is secondary
-      const yBand = Math.floor(localIndex / Math.max(laneSpread, 1));
+      // Y: type-band center + small intra-band grid (col/row within type group)
       const depthTilt = Math.abs(zAnchor) * 0.04;
+      const bandCenter = isAnchor ? 0 : this.typeBandFor(node);
+      const col = (localIndex % 3) - 1;   // −1, 0, +1 columns
+      const row = Math.floor(localIndex / 3);
       const y = isAnchor
         ? depthTilt * 0.5
-        : (laneIndex * 0.46) + (side < 0 ? -0.1 : 0.1) + (yBand * 0.34) + (repulsion * 0.07) + depthTilt;
+        : bandCenter + col * 0.58 + row * 0.42 + depthTilt;
 
       const x = isAnchor
         ? 0
         : side * (
           this.config.streamOffset * convergence
-          + radial * 0.6
-          + laneIndex * 1.1
-          + repulsion * 0.56
+          + radial * 0.55
+          + laneIndex * 0.9
         );
       const z = isAnchor
         ? zAnchor
-        : zAnchor - yBand * 0.62 - repulsion * 0.26 + laneIndex * 0.2;
+        : zAnchor + laneIndex * 0.18 - row * 0.28;
 
       return {
         ...node,
@@ -109,6 +111,27 @@ export class StreamLayout {
         rightCount,
       },
     };
+  }
+
+  // Maps node type to a Y band center so same-type orbs cluster vertically
+  typeBandFor(node) {
+    const type = `${node.type || node.kind || ''}`.toLowerCase();
+    const side  = this.sideFor(node);
+
+    if (side > 0) {
+      // Right stream — Paul's archive
+      if (type === 'audio' || type.includes('voice'))                    { return 5.5;  }
+      if (type === 'image' || type.includes('photo'))                    { return 2.5;  }
+      if (type === 'video')                                              { return 2.5;  }
+      if (type === 'conversation' || type.includes('chat'))              { return -0.5; }
+      if (type === 'document' || type === 'text' || type.includes('file')) { return -3.5; }
+      return 0;
+    }
+    // Left stream — Jarvis memory
+    if (type.includes('commit'))                                         { return 4.0;  }
+    if (type.includes('learn'))                                          { return 0.5;  }
+    if (type.includes('reflect') || type.includes('memory'))             { return -3.0; }
+    return 0;
   }
 
   sideFor(node) {
